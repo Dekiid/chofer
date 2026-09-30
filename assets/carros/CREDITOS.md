@@ -1,6 +1,6 @@
 # Créditos das fotos dos carros
 
-Todas as fotos vêm do Wikimedia Commons. Foram alteradas: o fundo foi removido (só fica o carro, em WebP transparente), com uma sombra de contacto por baixo das rodas, e todas têm o mesmo enquadramento em 16:9 (1280 × 720), com o carro a 80% da largura.
+Todas as fotos vêm do Wikimedia Commons. Foram alteradas: o fundo foi removido (só fica o carro, em WebP transparente), com uma sombra de contacto por baixo das rodas, e todas têm o mesmo enquadramento em 16:9 (1280 × 720), com o carro a 70% da largura.
 As licenças CC BY e CC BY-SA exigem o nome do autor e a licença junto da foto; a app mostra-os por baixo do carro.
 
 | Ficheiro | Modelo | Autor | Licença | Original |
