@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Carro3D } from '@/components/carro-3d';
 import { Mapa } from '@/components/mapa';
 import { BotaoPrincipal, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -36,7 +37,17 @@ export default function Inicio() {
 
   return (
     <View style={s.ecra}>
-      <Mapa origem={pedido.origem} />
+      {modo === 'motorista' ? (
+        <View style={[s.ecra3d, { backgroundColor: cores.backgroundElement }]}>
+          <Carro3D viatura={pedido.viatura} style={s.carro3d} />
+          <View style={s.legenda3d} pointerEvents="none">
+            <Text style={s.nome3d}>{nomeViatura(pedido.viatura)}</Text>
+            <Text style={s.descricao}>{pedido.viatura.tipo}</Text>
+          </View>
+        </View>
+      ) : (
+        <Mapa origem={pedido.origem} />
+      )}
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <Text style={s.marca}>Chofer</Text>
@@ -107,6 +118,10 @@ export default function Inicio() {
 function estilos(c: Palette) {
   return StyleSheet.create({
     ecra: { flex: 1, backgroundColor: c.background },
+    ecra3d: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    carro3d: { position: 'absolute', top: 120, left: 0, right: 0, height: '34%' },
+    legenda3d: { position: 'absolute', top: 64, left: 0, right: 0, alignItems: 'center' },
+    nome3d: { color: c.text, fontSize: 24, fontWeight: '800' },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three },
     marca: {
       alignSelf: 'flex-start',
@@ -129,7 +144,7 @@ function estilos(c: Palette) {
     destino: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, marginBottom: Spacing.two },
     textoDestino: { color: c.text, fontSize: 18, fontWeight: '600' },
     pergunta: { color: c.text, fontSize: 20, fontWeight: '700', marginBottom: Spacing.two },
-    lista: { marginBottom: Spacing.three, maxHeight: 340 },
+    lista: { marginBottom: Spacing.three, maxHeight: 250 },
     cartao: { flexDirection: 'row', alignItems: 'center', padding: Spacing.three, borderRadius: Radius.card, borderWidth: 2, borderColor: 'transparent' },
     cartaoAtivo: { borderColor: c.primary, backgroundColor: c.backgroundElement },
     nome: { color: c.text, fontSize: 17, fontWeight: '700' },
