@@ -157,7 +157,7 @@ const MODOS: { id: Modo; nome: string; pergunta: string }[] = [
 function disponivel(v: Viatura, modo: Modo): boolean {
   if (modo === 'aluguer') return v.porDiaMzn !== undefined;
   if (modo === 'casamento') return v.casamento !== undefined;
-  return true;
+  return !v.soCasamento;
 }
 
 function estilos(c: Palette) {

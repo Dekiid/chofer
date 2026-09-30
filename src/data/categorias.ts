@@ -23,6 +23,8 @@ export type Viatura = {
   porDiaMzn?: number;
   /** Preços para casamentos, com motorista; sem valor, o carro não aparece no sector de casamentos. */
   casamento?: PrecoCasamento;
+  /** Carros de casamento que não fazem viagens nem aluguer. */
+  soCasamento?: boolean;
 };
 
 /** Preço por casamento (o dia do evento), definido pelo dono do carro. */
@@ -62,7 +64,25 @@ export const VIATURAS: Viatura[] = [
   { id: 'range-rover-sport', foto: require('../../assets/carros/range-rover-sport.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC0', 'Land_Rover_RANGE_ROVER_SPORT_DYNAMIC_HSE_D300_(L461)_front.jpg'), marca: 'Range Rover', modelo: 'Sport', tipo: 'SUV de luxo', lugares: 5, porKmMzn: 150, chegadaMin: 9, porDiaMzn: 12500 },
   { id: 'mercedes-classe-s', foto: require('../../assets/carros/mercedes-classe-s.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W223_1X7A7340.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe S', tipo: 'Topo de gama', lugares: 4, porKmMzn: 180, chegadaMin: 12, porDiaMzn: 15000 },
   { id: 'vw-fusca', foto: require('../../assets/carros/vw-fusca.jpg'), credito: commons('Rutger van der Maar', 'CC BY 2.0', 'Volkswagen_Käfer_front.jpg'), marca: 'Volkswagen', modelo: 'Fusca', tipo: 'Clássico', lugares: 4, porKmMzn: 70, chegadaMin: 10, porDiaMzn: 4000, casamento: { semDecoracaoMzn: 6000, comDecoracaoMzn: 8500, foto: require('../../assets/casamento/vw-fusca.jpg'), credito: commons('Asurnipal', 'CC BY-SA 4.0', 'Dornbirn-Volkswagen_Beetle_wedding-02ASD.jpg') } },
+  // Carros de casamento, com foto genérica já decorada.
+  casamentoGenerico('rolls-royce-classico', 'Rolls-Royce', 'clássico', 'Clássico de luxo', 4, 28000, 32000, require('../../assets/casamento/rolls-royce-classico.jpg'), commons('JoachimKohler-HB', 'CC BY-SA 4.0', 'Rolls-Royce_als_Hochzeitsauto_in_Oldenburg_(2014).jpg')),
+  casamentoGenerico('lincoln-limusine', 'Lincoln', 'Town Car limusine', 'Limusine', 8, 22000, 26000, require('../../assets/casamento/lincoln-limusine.jpg'), commons('Karelj', 'CC BY-SA 4.0', 'Wedding_car_centrum_Fier_Albania_2018_1.jpg')),
+  casamentoGenerico('toyota-venza', 'Toyota', 'Venza', 'SUV', 5, 7000, 9500, require('../../assets/casamento/toyota-venza.jpg'), commons('Adoscam', 'CC BY-SA 4.0', 'Wedding_car_in_Cotonou_Bénin.jpg')),
 ];
+
+function casamentoGenerico(
+  id: string,
+  marca: string,
+  modelo: string,
+  tipo: string,
+  lugares: number,
+  semDecoracaoMzn: number,
+  comDecoracaoMzn: number,
+  foto: ImageSourcePropType,
+  credito: CreditoFoto,
+): Viatura {
+  return { id, marca, modelo, tipo, lugares, porKmMzn: 0, chegadaMin: 0, foto, credito, soCasamento: true, casamento: { semDecoracaoMzn, comDecoracaoMzn, foto, credito } };
+}
 
 export function commons(autor: string, licenca: string, ficheiro: string): CreditoFoto {
   return { autor, licenca, pagina: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(ficheiro)}` };
