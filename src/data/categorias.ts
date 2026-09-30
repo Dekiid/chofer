@@ -38,6 +38,7 @@ export const VIATURAS: Viatura[] = [
   { id: 'bmw-x5', foto: require('../../assets/carros/bmw-x5.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC BY-SA 4.0', 'BMW_X5_xDrive35d_(G05)_front.jpg'), marca: 'BMW', modelo: 'X5', tipo: 'SUV', lugares: 5, porKmMzn: 120, chegadaMin: 7 },
   { id: 'range-rover-sport', foto: require('../../assets/carros/range-rover-sport.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC0', 'Land_Rover_RANGE_ROVER_SPORT_DYNAMIC_HSE_D300_(L461)_front.jpg'), marca: 'Range Rover', modelo: 'Sport', tipo: 'SUV de luxo', lugares: 5, porKmMzn: 150, chegadaMin: 9 },
   { id: 'mercedes-classe-s', foto: require('../../assets/carros/mercedes-classe-s.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W223_1X7A7340.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe S', tipo: 'Topo de gama', lugares: 4, porKmMzn: 180, chegadaMin: 12 },
+  { id: 'vw-fusca', foto: require('../../assets/carros/vw-fusca.jpg'), credito: commons('Rutger van der Maar', 'CC BY 2.0', 'Volkswagen_Käfer_front.jpg'), marca: 'Volkswagen', modelo: 'Fusca', tipo: 'Clássico', lugares: 4, porKmMzn: 70, chegadaMin: 10 },
 ];
 
 function commons(autor: string, licenca: string, ficheiro: string): CreditoFoto {
