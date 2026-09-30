@@ -7,12 +7,19 @@ import { COMISSAO, formatarMzn } from '@/data/categorias';
 import { totalPago, type ViagemFeita } from '@/state/conta';
 import { PAGAMENTOS } from '@/state/pedido';
 
+export const eReserva = (v: ViagemFeita) => v.tipo === 'aluguer' || v.tipo === 'casamento';
+/** "Aluguer", "Casamento com decoração" ou "Casamento sem decoração". */
+export const descricaoReserva = (v: ViagemFeita) => (v.tipo === 'aluguer' ? 'Aluguer' : `Casamento ${v.decoracao === 'com' ? 'com' : 'sem'} decoração`);
+
 export const nomePagamento = (v: ViagemFeita) => PAGAMENTOS.find((p) => p.id === v.pagamento)?.nome ?? v.pagamento;
 export const numeroRecibo = (v: ViagemFeita) => `CH-${v.criadaEm.getFullYear()}-${v.id.replace(/\D/g, '').slice(-6).padStart(6, '0')}`;
 
 /** Linhas do recibo, pela ordem: o que o cliente pagou e porquê. */
 export function linhasRecibo(v: ViagemFeita): { nome: string; valor: number }[] {
-  const linhas = [{ nome: `Viagem · ${v.km.toFixed(1).replace('.', ',')} km`, valor: v.precoMzn - v.taxaImediatoMzn }];
+  const dias = v.dias ?? 1;
+  const linhas = eReserva(v)
+    ? [{ nome: `${descricaoReserva(v)} · ${dias} × ${formatarMzn(v.precoMzn / dias)}`, valor: v.precoMzn }]
+    : [{ nome: `Viagem · ${v.km.toFixed(1).replace('.', ',')} km`, valor: v.precoMzn - v.taxaImediatoMzn }];
   if (v.taxaImediatoMzn) linhas.push({ nome: 'Taxa de pedido imediato', valor: v.taxaImediatoMzn });
   if (v.descontoMzn) linhas.push({ nome: `Desconto${v.promo ? ` (${v.promo})` : ''}`, valor: -v.descontoMzn });
   if (v.gorjetaMzn) linhas.push({ nome: 'Gorjeta para o motorista', valor: v.gorjetaMzn });
@@ -23,7 +30,7 @@ const escapar = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<':
 
 function html(v: ViagemFeita): string {
   const agora = new Date();
-  const percurso = [v.origem, ...v.paragens, v.destino].map((l) => `<li>${escapar(l.nome)}</li>`).join('');
+  const percurso = (eReserva(v) ? [v.origem] : [v.origem, ...v.paragens, v.destino]).map((l) => `<li>${escapar(l.nome)}</li>`).join('');
   const linhas = linhasRecibo(v)
     .map((l) => `<tr><td>${escapar(l.nome)}</td><td class="v">${l.valor < 0 ? '−' : ''}${formatarMzn(Math.abs(l.valor))}</td></tr>`)
     .join('');

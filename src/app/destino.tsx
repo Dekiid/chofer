@@ -20,7 +20,8 @@ export default function Destino() {
   const pedido = usePedido();
   const conta = useConta();
   // campo=origem abre na recolha; guardar=casa|trabalho|aeroporto escolhe a morada de um local guardado e volta atrás.
-  const params = useLocalSearchParams<{ campo?: string; guardar?: string }>();
+  // para=reserva volta ao aluguer ou casamento depois de escolher o local.
+  const params = useLocalSearchParams<{ campo?: string; guardar?: string; para?: string }>();
   const soGuardar = LOCAIS.find((l) => l.tipo === params.guardar)?.tipo;
   const [campo, setCampo] = useState<Campo>({ tipo: params.campo === 'origem' ? 'origem' : 'destino' });
   const [texto, setTexto] = useState('');
@@ -51,6 +52,10 @@ export default function Destino() {
     }
     if (campo.tipo === 'origem') {
       pedido.setOrigem(l);
+      if (params.para === 'reserva') {
+        router.back();
+        return;
+      }
       // Se o destino já estava escolhido (veio da confirmação), volta logo para lá.
       if (pedido.destino) router.replace('/confirmar');
       else editar({ tipo: 'destino' });

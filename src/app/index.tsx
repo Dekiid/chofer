@@ -61,10 +61,16 @@ export default function Inicio() {
     }
   }
 
+  // Aluguer e casamento seguem o mesmo fluxo, pagos à diária.
+  function reservar(m: 'aluguer' | 'casamento') {
+    pedido.setReserva({ modo: m, decoracao, inicio: null, dias: 1 });
+    router.push('/reserva');
+  }
+
   function preco(v: Viatura): { valor: number; unidade: string; descricao: string } {
     if (modo === 'aluguer') return { valor: v.porDiaMzn ?? 0, unidade: '/dia', descricao: `${v.tipo} · ${v.lugares} lugares · sem motorista` };
     if (modo === 'casamento' && v.casamento)
-      return { valor: precoCasamento(v.casamento, decoracao), unidade: '/evento', descricao: `${v.tipo} · ${v.lugares} lugares` };
+      return { valor: precoCasamento(v.casamento, decoracao), unidade: '/dia', descricao: `${v.tipo} · ${v.lugares} lugares` };
     return { valor: v.porKmMzn, unidade: '/km', descricao: `${v.tipo} · ${v.lugares} lugares · chega em ${v.chegadaMin} min` };
   }
 
@@ -174,10 +180,10 @@ export default function Inicio() {
               </Pressable>
             </>
           ) : modo === 'aluguer' ? (
-            <BotaoPrincipal texto={`Alugar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
+            <BotaoPrincipal texto={`Alugar ${nomeViatura(pedido.viatura)}`} onPress={() => reservar('aluguer')} />
           ) : (
             <>
-              <BotaoPrincipal texto={`Reservar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
+              <BotaoPrincipal texto={`Reservar ${nomeViatura(pedido.viatura)}`} onPress={() => reservar('casamento')} />
               <Text style={[s.descricao, s.notaCasamento]}>
                 {decoracao === 'com' ? 'Com motorista e decoração de flores e fitas.' : 'Com motorista, sem decoração.'}
               </Text>

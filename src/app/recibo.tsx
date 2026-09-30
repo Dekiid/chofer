@@ -8,7 +8,8 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
-import { linhasRecibo, nomePagamento, numeroRecibo, partilharRecibo } from '@/data/recibo';
+import { descricaoReserva, eReserva, linhasRecibo, nomePagamento, numeroRecibo, partilharRecibo } from '@/data/recibo';
+import { textoDias } from '@/data/reserva';
 import { totalPago, useConta } from '@/state/conta';
 import { Text } from '@/components/texto';
 
@@ -20,7 +21,7 @@ export default function Recibo() {
   const [aGerar, setAGerar] = useState(false);
   if (!v) return <Redirect href="/viagens" />;
 
-  const percurso = [v.origem, ...v.paragens, v.destino];
+  const percurso = eReserva(v) ? [v.origem] : [v.origem, ...v.paragens, v.destino];
 
   async function pdf() {
     setAGerar(true);
@@ -54,6 +55,7 @@ export default function Recibo() {
             </View>
           ))}
           <Text style={[s.secundario, { marginTop: Spacing.two }]}>
+            {eReserva(v) ? `${descricaoReserva(v)} · ${textoDias(v.dias ?? 1)} · ` : ''}
             {v.viatura} · {v.motorista.nome} · {v.motorista.matricula}
           </Text>
         </View>

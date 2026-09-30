@@ -7,6 +7,8 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
+import { descricaoReserva, eReserva } from '@/data/recibo';
+import { textoDias } from '@/data/reserva';
 import { totalPago, useConta, type ViagemFeita } from '@/state/conta';
 import { Text } from '@/components/texto';
 
@@ -35,7 +37,7 @@ export default function Viagens() {
         <Text style={[s.estado, v.estado === 'cancelada' && { color: cores.textSecondary }]}>{ESTADOS[v.estado]}</Text>
       </View>
       <Text style={s.percurso} numberOfLines={1}>
-        {v.origem.nome} → {v.destino.nome}
+        {eReserva(v) ? `${descricaoReserva(v)} · ${textoDias(v.dias ?? 1)} · ${v.origem.nome}` : `${v.origem.nome} → ${v.destino.nome}`}
       </Text>
       <View style={s.linha}>
         <Text style={s.secundario}>

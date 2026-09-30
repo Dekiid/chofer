@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Quando } from '@/data/agenda';
 import { VIATURAS, type Viatura } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO, type Lugar } from '@/data/lugares';
+import type { ReservaDias } from '@/data/reserva';
 import { calcularRotaPor, rotaEstimadaPor, type Rota } from '@/data/rotas';
 import { useInscricoes } from '@/state/inscricoes';
 
@@ -25,6 +26,9 @@ type Pedido = {
   /** Modelos de exemplo mais os carros de motoristas aprovados. */
   viaturas: Viatura[];
   pagamento: Pagamento;
+  /** Aluguer ou casamento, pagos à diária; null nas viagens com motorista. */
+  reserva: ReservaDias | null;
+  setReserva: (r: ReservaDias | null) => void;
   /** Hora marcada ou imediato; null enquanto o cliente não escolhe. */
   quando: Quando | null;
   /** Rota da recolha ao destino: começa pela estimativa e passa à do Google quando chega. */
@@ -60,6 +64,7 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
   const [viaturaId, setViaturaId] = useState(VIATURAS[0].id);
   const [pagamento, setPagamento] = useState<Pagamento>('mpesa');
   const [quando, setQuando] = useState<Quando | null>(null);
+  const [reserva, setReserva] = useState<ReservaDias | null>(null);
   const { viaturasAprovadas } = useInscricoes();
   const [rotaGoogle, setRotaGoogle] = useState<{ chave: string; rota: Rota } | null>(null);
   const pontos = useMemo(() => (destino ? [origem, ...paragens, destino] : null), [origem, paragens, destino]);
@@ -92,6 +97,8 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
       viaturas,
       pagamento,
       quando,
+      reserva,
+      setReserva,
       rota,
       rotaACarregar,
       setOrigem: (l: Lugar) => {
@@ -121,10 +128,11 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
       limpar: () => {
         setDestino(null);
         setParagens([]);
+        setReserva(null);
         setQuando(null);
       },
     };
-  }, [origem, localAtual, destino, paragens, viaturaId, pagamento, quando, rota, rotaACarregar, viaturasAprovadas, setLocalAtual]);
+  }, [origem, localAtual, destino, paragens, viaturaId, pagamento, quando, reserva, rota, rotaACarregar, viaturasAprovadas, setLocalAtual]);
 
   return <PedidoContext.Provider value={valor}>{children}</PedidoContext.Provider>;
 }

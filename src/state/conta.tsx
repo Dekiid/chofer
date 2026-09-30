@@ -20,6 +20,10 @@ export type Avaliacao = { estrelas: number; elogios: string[]; comentario: strin
 
 export type ViagemFeita = {
   id: string;
+  /** Viagem com motorista (por omissão), aluguer ou casamento pagos à diária. */
+  tipo?: 'viagem' | 'aluguer' | 'casamento';
+  dias?: number;
+  decoracao?: 'com' | 'sem';
   criadaEm: Date;
   /** Para viagens agendadas, a hora da recolha. */
   recolhaEm: Date;

@@ -10,6 +10,7 @@ import { formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agen
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
+import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta } from '@/state/conta';
@@ -34,12 +35,17 @@ export default function Pagamento() {
   const [codigoTexto, setCodigoTexto] = useState('');
   const [erroCodigo, setErroCodigo] = useState('');
 
-  const { destino, viatura, quando } = pedido;
+  const { destino, viatura, quando, reserva } = pedido;
+  // Aluguer e casamento pagam-se à diária; o resto do pagamento é igual ao das viagens.
+  const casamento = reserva?.modo === 'casamento';
+  // «na tua localização» ou «em Polana», para as frases lerem bem.
+  const noLocal = pedido.origem.id === 'atual' ? 'na tua localização' : `em ${pedido.origem.nome}`;
+  const nomeReserva = casamento ? `casamento${reserva?.decoracao === 'com' ? ' com decoração' : ''}` : 'aluguer';
   // O mesmo km do resumo, para o valor pago ser o que o cliente viu.
   const km = pedido.rota?.km ?? 0;
   const duracao = pedido.rota?.minutos ?? 0;
   const imediato = quando?.tipo === 'imediato';
-  const preco = calcularPreco(viatura, km, imediato);
+  const preco = reserva ? totalReserva(viatura, reserva) : calcularPreco(viatura, km, imediato);
   // Códigos de convite só valem na primeira viagem.
   const primeiraViagem = !conta.viagens.some((v) => v.estado === 'concluida');
   const desconto = descontoDe(conta.promo, preco);
@@ -59,6 +65,36 @@ export default function Pagamento() {
   useEffect(() => {
     if (estado === 'a_processar') {
       const t = setTimeout(() => {
+        if (reserva?.inicio) {
+          const inicio = reserva.inicio;
+          agenda.reservar({ viaturaId: viatura.id, inicio, fim: fimReserva(inicio, reserva.dias), tipo: 'agendada', destino: `${casamento ? 'Casamento' : 'Aluguer'} · ${textoDias(reserva.dias)}` });
+          conta.registarViagem({
+            tipo: reserva.modo,
+            dias: reserva.dias,
+            decoracao: casamento ? reserva.decoracao : undefined,
+            recolhaEm: inicio,
+            origem: pedido.origem,
+            paragens: [],
+            destino: pedido.origem,
+            viatura: nomeViatura(viatura),
+            motorista: viatura.motorista ?? MOTORISTA_EXEMPLO,
+            km: 0,
+            minutos: 0,
+            precoMzn: preco,
+            taxaImediatoMzn: 0,
+            descontoMzn: desconto,
+            promo: conta.promo?.codigo,
+            gorjetaMzn: 0,
+            pagamento: pedido.pagamento,
+            codigoRecolha: gerarCodigoRecolha(),
+            estado: 'agendada',
+          });
+          conta.setPromo(null);
+          conta.avisar('Reserva confirmada', `${nomeViatura(viatura)}, ${nomeReserva}, ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`);
+          agenda.notificar(casamento ? 'Reserva de casamento' : 'Novo aluguer', `${nomeViatura(viatura)} · ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date())}, ${formatarHora(inicio)} · ${pedido.origem.nome} · pago ${formatarMzn(aPagar)}.`);
+          setEstado('agendada');
+          return;
+        }
         if (!destino || !quando) return;
         // Pago: o carro fica ocupado na agenda para não haver sobreposições.
         const inicio = quando.tipo === 'agendado' ? quando.inicio : new Date();
@@ -101,7 +137,31 @@ export default function Pagamento() {
       const t = setTimeout(() => router.replace('/viagem'), 1200);
       return () => clearTimeout(t);
     }
-  }, [estado, agenda, destino, quando, viatura, duracao, preco, aPagar, desconto, km, conta, pedido.origem, pedido.paragens, pedido.pagamento]);
+  }, [estado, agenda, destino, quando, reserva, casamento, nomeReserva, viatura, duracao, preco, aPagar, desconto, km, conta, pedido.origem, pedido.paragens, pedido.pagamento]);
+
+  if (estado === 'agendada' && reserva?.inicio) {
+    return (
+      <SafeAreaView style={[s.ecra, s.centro]}>
+        <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
+        <Text style={s.titulo}>Reserva confirmada</Text>
+        <Text style={s.secundarioCentro}>
+          {casamento
+            ? `O ${nomeViatura(viatura)} ${reserva.decoracao === 'com' ? 'decorado ' : ''}e o motorista vão buscar os noivos ${noLocal} ${formatarDia(reserva.inicio, new Date()).toLowerCase()} às ${formatarHora(reserva.inicio)}, por ${textoDias(reserva.dias)}.`
+            : `Entregamos o ${nomeViatura(viatura)} ${noLocal} ${formatarDia(reserva.inicio, new Date()).toLowerCase()} às ${formatarHora(reserva.inicio)}. Devolução ${formatarDia(fimReserva(reserva.inicio, reserva.dias), new Date()).toLowerCase()} à mesma hora.`}{' '}
+          Os dias ficam reservados na agenda do carro.
+        </Text>
+        <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
+          <BotaoPrincipal
+            texto="Voltar ao início"
+            onPress={() => {
+              pedido.limpar();
+              router.dismissTo('/');
+            }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (estado === 'agendada' && quando?.tipo === 'agendado') {
     return (
@@ -124,7 +184,7 @@ export default function Pagamento() {
     );
   }
 
-  if (!destino || !quando) return <Redirect href="/" />;
+  if (reserva ? !reserva.inicio : !destino || !quando) return <Redirect href="/" />;
 
   const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento) ?? PAGAMENTOS[0];
   const digitos = telefone.replace(/\D/g, '');
@@ -173,10 +233,12 @@ export default function Pagamento() {
             </Text>
           )}
           <Text style={s.secundario}>
-            {nomeViatura(viatura)} até {destino.nome}
+            {reserva ? `${nomeViatura(viatura)} · ${nomeReserva}` : `${nomeViatura(viatura)} até ${destino?.nome}`}
           </Text>
           <Text style={s.secundario}>
-            {quando.tipo === 'agendado'
+            {reserva?.inicio
+              ? `${textoDias(reserva.dias)} a partir de ${formatarDia(reserva.inicio, new Date()).toLowerCase()} às ${formatarHora(reserva.inicio)}`
+              : quando?.tipo === 'agendado'
               ? `Recolha ${formatarDia(quando.inicio, new Date()).toLowerCase()} às ${formatarHora(quando.inicio)}`
               : 'Pedido imediato, com taxa extra'}
           </Text>
