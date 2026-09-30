@@ -85,6 +85,7 @@ function paraViatura(i: Inscricao): Viatura {
     porKmMzn: i.porKmMzn,
     chegadaMin: 8,
     foto: { uri: i.fotos.frente },
+    galeria: FOTOS_PEDIDAS.filter((f) => f.id !== 'frente').map((f) => ({ foto: { uri: i.fotos[f.id] }, legenda: f.nome })),
     motorista,
     casamento: i.casamento,
   };

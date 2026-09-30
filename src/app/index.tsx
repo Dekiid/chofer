@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 're
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FotoCarro } from '@/components/foto-carro';
+import { fotosDaGaleria, GaleriaCarro } from '@/components/galeria-carro';
 import { Logo } from '@/components/logo';
 import { BotaoPrincipal, CampoPesquisa, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -29,15 +30,18 @@ export default function Inicio() {
   // Telemóveis baixos (iPhone SE, Androids pequenos): lista mais curta para sobrar espaço à foto.
   const ecraPequeno = ecraJanela.height < 740;
   // Em ecrãs pequenos a foto encolhe para o nome não subir para cima do logótipo.
-  const espacoFoto = ecraJanela.height - insets.top - ALTURA_TOPO - alturaPainel - ALTURA_LEGENDA - Spacing.three * 3;
+  const espacoFoto = ecraJanela.height - insets.top - ALTURA_TOPO - alturaPainel - ALTURA_LEGENDA - ALTURA_NOTA - Spacing.three * 4;
   const alturaFoto = Math.max(90, Math.min((ecraJanela.width - Spacing.three * 2) * (9 / 16), espacoFoto));
   const [modo, setModo] = useState<Modo>('motorista');
   const [decoracao, setDecoracao] = useState<Decoracao>('com');
+  const [galeriaAberta, setGaleriaAberta] = useState(false);
   const lista = pedido.viaturas.filter((v) => disponivel(v, modo));
   // No casamento mostra-se sempre a foto do carro com o visual de casamento, com ou sem decoração escolhida.
   const casamento = pedido.viatura.casamento;
   // A foto de casamento, com cenário, fica um pouco mais pequena que o carro recortado.
   const fotoDecorada = modo === 'casamento' && casamento?.foto ? { foto: casamento.foto, credito: casamento.credito } : undefined;
+  // A galeria mostra o carro em si, por isso não abre sobre a foto de casamento.
+  const temGaleria = !fotoDecorada && fotosDaGaleria(pedido.viatura).length > 1;
 
   function mudarModo(m: Modo) {
     setModo(m);
@@ -78,12 +82,21 @@ export default function Inicio() {
           <Text style={s.nomeCarro}>{nomeViatura(pedido.viatura)}</Text>
           <Text style={s.descricao}>{pedido.viatura.tipo}</Text>
         </View>
-        <FotoCarro
-          viatura={pedido.viatura}
-          style={[s.foto, { height: fotoDecorada ? alturaFoto * 0.82 : alturaFoto }]}
-          ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: decoracao === 'com' ? 'Decorado para casamento' : 'Exemplo com decoração' }}
-        />
+        <Pressable onPress={() => temGaleria && setGaleriaAberta(true)} disabled={!temGaleria} accessibilityLabel={temGaleria ? 'Ver mais fotos do carro' : undefined}>
+          <FotoCarro
+            viatura={pedido.viatura}
+            style={[s.foto, { height: fotoDecorada ? alturaFoto * 0.82 : alturaFoto }]}
+            ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: decoracao === 'com' ? 'Decorado para casamento' : 'Exemplo com decoração' }}
+          />
+        </Pressable>
+        {temGaleria && (
+          <Pressable onPress={() => setGaleriaAberta(true)} style={s.verFotos} hitSlop={8}>
+            <Text style={s.verFotosTexto}>Toca no carro para ver o interior e mais fotos</Text>
+          </Pressable>
+        )}
       </View>
+
+      <GaleriaCarro viatura={pedido.viatura} visivel={galeriaAberta} onFechar={() => setGaleriaAberta(false)} />
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <Logo altura={30} />
@@ -162,6 +175,8 @@ export default function Inicio() {
 // Espaço do logótipo no topo, abaixo da barra de estado.
 const ALTURA_TOPO = 52;
 const ALTURA_LEGENDA = 54;
+// Espaço da nota "Toca no carro..." por baixo da foto.
+const ALTURA_NOTA = 18;
 
 const MODOS: { id: Modo; nome: string; pergunta: string }[] = [
   { id: 'motorista', nome: 'Com motorista', pergunta: 'Escolhe o teu carro' },
@@ -182,6 +197,8 @@ function estilos(c: Palette) {
     // Todas as fotos estão em 16:9, com o carro a ocupar a mesma largura.
     foto: { alignSelf: 'center', maxWidth: '100%', marginHorizontal: Spacing.three, aspectRatio: 16 / 9 },
     legenda: { alignItems: 'center' },
+    verFotos: { alignSelf: 'center', marginTop: -Spacing.two },
+    verFotosTexto: { color: c.textSecondary, fontSize: 12, textDecorationLine: 'underline' },
     nomeCarro: { color: c.text, fontSize: 24, fontWeight: '800' },
     // Logótipo ao centro; a pastilha da gestão fica à direita, sem o empurrar.
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: Spacing.two + 4, alignItems: 'center' },
