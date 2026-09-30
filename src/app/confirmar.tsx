@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
-import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EscolhaHorario } from '@/components/escolha-horario';
@@ -26,6 +26,15 @@ export default function Confirmar() {
   const [aberto, setAberto] = useState(true);
   const encolher = () => aberto && setAberto(false);
   // Na web o rato não gera toques, só ponteiros.
+  // Puxar o painel encolhido para cima também o abre, além de tocar em "Ver detalhes".
+  const puxarParaCima = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy < -8 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderRelease: (_, g) => {
+        if (g.dy < -30 || g.vy < -0.5) setAberto(true);
+      },
+    }),
+  ).current;
   const aoTocarNoMapa = Platform.OS === 'web' ? { onPointerDown: encolher } : { onTouchStart: encolher };
 
   if (!destino || !rota) return <Redirect href="/destino" />;
@@ -63,25 +72,27 @@ export default function Confirmar() {
 
       {!aberto && (
         <Painel>
-          <Pressable onPress={() => setAberto(true)} accessibilityLabel="Mostrar os detalhes da viagem">
-            <View style={s.mini}>
-              <View style={{ flex: 1 }}>
-                <View style={s.linhaMini}>
-                  <View style={s.pontoRecolha} />
-                  <Text style={s.localMini} numberOfLines={1}>{origem.nome}</Text>
+          <View {...puxarParaCima.panHandlers}>
+            <Pressable onPress={() => setAberto(true)} accessibilityLabel="Mostrar os detalhes da viagem">
+              <View style={s.mini}>
+                <View style={{ flex: 1 }}>
+                  <View style={s.linhaMini}>
+                    <View style={s.pontoRecolha} />
+                    <Text style={s.localMini} numberOfLines={1}>{origem.nome}</Text>
+                  </View>
+                  <View style={s.linhaMini}>
+                    <View style={s.ponto} />
+                    <Text style={s.localMini} numberOfLines={1}>{destino.nome}</Text>
+                  </View>
                 </View>
-                <View style={s.linhaMini}>
-                  <View style={s.ponto} />
-                  <Text style={s.localMini} numberOfLines={1}>{destino.nome}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={s.totalMini}>{formatarMzn(preco)}</Text>
+                  <Text style={s.detalhes}>Ver detalhes</Text>
                 </View>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={s.totalMini}>{formatarMzn(preco)}</Text>
-                <Text style={s.detalhes}>Ver detalhes</Text>
-              </View>
-            </View>
-          </Pressable>
-          {Platform.OS !== 'web' && <Text style={s.dica}>Para acertar a recolha ou o destino, mantém o dedo no ponto e arrasta-o no mapa.</Text>}
+            </Pressable>
+            {Platform.OS !== 'web' && <Text style={s.dica}>Para acertar a recolha ou o destino, mantém o dedo no ponto e arrasta-o no mapa.</Text>}
+          </View>
         </Painel>
       )}
 
