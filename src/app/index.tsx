@@ -133,7 +133,7 @@ export default function Inicio() {
               ))}
             </View>
           )}
-          <ScrollView style={[s.lista, modo === 'casamento' && s.listaCasamento, ecraPequeno && s.listaPequena]} contentContainerStyle={{ gap: Spacing.one }}>
+          <ScrollView style={[s.lista, modo === 'casamento' && s.listaCasamento, ecraPequeno && s.listaPequena]} contentContainerStyle={s.listaConteudo} scrollIndicatorInsets={{ right: 1 }}>
             {lista.map((v) => {
               const ativa = v.id === pedido.viatura.id;
               const p = preco(v);
@@ -224,7 +224,10 @@ function estilos(c: Palette) {
     decoracao: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
     notaCasamento: { textAlign: 'center', paddingTop: Spacing.two, fontSize: 13 },
     pergunta: { color: c.text, fontSize: 20, fontWeight: '700', marginBottom: Spacing.two },
-    lista: { marginBottom: Spacing.three, maxHeight: 250 },
+    // A lista avança sobre a margem do painel e ganha a mesma folga à direita:
+    // os cartões ficam alinhados e o indicador de scroll corre na margem, sem tapar o texto.
+    lista: { marginBottom: Spacing.three, maxHeight: 250, marginRight: -Spacing.three + Spacing.one },
+    listaConteudo: { gap: Spacing.one, paddingRight: Spacing.three - Spacing.one },
     // A escolha da decoração e a nota ocupam espaço; a lista encolhe para o painel não tapar a foto.
     listaCasamento: { maxHeight: 180 },
     listaPequena: { maxHeight: 140 },
