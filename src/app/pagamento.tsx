@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
@@ -11,6 +11,7 @@ import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
+import { Text, TextInput } from '@/components/texto';
 
 type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada';
 

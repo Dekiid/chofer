@@ -1,27 +1,35 @@
 /**
- * Paleta do Chauffeur: preto e branco, com o verde do ponto do logótipo como único destaque.
+ * Paleta do Chauffeur, do manual de identidade: preto e branco, asfalto claro nos cartões e o verde
+ * de recolha (o ponto do logótipo) como único destaque. Nunca usar o verde como cor de texto sobre branco.
  */
 
 export const Colors = {
   light: {
     text: '#000000',
-    textSecondary: '#5E5E5E',
+    textSecondary: '#5E6360',
     background: '#FFFFFF',
-    backgroundElement: '#F3F3F3',
-    backgroundSelected: '#E6E6E6',
+    backgroundElement: '#F3F5F4',
+    backgroundSelected: '#E3E8E5',
     primary: '#000000',
     onPrimary: '#FFFFFF',
     accent: '#22C55E',
+    /** Botão principal: verde com texto preto. */
+    go: '#22C55E',
+    onGo: '#000000',
+    mapa: '#EEF1EF',
   },
   dark: {
     text: '#FFFFFF',
-    textSecondary: '#A6A6A6',
+    textSecondary: '#9BA19E',
     background: '#0B0B0B',
-    backgroundElement: '#1C1C1C',
-    backgroundSelected: '#2A2A2A',
+    backgroundElement: '#1B1D1C',
+    backgroundSelected: '#2A2D2B',
     primary: '#FFFFFF',
     onPrimary: '#000000',
     accent: '#22C55E',
+    go: '#22C55E',
+    onGo: '#000000',
+    mapa: '#161817',
   },
 } as const;
 
@@ -37,6 +45,8 @@ export const Spacing = {
 
 export const Radius = {
   card: 14,
-  sheet: 24,
+  /** Botões e campos de pesquisa. */
+  botao: 10,
+  sheet: 20,
   pill: 999,
 } as const;

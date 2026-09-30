@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EscolhaHorario } from '@/components/escolha-horario';
@@ -12,6 +12,7 @@ import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { calcularPreco, distanciaKm, duracaoMin, taxaImediato } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
+import { Text } from '@/components/texto';
 
 export default function Confirmar() {
   const cores = usePalette();
@@ -43,7 +44,7 @@ export default function Confirmar() {
 
       <Painel>
         <Pressable onPress={() => router.replace({ pathname: '/destino', params: { campo: 'origem' } })} style={s.linha}>
-          <View style={[s.ponto, { borderRadius: 5 }]} />
+          <View style={s.pontoRecolha} />
           <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
         </Pressable>
         <Pressable onPress={() => router.replace('/destino')} style={s.linha}>
@@ -109,7 +110,8 @@ function estilos(c: Palette) {
     ecra: { flex: 1, backgroundColor: c.background },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
     linha: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
-    ponto: { width: 10, height: 10, backgroundColor: c.text },
+    pontoRecolha: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.go },
+    ponto: { width: 8, height: 8, backgroundColor: c.text },
     local: { flex: 1, color: c.text, fontSize: 16, fontWeight: '600' },
     pergunta: { color: c.text, fontSize: 18, fontWeight: '700', marginTop: Spacing.two, marginBottom: Spacing.two },
     resumo: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: Spacing.one, marginVertical: Spacing.three },

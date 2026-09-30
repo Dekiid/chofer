@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
@@ -13,6 +13,7 @@ import {
   type Quando,
   type Reserva,
 } from '@/data/agenda';
+import { Text } from '@/components/texto';
 
 type Props = {
   viaturaId: string;

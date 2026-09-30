@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoVoltar } from '@/components/ui';
@@ -10,6 +10,7 @@ import { usePalette } from '@/constants/use-palette';
 import { COMISSAO, formatarMzn } from '@/data/categorias';
 import { formatarTelefone } from '@/data/motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type Inscricao } from '@/state/inscricoes';
+import { Text, TextInput } from '@/components/texto';
 
 // Aprovação interna. No protótipo fica na app; no produto final passa para o painel de gestão, só para a equipa.
 export default function Aprovacoes() {

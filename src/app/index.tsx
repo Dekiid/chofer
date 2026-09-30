@@ -1,12 +1,12 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FotoCarro } from '@/components/foto-carro';
 import { Logo } from '@/components/logo';
-import { BotaoPrincipal, Painel } from '@/components/ui';
+import { BotaoPrincipal, CampoPesquisa, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarMzn, nomeViatura, type Modo, type Viatura } from '@/data/categorias';
@@ -15,6 +15,7 @@ import { LOCALIZACAO_PADRAO } from '@/data/lugares';
 import { useAgenda } from '@/state/agenda';
 import { useInscricoes } from '@/state/inscricoes';
 import { usePedido } from '@/state/pedido';
+import { Text } from '@/components/texto';
 
 export default function Inicio() {
   const cores = usePalette();
@@ -126,7 +127,7 @@ export default function Inicio() {
         </ScrollView>
         {modo === 'motorista' ? (
           <>
-            <BotaoPrincipal texto="Para onde?" onPress={() => router.push('/destino')} />
+            <CampoPesquisa texto="Para onde?" onPress={() => router.push('/destino')} />
             <Pressable onPress={() => router.push('/inscricao')} style={s.inscrever}>
               <Text style={s.descricao}>
                 Tens um carro premium? <Text style={s.textoInscrever}>Inscreve-te como motorista</Text>

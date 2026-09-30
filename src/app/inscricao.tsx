@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
@@ -11,6 +11,7 @@ import { usePalette } from '@/constants/use-palette';
 import { COMISSAO, formatarMzn, TIPOS_VIATURA } from '@/data/categorias';
 import { normalizarTelefone } from '@/data/motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type FotoPedida } from '@/state/inscricoes';
+import { Text, TextInput } from '@/components/texto';
 
 const LUGARES = [4, 5, 7];
 // Distância usada no exemplo de ganhos da nota da comissão.

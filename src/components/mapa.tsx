@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { StyleSheet, useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 
 import { MAPA_ESCURO } from './mapa-escuro';
@@ -37,10 +37,32 @@ export function Mapa({ origem, destino, carro, margemInferior = 0 }: MapaProps) 
       showsMyLocationButton={false}
       userInterfaceStyle={escuro ? 'dark' : 'light'}
       customMapStyle={escuro ? MAPA_ESCURO : []}>
-      {origem && <Marker coordinate={origem} title="Recolha" pinColor={corLinha} />}
-      {destino && <Marker coordinate={destino} title="Destino" pinColor="#B8914A" />}
       {origem && destino && <Polyline coordinates={[origem, destino]} strokeWidth={4} strokeColor={corLinha} />}
-      {carro && <Marker coordinate={carro} title="Motorista" pinColor="#2E2E2E" />}
+      {origem && (
+        <Marker coordinate={origem} title="Recolha" anchor={{ x: 0.5, y: 0.5 }}>
+          <View style={marcas.halo}>
+            <View style={marcas.recolha} />
+          </View>
+        </Marker>
+      )}
+      {destino && (
+        <Marker coordinate={destino} title="Destino" anchor={{ x: 0.5, y: 0.5 }}>
+          <View style={[marcas.destino, { backgroundColor: corLinha, borderColor: escuro ? '#000000' : '#FFFFFF' }]} />
+        </Marker>
+      )}
+      {carro && (
+        <Marker coordinate={carro} title="Motorista" anchor={{ x: 0.5, y: 0.5 }}>
+          <View style={marcas.carro} />
+        </Marker>
+      )}
     </MapView>
   );
 }
+
+// Marcadores do manual de identidade: recolha verde com borda branca e halo, carros como rectângulos pretos.
+const marcas = StyleSheet.create({
+  halo: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(34,197,94,0.22)', alignItems: 'center', justifyContent: 'center' },
+  recolha: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#22C55E', borderWidth: 3, borderColor: '#FFFFFF' },
+  destino: { width: 14, height: 14, borderWidth: 3 },
+  carro: { width: 14, height: 26, borderRadius: 5, backgroundColor: '#000000', borderWidth: 2, borderColor: '#FFFFFF' },
+});

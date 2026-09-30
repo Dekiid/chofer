@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoVoltar } from '@/components/ui';
@@ -10,6 +10,7 @@ import { diasAgendaveis, formatarDia, formatarHora, horariosDoDia, INTERVALO_MIN
 import { nomeViatura } from '@/data/categorias';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
+import { Text } from '@/components/texto';
 
 // Calendário do dono: cada meia hora aparece livre, ocupada por uma viagem ou bloqueada por ele.
 // No produto final cada motorista vê só o seu carro.

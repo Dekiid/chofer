@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Mapa } from '@/components/mapa';
 import type { Ponto } from '@/components/mapa-tipos';
@@ -11,6 +11,7 @@ import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { calcularPreco, distanciaKm, interpolar } from '@/data/viagem';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
+import { Text } from '@/components/texto';
 
 type Fase = 'procurar' | 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
 

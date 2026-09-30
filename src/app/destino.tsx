@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoVoltar } from '@/components/ui';
@@ -8,6 +8,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { pesquisarLugares, type Lugar } from '@/data/lugares';
 import { usePedido } from '@/state/pedido';
+import { Text, TextInput } from '@/components/texto';
 
 export default function Destino() {
   const cores = usePalette();
@@ -47,7 +48,7 @@ export default function Destino() {
 
       <View style={s.campos}>
         <Pressable onPress={() => editar('origem')} style={[s.linhaCampo, campo === 'origem' && s.campoAtivo]}>
-          <View style={[s.ponto, { borderRadius: 5 }]} />
+          <View style={s.pontoRecolha} />
           {campo === 'origem' ? (
             <TextInput
               autoFocus
@@ -108,13 +109,15 @@ function estilos(c: Palette) {
     cabecalho: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
     titulo: { color: c.text, fontSize: 20, fontWeight: '700' },
     campos: { margin: Spacing.three, gap: Spacing.two },
-    linhaCampo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: c.backgroundElement, borderRadius: Radius.card, paddingHorizontal: Spacing.three },
-    ponto: { width: 10, height: 10, backgroundColor: c.text },
+    linhaCampo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: c.backgroundElement, borderRadius: Radius.botao, paddingHorizontal: Spacing.three },
+    // Recolha: o ponto verde da marca. Destino: quadrado preto.
+    pontoRecolha: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.go },
+    ponto: { width: 8, height: 8, backgroundColor: c.text },
     origem: { flex: 1, color: c.textSecondary, fontSize: 16, paddingVertical: Spacing.three },
     campoAtivo: { borderWidth: 1.5, borderColor: c.primary },
     mudar: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
     ajuda: { color: c.textSecondary, fontSize: 13 },
-    input: { flex: 1, color: c.text, fontSize: 17, fontWeight: '600', paddingVertical: Spacing.three },
+    input: { flex: 1, color: c.text, fontSize: 17, fontWeight: '600', paddingVertical: Spacing.three, outlineWidth: 0 },
     item: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.backgroundSelected },
     nome: { color: c.text, fontSize: 16, fontWeight: '600' },
     zona: { color: c.textSecondary, marginTop: 2 },

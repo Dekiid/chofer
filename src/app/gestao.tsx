@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoVoltar } from '@/components/ui';
@@ -9,6 +9,7 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { useAgenda } from '@/state/agenda';
 import { useInscricoes } from '@/state/inscricoes';
+import { Text } from '@/components/texto';
 
 // Área da equipa. No protótipo fica na app; no produto final passa para o painel de gestão.
 export default function Gestao() {

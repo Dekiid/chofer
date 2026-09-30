@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
+import { Text } from '@/components/texto';
 
 /** Painel que fica por cima do mapa, preso ao fundo do ecrã. */
 export function Painel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -41,8 +42,8 @@ export function BotaoPrincipal({ texto, onPress, desativado }: { texto: string; 
     <Pressable
       onPress={onPress}
       disabled={desativado}
-      style={{ backgroundColor: c.primary, opacity: desativado ? 0.4 : 1, borderRadius: Radius.card, paddingVertical: Spacing.three, alignItems: 'center' }}>
-      <Text style={{ color: c.onPrimary, fontSize: 17, fontWeight: '700' }}>{texto}</Text>
+      style={{ backgroundColor: c.go, opacity: desativado ? 0.4 : 1, borderRadius: Radius.botao, paddingVertical: Spacing.three, alignItems: 'center' }}>
+      <Text style={{ color: c.onGo, fontSize: 16, fontWeight: '700' }}>{texto}</Text>
     </Pressable>
   );
 }
@@ -50,8 +51,22 @@ export function BotaoPrincipal({ texto, onPress, desativado }: { texto: string; 
 export function BotaoSecundario({ texto, onPress }: { texto: string; onPress: () => void }) {
   const c = usePalette();
   return (
-    <Pressable onPress={onPress} style={{ backgroundColor: c.backgroundElement, borderRadius: Radius.card, paddingVertical: Spacing.three, alignItems: 'center' }}>
+    <Pressable onPress={onPress} style={{ backgroundColor: c.backgroundElement, borderRadius: Radius.botao, paddingVertical: Spacing.three, alignItems: 'center' }}>
       <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{texto}</Text>
+    </Pressable>
+  );
+}
+
+/** Campo de pesquisa da marca: asfalto claro, ponto verde de recolha à esquerda. */
+export function CampoPesquisa({ texto, onPress }: { texto: string; onPress: () => void }) {
+  const c = usePalette();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="search"
+      style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: c.backgroundElement, borderRadius: Radius.botao, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.go }} />
+      <Text style={{ color: c.text, fontSize: 17, fontWeight: '700' }}>{texto}</Text>
     </Pressable>
   );
 }
