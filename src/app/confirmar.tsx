@@ -35,6 +35,15 @@ export default function Confirmar() {
       },
     }),
   ).current;
+  // E puxar o painel aberto para baixo encolhe-o. Só conta o gesto vertical, para não roubar o deslizar dos dias.
+  const puxarParaBaixo = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy > 8 && g.dy > Math.abs(g.dx) * 1.5,
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 30 || g.vy > 0.5) setAberto(false);
+      },
+    }),
+  ).current;
   const aoTocarNoMapa = Platform.OS === 'web' ? { onPointerDown: encolher } : { onTouchStart: encolher };
 
   if (!destino || !rota) return <Redirect href="/destino" />;
@@ -98,69 +107,71 @@ export default function Confirmar() {
 
       {aberto && (
         <Painel>
-          <Pressable onPress={() => router.replace({ pathname: '/destino', params: { campo: 'origem' } })} style={s.linha}>
-            <View style={s.pontoRecolha} />
-            <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
-          </Pressable>
-          {paragens.map((p, i) => (
-            <Pressable key={`${p.id}-${i}`} onPress={() => router.replace('/destino')} style={s.linha}>
-              <View style={s.pontoParagem} />
-              <Text style={s.local} numberOfLines={1}>{p.nome}</Text>
+          <View {...puxarParaBaixo.panHandlers}>
+            <Pressable onPress={() => router.replace({ pathname: '/destino', params: { campo: 'origem' } })} style={s.linha}>
+              <View style={s.pontoRecolha} />
+              <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
             </Pressable>
-          ))}
-          <Pressable onPress={() => router.replace('/destino')} style={s.linha}>
-            <View style={s.ponto} />
-            <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
-          </Pressable>
+            {paragens.map((p, i) => (
+              <Pressable key={`${p.id}-${i}`} onPress={() => router.replace('/destino')} style={s.linha}>
+                <View style={s.pontoParagem} />
+                <Text style={s.local} numberOfLines={1}>{p.nome}</Text>
+              </Pressable>
+            ))}
+            <Pressable onPress={() => router.replace('/destino')} style={s.linha}>
+              <View style={s.ponto} />
+              <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
+            </Pressable>
 
-          <Text style={s.pergunta}>Quando?</Text>
-          <EscolhaHorario
-            viaturaId={viatura.id}
-            ocupadoMin={minutosOcupado(duracao)}
-            reservas={reservas}
-            quando={quando}
-            onMudar={setQuando}
-            livreAgora={livreAgora}
-          />
+            <Text style={s.pergunta}>Quando?</Text>
+            <EscolhaHorario
+              viaturaId={viatura.id}
+              ocupadoMin={minutosOcupado(duracao)}
+              reservas={reservas}
+              quando={quando}
+              onMudar={setQuando}
+              livreAgora={livreAgora}
+            />
 
-          <View style={s.resumo}>
-            <View style={s.linhaResumo}>
-              <Text style={s.secundario}>Carro</Text>
-              <Text style={s.valor}>{nomeViatura(viatura)}</Text>
-            </View>
-            <View style={s.linhaResumo}>
-              <Text style={s.secundario}>Recolha</Text>
-              <Text style={s.valor}>
-                {quando?.tipo === 'agendado'
-                  ? `${formatarDia(quando.inicio, agora)}, ${formatarHora(quando.inicio)}`
-                  : imediato
-                    ? `Agora · chega em ${viatura.chegadaMin} min`
-                    : 'Escolhe a hora'}
-              </Text>
-            </View>
-            <View style={s.linhaResumo}>
-              <Text style={s.secundario}>{paragens.length ? `Distância (${paragens.length} ${paragens.length === 1 ? 'paragem' : 'paragens'})` : 'Distância'}</Text>
-              <Text style={s.valor}>
-                {rotaACarregar ? 'A calcular a rota…' : `${km.toFixed(1).replace('.', ',')} km · cerca de ${duracao} min${rota.fonte === 'estimativa' ? ' (estimativa)' : ''}`}
-              </Text>
-            </View>
-            <View style={s.linhaResumo}>
-              <Text style={s.secundario}>Preço por km</Text>
-              <Text style={s.valor}>{formatarMzn(viatura.porKmMzn)}</Text>
-            </View>
-            {imediato && (
+            <View style={s.resumo}>
               <View style={s.linhaResumo}>
-                <Text style={s.secundario}>Taxa de pedido imediato</Text>
-                <Text style={s.valor}>{formatarMzn(taxaImediato(viatura, km))}</Text>
+                <Text style={s.secundario}>Carro</Text>
+                <Text style={s.valor}>{nomeViatura(viatura)}</Text>
               </View>
-            )}
-            <View style={[s.linhaResumo, s.linhaTotal]}>
-              <Text style={s.total}>Total</Text>
-              <Text style={s.total}>{formatarMzn(preco)}</Text>
+              <View style={s.linhaResumo}>
+                <Text style={s.secundario}>Recolha</Text>
+                <Text style={s.valor}>
+                  {quando?.tipo === 'agendado'
+                    ? `${formatarDia(quando.inicio, agora)}, ${formatarHora(quando.inicio)}`
+                    : imediato
+                      ? `Agora · chega em ${viatura.chegadaMin} min`
+                      : 'Escolhe a hora'}
+                </Text>
+              </View>
+              <View style={s.linhaResumo}>
+                <Text style={s.secundario}>{paragens.length ? `Distância (${paragens.length} ${paragens.length === 1 ? 'paragem' : 'paragens'})` : 'Distância'}</Text>
+                <Text style={s.valor}>
+                  {rotaACarregar ? 'A calcular a rota…' : `${km.toFixed(1).replace('.', ',')} km · cerca de ${duracao} min${rota.fonte === 'estimativa' ? ' (estimativa)' : ''}`}
+                </Text>
+              </View>
+              <View style={s.linhaResumo}>
+                <Text style={s.secundario}>Preço por km</Text>
+                <Text style={s.valor}>{formatarMzn(viatura.porKmMzn)}</Text>
+              </View>
+              {imediato && (
+                <View style={s.linhaResumo}>
+                  <Text style={s.secundario}>Taxa de pedido imediato</Text>
+                  <Text style={s.valor}>{formatarMzn(taxaImediato(viatura, km))}</Text>
+                </View>
+              )}
+              <View style={[s.linhaResumo, s.linhaTotal]}>
+                <Text style={s.total}>Total</Text>
+                <Text style={s.total}>{formatarMzn(preco)}</Text>
+              </View>
             </View>
-          </View>
 
-          <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido || rotaACarregar} />
+            <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido || rotaACarregar} />
+          </View>
         </Painel>
       )}
     </View>
