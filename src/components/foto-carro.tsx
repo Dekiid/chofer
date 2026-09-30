@@ -21,9 +21,11 @@ export function FotoCarro({ viatura, style, ilustracao }: Props) {
   const [falhou, setFalhou] = useState<string | null>(null);
   const foto = ilustracao?.foto ?? viatura.foto;
   const credito = ilustracao ? ilustracao.credito : viatura.credito;
+  // Carro recortado: aparece solto sobre o fundo do ecrã, sem moldura nem cenário.
+  const solto = !ilustracao && viatura.semFundo;
 
   return (
-    <View style={[estilos.moldura, { backgroundColor: cores.backgroundSelected }, style]}>
+    <View style={[estilos.moldura, !solto && { backgroundColor: cores.backgroundSelected, borderRadius: Radius.sheet }, style]}>
       {falhou === viatura.id ? (
         <View style={estilos.centro}>
           <Text style={{ color: cores.textSecondary }}>{nomeViatura(viatura)}</Text>
@@ -32,7 +34,7 @@ export function FotoCarro({ viatura, style, ilustracao }: Props) {
         <Image
           source={foto}
           style={StyleSheet.absoluteFill}
-          contentFit="cover"
+          contentFit={solto ? 'contain' : 'cover'}
           transition={250}
           accessibilityLabel={ilustracao ? ilustracao.etiqueta : `Foto de um ${nomeViatura(viatura)}`}
           onError={() => setFalhou(viatura.id)}
@@ -44,8 +46,8 @@ export function FotoCarro({ viatura, style, ilustracao }: Props) {
         </View>
       )}
       {credito && (
-        <Pressable onPress={() => WebBrowser.openBrowserAsync(credito.pagina)} style={estilos.credito}>
-          <Text style={estilos.creditoTexto}>
+        <Pressable onPress={() => WebBrowser.openBrowserAsync(credito.pagina)} style={[estilos.credito, solto && estilos.creditoSolto]}>
+          <Text style={[estilos.creditoTexto, solto && { color: cores.textSecondary }]}>
             Foto: {credito.autor} · {credito.licenca}
           </Text>
         </Pressable>
@@ -55,7 +57,7 @@ export function FotoCarro({ viatura, style, ilustracao }: Props) {
 }
 
 const estilos = StyleSheet.create({
-  moldura: { overflow: 'hidden', borderRadius: Radius.sheet },
+  moldura: { overflow: 'hidden' },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   credito: {
     position: 'absolute',
@@ -67,6 +69,7 @@ const estilos = StyleSheet.create({
     paddingVertical: 2,
   },
   creditoTexto: { color: '#FFFFFF', fontSize: 11 },
+  creditoSolto: { backgroundColor: 'transparent', bottom: 0, right: 0 },
   etiqueta: {
     position: 'absolute',
     left: Spacing.two,
