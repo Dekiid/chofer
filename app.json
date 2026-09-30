@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Chofer",
-    "slug": "chofer",
+    "name": "Chauffeur",
+    "slug": "chauffeur",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "chofer",
+    "scheme": "chauffeur",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -36,7 +36,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O Chofer usa a tua localização para indicar onde o motorista te deve buscar."
+          "locationWhenInUsePermission": "O Chauffeur usa a tua localização para indicar onde o motorista te deve buscar."
         }
       ]
     ],

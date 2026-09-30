@@ -1,5 +1,5 @@
 /**
- * Paleta do Chofer: preto e branco, com um dourado discreto como único destaque.
+ * Paleta do Chauffeur: preto e branco, com um dourado discreto como único destaque.
  */
 
 export const Colors = {

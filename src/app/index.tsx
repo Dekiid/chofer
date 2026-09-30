@@ -50,7 +50,7 @@ export default function Inicio() {
       )}
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
-        <Text style={s.marca}>Chofer</Text>
+        <Text style={s.marca}>Chauffeur</Text>
       </SafeAreaView>
 
       <Painel>
