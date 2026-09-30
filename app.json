@@ -38,6 +38,12 @@
         {
           "locationWhenInUsePermission": "O Chauffeur usa a tua localização para indicar onde o motorista te deve buscar."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Chauffeur precisa de acesso às tuas fotos para enviares as fotos do teu carro na inscrição."
+        }
       ]
     ],
     "experiments": {

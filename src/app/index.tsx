@@ -9,14 +9,16 @@ import { Mapa } from '@/components/mapa';
 import { BotaoPrincipal, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { CATEGORIAS_ALUGUER, formatarMzn, nomeViatura, VIATURAS, type Modo } from '@/data/categorias';
+import { CATEGORIAS_ALUGUER, formatarMzn, nomeViatura, type Modo } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO } from '@/data/lugares';
+import { useInscricoes } from '@/state/inscricoes';
 import { usePedido } from '@/state/pedido';
 
 export default function Inicio() {
   const cores = usePalette();
   const s = estilos(cores);
   const pedido = usePedido();
+  const pendentes = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length;
   const [modo, setModo] = useState<Modo>('motorista');
   const [aluguerEscolhido, setAluguerEscolhido] = useState(CATEGORIAS_ALUGUER[0].id);
 
@@ -51,6 +53,10 @@ export default function Inicio() {
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <Text style={s.marca}>Chauffeur</Text>
+        {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
+        <Pressable onPress={() => router.push('/aprovacoes')} style={s.gestao}>
+          <Text style={s.textoGestao}>Aprovações{pendentes > 0 ? ` (${pendentes})` : ''}</Text>
+        </Pressable>
       </SafeAreaView>
 
       <Painel>
@@ -66,7 +72,7 @@ export default function Inicio() {
           <>
             <Text style={s.pergunta}>Escolhe o teu carro</Text>
             <ScrollView style={s.lista} contentContainerStyle={{ gap: Spacing.one }}>
-              {VIATURAS.map((v) => {
+              {pedido.viaturas.map((v) => {
                 const ativa = v.id === pedido.viatura.id;
                 return (
                   <Pressable key={v.id} onPress={() => pedido.setViaturaId(v.id)} style={[s.cartao, ativa && s.cartaoAtivo]}>
@@ -85,6 +91,11 @@ export default function Inicio() {
               })}
             </ScrollView>
             <BotaoPrincipal texto="Para onde?" onPress={() => router.push('/destino')} />
+            <Pressable onPress={() => router.push('/inscricao')} style={s.inscrever}>
+              <Text style={s.descricao}>
+                Tens um carro premium? <Text style={s.textoInscrever}>Inscreve-te como motorista</Text>
+              </Text>
+            </Pressable>
           </>
         ) : (
           <>
@@ -122,7 +133,11 @@ function estilos(c: Palette) {
     foto: { position: 'absolute', top: 124, left: Spacing.three, right: Spacing.three, height: '30%' },
     legenda: { position: 'absolute', top: 64, left: 0, right: 0, alignItems: 'center' },
     nomeCarro: { color: c.text, fontSize: 24, fontWeight: '800' },
-    topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three },
+    topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    gestao: { marginTop: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
+    textoGestao: { color: c.text, fontSize: 14, fontWeight: '600' },
+    inscrever: { alignItems: 'center', paddingTop: Spacing.three },
+    textoInscrever: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
     marca: {
       alignSelf: 'flex-start',
       marginTop: Spacing.two,

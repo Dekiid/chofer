@@ -1,5 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
+import type { Motorista } from './motorista';
+
 export type Modo = 'motorista' | 'aluguer';
 
 export type Viatura = {
@@ -11,9 +13,12 @@ export type Viatura = {
   /** Preço por quilómetro, em meticais. */
   porKmMzn: number;
   chegadaMin: number;
-  /** Foto local em assets/carros (créditos em assets/carros/CREDITOS.md). */
+  /** Foto principal: local em assets/carros (créditos em CREDITOS.md) ou a foto de frente enviada pelo motorista. */
   foto: ImageSourcePropType;
-  credito: CreditoFoto;
+  /** Só nas fotos do Wikimedia; as fotos dos motoristas são deles. */
+  credito?: CreditoFoto;
+  /** Motorista do carro; nos modelos de exemplo fica o motorista simulado. */
+  motorista?: Motorista;
 };
 
 export type CreditoFoto = {
@@ -22,6 +27,15 @@ export type CreditoFoto = {
   /** Página do ficheiro no Wikimedia Commons. */
   pagina: string;
 };
+
+/** Tipos que o motorista escolhe na inscrição, com o preço por km sugerido na aprovação. */
+export const TIPOS_VIATURA = [
+  { tipo: 'Sedan executivo', porKmMzn: 90 },
+  { tipo: 'SUV', porKmMzn: 120 },
+  { tipo: 'SUV de luxo', porKmMzn: 150 },
+  { tipo: 'Topo de gama', porKmMzn: 180 },
+  { tipo: 'Clássico', porKmMzn: 70 },
+] as const;
 
 export type CategoriaAluguer = {
   id: string;

@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Mapa } from '@/components/mapa';
 import type { Ponto } from '@/components/mapa-tipos';
@@ -65,6 +65,7 @@ export default function Viagem() {
   if (!destino) return <Redirect href="/" />;
 
   const viatura = pedido.viatura;
+  const motorista = viatura.motorista ?? MOTORISTA_EXEMPLO;
   const preco = calcularPreco(viatura, distanciaKm(origem, destino));
   const pagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
   const minutosRestantes = Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
@@ -99,15 +100,23 @@ export default function Viagem() {
         ) : (
           <View style={s.motorista}>
             <View style={s.avatar}>
-              <Text style={s.avatarTexto}>{MOTORISTA_EXEMPLO.nome[0]}</Text>
+              <Text style={s.avatarTexto}>{motorista.nome[0]}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.nome}>
-                {MOTORISTA_EXEMPLO.nome} <Text style={s.secundario}>★ {MOTORISTA_EXEMPLO.avaliacao.toString().replace('.', ',')}</Text>
+                {motorista.nome}{' '}
+                {motorista.avaliacao !== undefined && <Text style={s.secundario}>★ {motorista.avaliacao.toString().replace('.', ',')}</Text>}
               </Text>
-              <Text style={s.secundario}>{nomeViatura(viatura)}</Text>
+              <Text style={s.secundario}>
+                {nomeViatura(viatura)} · {motorista.matricula}
+              </Text>
             </View>
-            <Text style={s.matricula}>{MOTORISTA_EXEMPLO.matricula}</Text>
+            <Pressable
+              onPress={() => Linking.openURL(`tel:${motorista.telefone}`)}
+              accessibilityLabel={`Ligar a ${motorista.nome}`}
+              style={s.ligar}>
+              <Text style={s.ligarTexto}>Ligar</Text>
+            </Pressable>
           </View>
         )}
 
@@ -147,7 +156,8 @@ function estilos(c: Palette) {
     avatarTexto: { color: c.onPrimary, fontSize: 20, fontWeight: '700' },
     nome: { color: c.text, fontSize: 17, fontWeight: '700' },
     secundario: { color: c.textSecondary, fontSize: 14, fontWeight: '400' },
-    matricula: { color: c.text, fontWeight: '700', paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 6, borderWidth: 1, borderColor: c.text },
+    ligar: { backgroundColor: c.primary, borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+    ligarTexto: { color: c.onPrimary, fontWeight: '700' },
     total: { color: c.text, fontSize: 28, fontWeight: '800', marginBottom: Spacing.two },
     estrelas: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.three },
     estrela: { fontSize: 36 },

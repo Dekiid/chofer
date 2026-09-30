@@ -28,11 +28,13 @@ export function FotoCarro({ viatura, style }: { viatura: Viatura; style?: StyleP
           onError={() => setFalhou(viatura.id)}
         />
       )}
-      <Pressable onPress={() => WebBrowser.openBrowserAsync(viatura.credito.pagina)} style={estilos.credito}>
-        <Text style={estilos.creditoTexto}>
-          Foto: {viatura.credito.autor} · {viatura.credito.licenca}
-        </Text>
-      </Pressable>
+      {viatura.credito && (
+        <Pressable onPress={() => WebBrowser.openBrowserAsync(viatura.credito!.pagina)} style={estilos.credito}>
+          <Text style={estilos.creditoTexto}>
+            Foto: {viatura.credito.autor} · {viatura.credito.licenca}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }

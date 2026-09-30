@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 
 import { VIATURAS, type Viatura } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO, type Lugar } from '@/data/lugares';
+import { useInscricoes } from '@/state/inscricoes';
 
 export type Pagamento = 'mpesa' | 'emola';
 
@@ -14,6 +15,8 @@ type Pedido = {
   origem: Lugar;
   destino: Lugar | null;
   viatura: Viatura;
+  /** Modelos de exemplo mais os carros de motoristas aprovados. */
+  viaturas: Viatura[];
   pagamento: Pagamento;
   setOrigem: (l: Lugar) => void;
   setDestino: (l: Lugar | null) => void;
@@ -29,21 +32,23 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
   const [destino, setDestino] = useState<Lugar | null>(null);
   const [viaturaId, setViaturaId] = useState(VIATURAS[0].id);
   const [pagamento, setPagamento] = useState<Pagamento>('mpesa');
+  const { viaturasAprovadas } = useInscricoes();
 
-  const valor = useMemo(
-    () => ({
+  const valor = useMemo(() => {
+    const viaturas = [...VIATURAS, ...viaturasAprovadas];
+    return {
       origem,
       destino,
-      viatura: VIATURAS.find((v) => v.id === viaturaId) ?? VIATURAS[0],
+      viatura: viaturas.find((v) => v.id === viaturaId) ?? VIATURAS[0],
+      viaturas,
       pagamento,
       setOrigem,
       setDestino,
       setViaturaId,
       setPagamento,
       limpar: () => setDestino(null),
-    }),
-    [origem, destino, viaturaId, pagamento],
-  );
+    };
+  }, [origem, destino, viaturaId, pagamento, viaturasAprovadas]);
 
   return <PedidoContext.Provider value={valor}>{children}</PedidoContext.Provider>;
 }
