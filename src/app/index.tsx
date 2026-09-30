@@ -34,9 +34,9 @@ export default function Inicio() {
   const [modo, setModo] = useState<Modo>('motorista');
   const [decoracao, setDecoracao] = useState<Decoracao>('com');
   const lista = pedido.viaturas.filter((v) => disponivel(v, modo));
-  // Com decoração mostra o mesmo modelo decorado para casamento, quando há essa foto.
+  // No casamento mostra-se sempre a foto do carro com o visual de casamento, com ou sem decoração escolhida.
   const casamento = pedido.viatura.casamento;
-  const fotoDecorada = modo === 'casamento' && decoracao === 'com' && casamento?.foto ? { foto: casamento.foto, credito: casamento.credito } : undefined;
+  const fotoDecorada = modo === 'casamento' && casamento?.foto ? { foto: casamento.foto, credito: casamento.credito } : undefined;
 
   function mudarModo(m: Modo) {
     setModo(m);
@@ -80,7 +80,7 @@ export default function Inicio() {
         <FotoCarro
           viatura={pedido.viatura}
           style={[s.foto, { height: alturaFoto }]}
-          ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: 'Decorado para casamento' }}
+          ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: decoracao === 'com' ? 'Decorado para casamento' : 'Exemplo com decoração' }}
         />
       </View>
 
@@ -170,7 +170,7 @@ const MODOS: { id: Modo; nome: string; pergunta: string }[] = [
 
 function disponivel(v: Viatura, modo: Modo): boolean {
   if (modo === 'aluguer') return v.porDiaMzn !== undefined;
-  if (modo === 'casamento') return v.casamento !== undefined;
+  if (modo === 'casamento') return v.casamento?.foto !== undefined;
   return !v.soCasamento;
 }
 
