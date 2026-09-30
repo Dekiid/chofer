@@ -12,6 +12,7 @@ import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
 import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
+import { publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta } from '@/state/conta';
 import { useAgenda } from '@/state/agenda';
@@ -101,7 +102,8 @@ export default function Pagamento() {
         const ocupado = minutosOcupado(duracao, quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
         agenda.reservar({ viaturaId: viatura.id, inicio, fim: somarMin(inicio, ocupado), tipo: quando.tipo === 'imediato' ? 'imediata' : 'agendada', destino: destino.nome });
         // Fica no histórico do cliente, com o recibo.
-        conta.registarViagem({
+        const codigoRecolha = gerarCodigoRecolha();
+        const idViagem = conta.registarViagem({
           recolhaEm: inicio,
           origem: pedido.origem,
           paragens: pedido.paragens,
@@ -116,9 +118,31 @@ export default function Pagamento() {
           promo: conta.promo?.codigo,
           gorjetaMzn: 0,
           pagamento: pedido.pagamento,
-          codigoRecolha: gerarCodigoRecolha(),
+          codigoRecolha,
           estado: quando.tipo === 'imediato' ? 'em_curso' : 'agendada',
         });
+        // Viagem marcada: o pedido vai já para o motorista do carro, que a aceita para a agenda dele.
+        // Os pedidos para agora saem do ecrã da viagem.
+        if (TEMPO_REAL_ATIVO && quando.tipo === 'agendado') {
+          publicar({
+            tipo: 'pedido',
+            pedido: {
+              id: idViagem,
+              viaturaId: viatura.id,
+              viaturaNome: nomeViatura(viatura),
+              origem: pedido.origem,
+              paragens: pedido.paragens,
+              destino,
+              km,
+              minutos: duracao,
+              precoMzn: aPagar,
+              recolhaEm: inicio.toISOString(),
+              codigoRecolha,
+              pagamento: PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '',
+              criadoEm: new Date().toISOString(),
+            },
+          });
+        }
         conta.setPromo(null);
         conta.avisar(
           'Pagamento confirmado',

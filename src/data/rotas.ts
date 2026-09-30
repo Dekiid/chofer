@@ -160,3 +160,18 @@ export function restoDaRota(pontos: Ponto[], t: number): Ponto[] {
   while (i < troços.length && percorrido + troços[i] < total * t) percorrido += troços[i++];
   return [atual, ...pontos.slice(i + 1)];
 }
+
+/** O que falta da rota a partir de uma posição real (GPS do motorista): corta no ponto da rota mais perto. */
+export function restoDesde(pontos: Ponto[], p: Ponto): Ponto[] {
+  if (pontos.length < 2) return pontos;
+  let melhor = 0;
+  let menor = Infinity;
+  pontos.forEach((q, i) => {
+    const d = distanciaKm(p, q);
+    if (d < menor) {
+      menor = d;
+      melhor = i;
+    }
+  });
+  return [p, ...pontos.slice(melhor + 1)];
+}

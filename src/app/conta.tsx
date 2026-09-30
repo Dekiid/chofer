@@ -57,6 +57,11 @@ export default function Conta() {
           <Text style={s.secundario}>Histórico, viagens marcadas e recibos</Text>
         </Pressable>
 
+        <Pressable onPress={() => router.push('/motorista')} style={s.entrada}>
+          <Text style={s.nome}>Modo motorista</Text>
+          <Text style={s.secundario}>Fica online, recebe pedidos e conduz com a Chauffeur</Text>
+        </Pressable>
+
         <Text style={s.secao}>Locais guardados</Text>
         <View style={s.caixa}>
           {LOCAIS.map(({ tipo, nome }, i) => {

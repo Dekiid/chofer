@@ -3,7 +3,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 
 import { MAPA_ESCURO } from './mapa-escuro';
-import type { MapaProps } from './mapa-tipos';
+import type { MapaProps, Ponto } from './mapa-tipos';
 
 // Centro entre Maputo e Matola.
 export const REGIAO_INICIAL = {
@@ -19,14 +19,20 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
   const corLinha = escuro ? '#FFFFFF' : '#000000';
   const linha = rota ?? (origem && destino ? [origem, destino] : []);
 
+  // Com um só ponto (o carro parado), aproxima-se a esse ponto em vez de fazer o zoom máximo.
+  function enquadrar(pontos: Ponto[], margem: { top: number; right: number; bottom: number; left: number }) {
+    if (pontos.length === 1) {
+      ref.current?.animateToRegion({ ...pontos[0], latitudeDelta: 0.02, longitudeDelta: 0.02 }, 500);
+      return;
+    }
+    ref.current?.fitToCoordinates(pontos, { edgePadding: margem, animated: true });
+  }
+
   // Enquadra a origem e o destino quando mudam.
   useEffect(() => {
     const pontos = [origem, destino, ...(rota ?? [])].filter((p) => p != null);
     if (pontos.length === 0) return;
-    ref.current?.fitToCoordinates(pontos, {
-      edgePadding: { top: 80, right: 60, bottom: margemInferior + 40, left: 60 },
-      animated: true,
-    });
+    enquadrar(pontos, { top: 80, right: 60, bottom: margemInferior + 40, left: 60 });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- a rota muda a cada passo do carro; só se reenquadra quando mudam os pontos fixos.
   }, [origem, destino, margemInferior]);
 
@@ -39,10 +45,7 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
     if (agora - ultimoEnquadramento.current < 1500) return;
     ultimoEnquadramento.current = agora;
     const pontos = rota && rota.length > 1 ? rota : [carro, ...[origem, destino].filter((p) => p != null)];
-    ref.current?.fitToCoordinates(pontos, {
-      edgePadding: { top: 100, right: 70, bottom: margemInferior + 60, left: 70 },
-      animated: true,
-    });
+    enquadrar(pontos, { top: 100, right: 70, bottom: margemInferior + 60, left: 70 });
   }, [seguirCarro, carro, rota, origem, destino, margemInferior]);
 
   return (

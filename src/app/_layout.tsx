@@ -12,6 +12,7 @@ import { Text } from '@/components/texto';
 import { AgendaProvider } from '@/state/agenda';
 import { ContaProvider } from '@/state/conta';
 import { InscricoesProvider } from '@/state/inscricoes';
+import { ModoMotoristaProvider } from '@/state/modo-motorista';
 import { PedidoProvider } from '@/state/pedido';
 
 // O ecrã de abertura (fundo preto com o logótipo) fica até a letra da marca carregar.
@@ -47,17 +48,19 @@ export default function RootLayout() {
       <AgendaProvider>
         <InscricoesProvider>
           <PedidoProvider>
-            <ContaProvider>
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="viagem" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
-              </Stack>
-              <AvisoTopo />
-            </ContaProvider>
+            <ModoMotoristaProvider>
+              <ContaProvider>
+                <StatusBar style="auto" />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
+                  <Stack.Screen name="viagem" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
+                  <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
+                </Stack>
+                <AvisoTopo />
+              </ContaProvider>
+            </ModoMotoristaProvider>
           </PedidoProvider>
         </InscricoesProvider>
       </AgendaProvider>

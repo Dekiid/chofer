@@ -11,14 +11,19 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarHora, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
-import { calcularRota, pontoNaRota, restoDaRota, type Rota } from '@/data/rotas';
+import { calcularRota, pontoNaRota, restoDaRota, restoDesde, type Rota } from '@/data/rotas';
 import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
-import { calcularPreco } from '@/data/viagem';
+import { ouvir, publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
+import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
+import type { Motorista } from '@/data/motorista';
 import { ELOGIOS, useConta } from '@/state/conta';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
 
-type Fase = 'procurar' | 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
+type Fase = 'procurar' | 'sem_resposta' | 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
+
+// Com o servidor ligado, se o motorista não aceitar neste tempo, o cliente pode tentar outra vez ou cancelar.
+const TEMPO_ESPERA_MOTORISTA = 45000;
 
 // Durações da simulação, em milissegundos.
 const TEMPO_PROCURA = 3000;
@@ -49,10 +54,72 @@ export default function Viagem() {
   const codigo = viagemConta?.codigoRecolha ?? codigoLocal;
   // Caminho do motorista até à recolha, pelas estradas quando há rota do Google.
   const [rotaMotorista, setRotaMotorista] = useState<Rota | null>(null);
+  // Com o servidor ligado: o motorista real que aceitou, e porque é que o pedido ficou sem resposta.
+  const [motoristaReal, setMotoristaReal] = useState<Motorista | null>(null);
+  const [motivoSemResposta, setMotivoSemResposta] = useState('');
+  const [idLocal] = useState(() => `v-${Date.now()}`);
+  const idPedido = viagemConta?.id ?? idLocal;
+
+  // Tempo real: eventos do motorista desta viagem.
+  useEffect(() => {
+    if (!TEMPO_REAL_ATIVO) return;
+    return ouvir((e) => {
+      if (!('id' in e) || e.id !== idPedido) return;
+      if (e.tipo === 'aceite') {
+        setMotoristaReal(e.motorista);
+        setCarro(e.posicao);
+        calcularRota(e.posicao, origem).then(setRotaMotorista);
+        if (!e.agendada) setFase('a_caminho');
+      }
+      if (e.tipo === 'recusado') {
+        setMotivoSemResposta('O motorista não pode fazer esta viagem agora.');
+        setFase((f) => (f === 'procurar' ? 'sem_resposta' : f));
+      }
+      if (e.tipo === 'posicao') setCarro(e.posicao);
+      if (e.tipo === 'estado') {
+        if (e.motorista) setMotoristaReal(e.motorista);
+        if (e.estado === 'em_viagem') setProgresso(0);
+        setFase(e.estado);
+      }
+      if (e.tipo === 'cancelado' && e.por === 'motorista') {
+        setMotivoSemResposta('O motorista cancelou a viagem.');
+        setFase('sem_resposta');
+      }
+    });
+  }, [idPedido, origem]);
+
+  // Tempo real: enviar o pedido ao motorista do carro escolhido, e esperar que aceite.
+  useEffect(() => {
+    if (!TEMPO_REAL_ATIVO || fase !== 'procurar' || !destino) return;
+    const v = pedido.viatura;
+    publicar({
+      tipo: 'pedido',
+      pedido: {
+        id: idPedido,
+        viaturaId: v.id,
+        viaturaNome: nomeViatura(v),
+        origem,
+        paragens: pedido.paragens,
+        destino,
+        km: pedido.rota?.km ?? 0,
+        minutos: pedido.rota?.minutos ?? 0,
+        precoMzn: viagemConta ? viagemConta.precoMzn - viagemConta.descontoMzn : calcularPreco(v, pedido.rota?.km ?? 0, true),
+        codigoRecolha: codigo,
+        pagamento: PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '',
+        criadoEm: new Date().toISOString(),
+      },
+    });
+    const t = setTimeout(() => {
+      setMotivoSemResposta('O motorista não respondeu a tempo.');
+      setFase((f) => (f === 'procurar' ? 'sem_resposta' : f));
+    }, TEMPO_ESPERA_MOTORISTA);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- o pedido sai uma vez de cada vez que se procura motorista.
+  }, [fase]);
 
   // Procurar motorista e, quando encontrado, colocá-lo a cerca de 2 km da recolha.
   useEffect(() => {
-    if (fase !== 'procurar') return;
+    if (TEMPO_REAL_ATIVO || fase !== 'procurar') return;
     let valido = true;
     const inicio = { latitude: origem.latitude + 0.012, longitude: origem.longitude - 0.012 };
     const espera = new Promise((fim) => setTimeout(fim, TEMPO_PROCURA));
@@ -71,7 +138,7 @@ export default function Viagem() {
   // Mover o carro pela rota até à recolha (a_caminho) ou até ao destino (em_viagem).
   const pontosViagem = pedido.rota?.pontos;
   useEffect(() => {
-    if (fase !== 'a_caminho' && fase !== 'em_viagem') return;
+    if (TEMPO_REAL_ATIVO || (fase !== 'a_caminho' && fase !== 'em_viagem')) return;
     const pontos = fase === 'a_caminho' ? rotaMotorista?.pontos : pontosViagem;
     if (!pontos) return;
     let t = 0;
@@ -88,7 +155,7 @@ export default function Viagem() {
   }, [fase, rotaMotorista, pontosViagem]);
 
   const viatura = pedido.viatura;
-  const motorista = viatura.motorista ?? MOTORISTA_EXEMPLO;
+  const motorista = motoristaReal ?? viatura.motorista ?? MOTORISTA_EXEMPLO;
   const primeiroNome = motorista.nome.split(' ')[0];
 
   // Avisos de cada mudança de fase: dentro da app e no telemóvel.
@@ -107,8 +174,9 @@ export default function Viagem() {
 
   const preco = viagemConta ? viagemConta.precoMzn - viagemConta.descontoMzn : calcularPreco(viatura, pedido.rota?.km ?? 0, pedido.quando?.tipo === 'imediato');
   const pagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
-  const minutosRestantes = Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
-  const minutosViagem = Math.max(1, Math.round((pedido.rota?.minutos ?? 0) * (1 - progresso)));
+  // Com o motorista real, o tempo que falta sai da distância até ao ponto seguinte.
+  const minutosRestantes = TEMPO_REAL_ATIVO && carro ? duracaoMin(distanciaKm(carro, origem) * 1.3) : Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
+  const minutosViagem = TEMPO_REAL_ATIVO && carro ? duracaoMin(distanciaKm(carro, destino) * 1.3) : Math.max(1, Math.round((pedido.rota?.minutos ?? 0) * (1 - progresso)));
 
   function sair() {
     pedido.limpar();
@@ -116,6 +184,7 @@ export default function Viagem() {
   }
 
   function cancelar() {
+    if (TEMPO_REAL_ATIVO) publicar({ tipo: 'cancelado', id: idPedido, por: 'cliente' });
     if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'cancelada' });
     sair();
   }
@@ -128,7 +197,8 @@ export default function Viagem() {
 
   // Estados curtos, como no manual: «Chega em 4 min».
   const titulo: Record<Fase, string> = {
-    procurar: 'A procurar motorista',
+    procurar: TEMPO_REAL_ATIVO ? `À espera de ${primeiroNome}` : 'A procurar motorista',
+    sem_resposta: 'Sem motorista',
     a_caminho: `Chega em ${minutosRestantes} min`,
     chegou: 'O teu chauffeur chegou',
     em_viagem: `A caminho de ${destino.nome}`,
@@ -171,9 +241,13 @@ export default function Viagem() {
         // Com o motorista a caminho, a rota é do carro até à recolha.
         rota={
           fase === 'a_caminho' && rotaMotorista
-            ? restoDaRota(rotaMotorista.pontos, progresso)
+            ? TEMPO_REAL_ATIVO && carro
+              ? restoDesde(rotaMotorista.pontos, carro)
+              : restoDaRota(rotaMotorista.pontos, progresso)
             : fase === 'em_viagem' && pontosViagem
-              ? restoDaRota(pontosViagem, progresso)
+              ? TEMPO_REAL_ATIVO && carro
+                ? restoDesde(pontosViagem, carro)
+                : restoDaRota(pontosViagem, progresso)
               : fase === 'chegou' || fase === 'concluida'
                 ? []
                 : pontosViagem
@@ -192,11 +266,13 @@ export default function Viagem() {
 
       <Painel>
         <View style={s.estado}>
-          {fase !== 'procurar' && <View style={s.pontoEstado} />}
+          {fase !== 'procurar' && fase !== 'sem_resposta' && <View style={s.pontoEstado} />}
           <Text style={s.titulo}>{titulo[fase]}</Text>
         </View>
 
-        {fase === 'procurar' ? (
+        {fase === 'sem_resposta' ? (
+          <Text style={[s.secundario, { marginBottom: Spacing.three }]}>{motivoSemResposta} Podes tentar outra vez ou cancelar o pedido.</Text>
+        ) : fase === 'procurar' ? (
           <View style={s.procura}>
             <ActivityIndicator color={cores.text} />
             <Text style={s.secundario}>
@@ -283,8 +359,11 @@ export default function Viagem() {
           </>
         ) : (
           <View style={{ gap: Spacing.two }}>
-            {fase === 'chegou' && <BotaoPrincipal texto="Já estou no carro" onPress={() => setFase('em_viagem')} />}
-            {(fase === 'procurar' || fase === 'a_caminho' || fase === 'chegou') && <BotaoSecundario texto="Cancelar pedido" onPress={cancelar} />}
+            {fase === 'sem_resposta' && <BotaoPrincipal texto="Tentar outra vez" onPress={() => setFase('procurar')} />}
+            {/* Com o motorista real, é ele que começa a viagem quando o cliente lhe diz o código. */}
+            {fase === 'chegou' && !TEMPO_REAL_ATIVO && <BotaoPrincipal texto="Já estou no carro" onPress={() => setFase('em_viagem')} />}
+            {fase === 'chegou' && TEMPO_REAL_ATIVO && <Text style={[s.secundario, { textAlign: 'center' }]}>A viagem começa quando disseres o código a {primeiroNome}.</Text>}
+            {(fase === 'procurar' || fase === 'sem_resposta' || fase === 'a_caminho' || fase === 'chegou') && <BotaoSecundario texto="Cancelar pedido" onPress={cancelar} />}
           </View>
         )}
       </Painel>

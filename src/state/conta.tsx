@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
+import { ouvir, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { LUGARES, type Lugar } from '@/data/lugares';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import type { Promo } from '@/data/promocoes';
@@ -139,6 +140,29 @@ export function ContaProvider({ children }: { children: ReactNode }) {
     setAvisoTopo(aviso);
     if (noTelemovel.current) avisarNoTelemovel(titulo, texto);
   }, []);
+
+  // Viagens marcadas: o motorista aceita-as mais tarde, e avisa quando sai para a recolha.
+  // (As viagens para agora são acompanhadas no ecrã da viagem.)
+  const viagensRef = useRef(viagens);
+  useEffect(() => {
+    viagensRef.current = viagens;
+  }, [viagens]);
+  useEffect(() => {
+    if (!TEMPO_REAL_ATIVO) return;
+    return ouvir((e) => {
+      if (!('id' in e)) return;
+      const v = viagensRef.current.find((x) => x.id === e.id && x.estado === 'agendada');
+      if (!v) return;
+      if (e.tipo === 'aceite' && e.agendada) {
+        setViagens((l) => l.map((x) => (x.id === v.id ? { ...x, motorista: e.motorista } : x)));
+        avisar('Motorista confirmado', `${e.motorista.nome} aceitou a tua viagem para ${v.destino.nome}.`);
+      }
+      if (e.tipo === 'recusado') avisar('Motorista indisponível', `O motorista não pode fazer a viagem para ${v.destino.nome}. Vamos contactar-te.`);
+      if (e.tipo === 'estado' && e.estado === 'a_caminho') avisar(`${v.motorista.nome.split(' ')[0]} vai a caminho`, `Código de recolha: ${v.codigoRecolha}.`);
+      if (e.tipo === 'estado' && e.estado === 'chegou') avisar('O teu chauffeur chegou', `Diz-lhe o código ${v.codigoRecolha}.`);
+      if (e.tipo === 'estado' && e.estado === 'concluida') setViagens((l) => l.map((x) => (x.id === v.id ? { ...x, estado: 'concluida' } : x)));
+    });
+  }, [avisar]);
 
   const enviarMensagem = useCallback((texto: string) => {
     const limpo = texto.trim();
