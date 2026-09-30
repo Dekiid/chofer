@@ -83,6 +83,7 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
         </Pressable>
       </View>
 
+      {i.casamento?.foto && <Image source={i.casamento.foto} style={[s.fotoGrande, { marginBottom: Spacing.one }]} contentFit="cover" />}
       {i.casamento && (
         <Text style={[s.secundario, { marginBottom: Spacing.two }]}>
           Casamentos: {formatarMzn(i.casamento.semDecoracaoMzn)} sem decoração · {formatarMzn(i.casamento.comDecoracaoMzn)} com decoração

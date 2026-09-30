@@ -35,6 +35,7 @@ export default function Inscricao() {
   const [casamentos, setCasamentos] = useState(false);
   const [semDecoracao, setSemDecoracao] = useState('');
   const [comDecoracao, setComDecoracao] = useState('');
+  const [fotoDecorada, setFotoDecorada] = useState<string | null>(null);
   const [fotos, setFotos] = useState<Partial<Record<FotoPedida, string>>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
   const [enviada, setEnviada] = useState(false);
@@ -76,7 +77,9 @@ export default function Inscricao() {
       tipo,
       lugares,
       porKmMzn: Number(preco),
-      casamento: casamentos ? { semDecoracaoMzn: Number(semDecoracao), comDecoracaoMzn: Number(comDecoracao) } : undefined,
+      casamento: casamentos
+        ? { semDecoracaoMzn: Number(semDecoracao), comDecoracaoMzn: Number(comDecoracao), foto: fotoDecorada ? { uri: fotoDecorada } : undefined }
+        : undefined,
       fotos: fotos as Record<FotoPedida, string>,
     });
     setEnviada(true);
@@ -202,6 +205,26 @@ export default function Inscricao() {
               </View>
             </View>
             <Text style={s.ajuda}>Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço. Aplica-se a mesma comissão de {Math.round(COMISSAO * 100)}%.</Text>
+            <Pressable
+              onPress={async () => {
+                const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
+                if (!r.canceled) setFotoDecorada(r.assets[0].uri);
+              }}
+              accessibilityLabel="Escolher foto do carro decorado"
+              style={[s.foto, { marginBottom: Spacing.two }]}>
+              {fotoDecorada ? (
+                <Image source={{ uri: fotoDecorada }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              ) : (
+                <View style={s.fotoVazia}>
+                  <Text style={s.mais}>+</Text>
+                  <Text style={s.dica}>O teu carro decorado, de frente na diagonal</Text>
+                </View>
+              )}
+              <View style={s.etiqueta}>
+                <Text style={s.etiquetaTexto}>Decorado</Text>
+              </View>
+            </Pressable>
+            <Text style={s.ajuda}>Opcional. É a foto que os clientes veem na opção com decoração.</Text>
           </>
         )}
 

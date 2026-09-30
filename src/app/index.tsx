@@ -10,7 +10,7 @@ import { BotaoPrincipal, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarMzn, nomeViatura, type Modo, type Viatura } from '@/data/categorias';
-import { FOTOS_CASAMENTO, precoCasamento, type Decoracao } from '@/data/casamento';
+import { precoCasamento, type Decoracao } from '@/data/casamento';
 import { LOCALIZACAO_PADRAO } from '@/data/lugares';
 import { useAgenda } from '@/state/agenda';
 import { useInscricoes } from '@/state/inscricoes';
@@ -25,9 +25,9 @@ export default function Inicio() {
   const [modo, setModo] = useState<Modo>('motorista');
   const [decoracao, setDecoracao] = useState<Decoracao>('com');
   const lista = pedido.viaturas.filter((v) => disponivel(v, modo));
-  // Com decoração mostra uma foto genérica de um carro de casamento decorado, diferente para cada carro da lista.
-  const indice = lista.findIndex((v) => v.id === pedido.viatura.id);
-  const exemploDecoracao = modo === 'casamento' && decoracao === 'com' ? FOTOS_CASAMENTO[Math.max(0, indice) % FOTOS_CASAMENTO.length] : undefined;
+  // Com decoração mostra o mesmo modelo decorado para casamento, quando há essa foto.
+  const casamento = pedido.viatura.casamento;
+  const fotoDecorada = modo === 'casamento' && decoracao === 'com' && casamento?.foto ? { foto: casamento.foto, credito: casamento.credito } : undefined;
 
   function mudarModo(m: Modo) {
     setModo(m);
@@ -66,7 +66,7 @@ export default function Inicio() {
         <FotoCarro
           viatura={pedido.viatura}
           style={s.foto}
-          ilustracao={exemploDecoracao && { ...exemploDecoracao, etiqueta: 'Exemplo de decoração' }}
+          ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: 'Decorado para casamento' }}
         />
         <View style={s.legenda} pointerEvents="none">
           <Text style={s.nomeCarro}>{nomeViatura(pedido.viatura)}</Text>
