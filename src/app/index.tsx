@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
+import Animated, { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +9,7 @@ import { FotoCarro } from '@/components/foto-carro';
 import { fotosDaGaleria, GaleriaCarro } from '@/components/galeria-carro';
 import { Logo } from '@/components/logo';
 import { BotaoPrincipal, CampoPesquisa, Painel } from '@/components/ui';
+import { AlternadorModos } from '@/components/alternador-modos';
 import { Vidro } from '@/components/vidro';
 import { Radius, Spacing, VIDRO, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
@@ -36,6 +38,8 @@ export default function Inicio() {
   const [modo, setModo] = useState<Modo>('motorista');
   const [decoracao, setDecoracao] = useState<Decoracao>('com');
   const [galeriaAberta, setGaleriaAberta] = useState(false);
+  // Para que lado desliza o conteúdo ao mudar de separador: 1 para a direita, -1 para a esquerda.
+  const [direcao, setDirecao] = useState(1);
   const lista = pedido.viaturas.filter((v) => disponivel(v, modo));
   // No casamento mostra-se sempre a foto do carro com o visual de casamento, com ou sem decoração escolhida.
   const casamento = pedido.viatura.casamento;
@@ -45,6 +49,8 @@ export default function Inicio() {
   const temGaleria = !fotoDecorada && fotosDaGaleria(pedido.viatura).length > 1;
 
   function mudarModo(m: Modo) {
+    if (m === modo) return;
+    setDirecao(MODOS.findIndex((x) => x.id === m) > MODOS.findIndex((x) => x.id === modo) ? 1 : -1);
     setModo(m);
     // Nem todos os carros estão para aluguer ou casamentos; se o escolhido não estiver, passa para o primeiro que está.
     if (!disponivel(pedido.viatura, m)) {
@@ -115,61 +121,59 @@ export default function Inicio() {
       </SafeAreaView>
 
       <Painel onLayout={(e) => setAlturaPainel(e.nativeEvent.layout.height)}>
-        <Vidro style={s.alternador}>
-          {MODOS.map((m) => (
-            <Pressable key={m.id} onPress={() => mudarModo(m.id)} style={[s.opcaoModo, modo === m.id && s.opcaoModoAtiva]}>
-              <Text style={[s.textoModo, modo === m.id && s.textoModoAtivo]}>{m.nome}</Text>
-            </Pressable>
-          ))}
-        </Vidro>
-
-        <Text style={s.pergunta}>{MODOS.find((m) => m.id === modo)?.pergunta}</Text>
-        {modo === 'casamento' && (
-          <View style={s.decoracoes}>
-            {(['com', 'sem'] as const).map((d) => (
-              <Pressable key={d} onPress={() => setDecoracao(d)} style={[s.decoracao, decoracao === d && s.opcaoModoAtiva]}>
-                <Text style={[s.textoModo, decoracao === d && s.textoModoAtivo]}>{d === 'com' ? 'Com decoração' : 'Sem decoração'}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-        <ScrollView style={[s.lista, modo === 'casamento' && s.listaCasamento, ecraPequeno && s.listaPequena]} contentContainerStyle={{ gap: Spacing.one }}>
-          {lista.map((v) => {
-            const ativa = v.id === pedido.viatura.id;
-            const p = preco(v);
-            return (
-              <Pressable key={v.id} onPress={() => pedido.setViaturaId(v.id)} style={[s.cartao, ativa && s.cartaoAtivo]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.nome}>{nomeViatura(v)}</Text>
-                  <Text style={s.descricao}>{p.descricao}</Text>
-                </View>
-                <Text style={s.preco}>
-                  {formatarMzn(p.valor)}
-                  <Text style={s.lugares}>{p.unidade}</Text>
+        {/* O conteúdo entra a deslizar do lado da opção escolhida. */}
+        <Animated.View key={modo} entering={(direcao > 0 ? SlideInRight : SlideInLeft).duration(260)}>
+          <Text style={s.pergunta}>{MODOS.find((m) => m.id === modo)?.pergunta}</Text>
+          {modo === 'casamento' && (
+            <View style={s.decoracoes}>
+              {(['com', 'sem'] as const).map((d) => (
+                <Pressable key={d} onPress={() => setDecoracao(d)} style={[s.decoracao, decoracao === d && s.opcaoModoAtiva]}>
+                  <Text style={[s.textoModo, decoracao === d && s.textoModoAtivo]}>{d === 'com' ? 'Com decoração' : 'Sem decoração'}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          <ScrollView style={[s.lista, modo === 'casamento' && s.listaCasamento, ecraPequeno && s.listaPequena]} contentContainerStyle={{ gap: Spacing.one }}>
+            {lista.map((v) => {
+              const ativa = v.id === pedido.viatura.id;
+              const p = preco(v);
+              return (
+                <Pressable key={v.id} onPress={() => pedido.setViaturaId(v.id)} style={[s.cartao, ativa && s.cartaoAtivo]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.nome}>{nomeViatura(v)}</Text>
+                    <Text style={s.descricao}>{p.descricao}</Text>
+                  </View>
+                  <Text style={s.preco}>
+                    {formatarMzn(p.valor)}
+                    <Text style={s.lugares}>{p.unidade}</Text>
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {modo === 'motorista' ? (
+            <>
+              <CampoPesquisa texto="Para onde vamos?" onPress={() => router.push('/destino')} />
+              <Pressable onPress={() => router.push('/inscricao')} style={s.inscrever}>
+                <Text style={s.descricao}>
+                  Tens um carro premium? <Text style={s.textoInscrever}>Inscreve-te como motorista</Text>
                 </Text>
               </Pressable>
-            );
-          })}
-        </ScrollView>
-        {modo === 'motorista' ? (
-          <>
-            <CampoPesquisa texto="Para onde vamos?" onPress={() => router.push('/destino')} />
-            <Pressable onPress={() => router.push('/inscricao')} style={s.inscrever}>
-              <Text style={s.descricao}>
-                Tens um carro premium? <Text style={s.textoInscrever}>Inscreve-te como motorista</Text>
+            </>
+          ) : modo === 'aluguer' ? (
+            <BotaoPrincipal texto={`Alugar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
+          ) : (
+            <>
+              <BotaoPrincipal texto={`Reservar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
+              <Text style={[s.descricao, s.notaCasamento]}>
+                {decoracao === 'com' ? 'Com motorista e decoração de flores e fitas.' : 'Com motorista, sem decoração.'}
               </Text>
-            </Pressable>
-          </>
-        ) : modo === 'aluguer' ? (
-          <BotaoPrincipal texto={`Alugar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
-        ) : (
-          <>
-            <BotaoPrincipal texto={`Reservar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
-            <Text style={[s.descricao, s.notaCasamento]}>
-              {decoracao === 'com' ? 'Com motorista e decoração de flores e fitas.' : 'Com motorista, sem decoração.'}
-            </Text>
-          </>
-        )}
+            </>
+          )}
+        </Animated.View>
+
+        {/* Seletor em baixo, como na Uber; a marca preta desliza para a opção escolhida. */}
+        <AlternadorModos opcoes={MODOS} valor={modo} onMudar={mudarModo} style={s.alternador} />
       </Painel>
     </View>
   );
@@ -212,8 +216,7 @@ function estilos(c: Palette) {
     textoGestao: { color: c.text, fontSize: 14, fontWeight: '600' },
     inscrever: { alignItems: 'center', paddingTop: Spacing.three },
     textoInscrever: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
-    alternador: { flexDirection: 'row', borderRadius: Radius.pill, padding: Spacing.one, marginBottom: Spacing.three, overflow: 'hidden', ...(VIDRO ? {} : { backgroundColor: c.backgroundElement, borderWidth: 0 }) },
-    opcaoModo: { flex: 1, paddingVertical: Spacing.two, borderRadius: Radius.pill, alignItems: 'center' },
+    alternador: { marginTop: Spacing.three },
     opcaoModoAtiva: { backgroundColor: c.primary },
     textoModo: { color: c.textSecondary, fontWeight: '600' },
     textoModoAtivo: { color: c.onPrimary },
