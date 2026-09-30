@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 
+import { MAPA_ESCURO } from './mapa-escuro';
 import type { MapaProps } from './mapa-tipos';
 
 // Centro entre Maputo e Matola.
@@ -14,6 +15,8 @@ export const REGIAO_INICIAL = {
 
 export function Mapa({ origem, destino, carro, margemInferior = 0 }: MapaProps) {
   const ref = useRef<MapView>(null);
+  const escuro = useColorScheme() === 'dark';
+  const corLinha = escuro ? '#FFFFFF' : '#000000';
 
   // Enquadra a origem e o destino quando mudam.
   useEffect(() => {
@@ -26,10 +29,17 @@ export function Mapa({ origem, destino, carro, margemInferior = 0 }: MapaProps) 
   }, [origem, destino, margemInferior]);
 
   return (
-    <MapView ref={ref} style={StyleSheet.absoluteFill} initialRegion={REGIAO_INICIAL} showsUserLocation showsMyLocationButton={false}>
-      {origem && <Marker coordinate={origem} title="Recolha" pinColor="black" />}
+    <MapView
+      ref={ref}
+      style={StyleSheet.absoluteFill}
+      initialRegion={REGIAO_INICIAL}
+      showsUserLocation
+      showsMyLocationButton={false}
+      userInterfaceStyle={escuro ? 'dark' : 'light'}
+      customMapStyle={escuro ? MAPA_ESCURO : []}>
+      {origem && <Marker coordinate={origem} title="Recolha" pinColor={corLinha} />}
       {destino && <Marker coordinate={destino} title="Destino" pinColor="#B8914A" />}
-      {origem && destino && <Polyline coordinates={[origem, destino]} strokeWidth={4} strokeColor="#000000" />}
+      {origem && destino && <Polyline coordinates={[origem, destino]} strokeWidth={4} strokeColor={corLinha} />}
       {carro && <Marker coordinate={carro} title="Motorista" pinColor="#2E2E2E" />}
     </MapView>
   );
