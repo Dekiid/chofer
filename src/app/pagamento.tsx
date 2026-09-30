@@ -8,7 +8,11 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
-import { calcularPreco } from '@/data/viagem';
+import { MOTORISTA_EXEMPLO } from '@/data/motorista';
+import { descontoDe, procurarPromo } from '@/data/promocoes';
+import { gerarCodigoRecolha } from '@/data/seguranca';
+import { calcularPreco, taxaImediato } from '@/data/viagem';
+import { useConta } from '@/state/conta';
 import { useAgenda } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
@@ -25,6 +29,10 @@ export default function Pagamento() {
   const [telefone, setTelefone] = useState('');
   const agenda = useAgenda();
   const [estado, setEstado] = useState<Estado>('preencher');
+  const conta = useConta();
+  const [codigoAberto, setCodigoAberto] = useState(false);
+  const [codigoTexto, setCodigoTexto] = useState('');
+  const [erroCodigo, setErroCodigo] = useState('');
 
   const { destino, viatura, quando } = pedido;
   // O mesmo km do resumo, para o valor pago ser o que o cliente viu.
@@ -32,6 +40,21 @@ export default function Pagamento() {
   const duracao = pedido.rota?.minutos ?? 0;
   const imediato = quando?.tipo === 'imediato';
   const preco = calcularPreco(viatura, km, imediato);
+  // Códigos de convite só valem na primeira viagem.
+  const primeiraViagem = !conta.viagens.some((v) => v.estado === 'concluida');
+  const desconto = descontoDe(conta.promo, preco);
+  const aPagar = preco - desconto;
+
+  function aplicarCodigo() {
+    const promo = procurarPromo(codigoTexto);
+    if (!promo) return setErroCodigo('Este código não existe.');
+    if (promo.codigo === conta.codigoConvite) return setErroCodigo('Não podes usar o teu próprio código de convite.');
+    if (promo.codigo.startsWith('AMIGO-') && !primeiraViagem) return setErroCodigo('Os códigos de convite só valem na primeira viagem.');
+    conta.setPromo(promo);
+    setErroCodigo('');
+    setCodigoAberto(false);
+    Keyboard.dismiss();
+  }
 
   useEffect(() => {
     if (estado === 'a_processar') {
@@ -41,8 +64,34 @@ export default function Pagamento() {
         const inicio = quando.tipo === 'agendado' ? quando.inicio : new Date();
         const ocupado = minutosOcupado(duracao, quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
         agenda.reservar({ viaturaId: viatura.id, inicio, fim: somarMin(inicio, ocupado), tipo: quando.tipo === 'imediato' ? 'imediata' : 'agendada', destino: destino.nome });
+        // Fica no histórico do cliente, com o recibo.
+        conta.registarViagem({
+          recolhaEm: inicio,
+          origem: pedido.origem,
+          paragens: pedido.paragens,
+          destino,
+          viatura: nomeViatura(viatura),
+          motorista: viatura.motorista ?? MOTORISTA_EXEMPLO,
+          km,
+          minutos: duracao,
+          precoMzn: preco,
+          taxaImediatoMzn: quando.tipo === 'imediato' ? taxaImediato(viatura, km) : 0,
+          descontoMzn: desconto,
+          promo: conta.promo?.codigo,
+          gorjetaMzn: 0,
+          pagamento: pedido.pagamento,
+          codigoRecolha: gerarCodigoRecolha(),
+          estado: quando.tipo === 'imediato' ? 'em_curso' : 'agendada',
+        });
+        conta.setPromo(null);
+        conta.avisar(
+          'Pagamento confirmado',
+          quando.tipo === 'imediato'
+            ? `${formatarMzn(aPagar)} por ${PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome}. A chamar o teu ${nomeViatura(viatura)}.`
+            : `Viagem para ${destino.nome} marcada para ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`,
+        );
         if (quando.tipo === 'imediato') {
-          agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(preco)} com taxa de pedido imediato.`);
+          agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(aPagar)} com taxa de pedido imediato.`);
         }
         setEstado(quando.tipo === 'imediato' ? 'pago' : 'agendada');
       }, TEMPO_CONFIRMACAO);
@@ -52,7 +101,7 @@ export default function Pagamento() {
       const t = setTimeout(() => router.replace('/viagem'), 1200);
       return () => clearTimeout(t);
     }
-  }, [estado, agenda, destino, quando, viatura, duracao, preco]);
+  }, [estado, agenda, destino, quando, viatura, duracao, preco, aPagar, desconto, km, conta, pedido.origem, pedido.paragens, pedido.pagamento]);
 
   if (estado === 'agendada' && quando?.tipo === 'agendado') {
     return (
@@ -89,7 +138,7 @@ export default function Pagamento() {
             <ActivityIndicator size="large" color={cores.text} />
             <Text style={s.titulo}>Confirma no teu telemóvel</Text>
             <Text style={s.secundarioCentro}>
-              Enviámos um pedido de {formatarMzn(preco)} por {metodo.nome} para o número {digitos}. Introduz o teu PIN para autorizar.
+              Enviámos um pedido de {formatarMzn(aPagar)} por {metodo.nome} para o número {digitos}. Introduz o teu PIN para autorizar.
             </Text>
           </>
         ) : (
@@ -114,7 +163,15 @@ export default function Pagamento() {
         {/* Tocar fora do campo esconde o teclado (o teclado numérico do iPhone não tem tecla para fechar). */}
         <Pressable style={s.corpo} onPress={Keyboard.dismiss} accessible={false}>
           <Text style={s.secundario}>Total a pagar</Text>
-          <Text style={s.total}>{formatarMzn(preco)}</Text>
+          <Text style={s.total}>{formatarMzn(aPagar)}</Text>
+          {desconto > 0 && (
+            <Text style={s.desconto}>
+              <Text style={s.riscado}>{formatarMzn(preco)}</Text> · {formatarMzn(desconto)} de desconto ({conta.promo?.codigo}){'  '}
+              <Text style={s.tirarCodigo} onPress={() => conta.setPromo(null)}>
+                Tirar
+              </Text>
+            </Text>
+          )}
           <Text style={s.secundario}>
             {nomeViatura(viatura)} até {destino.nome}
           </Text>
@@ -123,6 +180,34 @@ export default function Pagamento() {
               ? `Recolha ${formatarDia(quando.inicio, new Date()).toLowerCase()} às ${formatarHora(quando.inicio)}`
               : 'Pedido imediato, com taxa extra'}
           </Text>
+
+          {!conta.promo &&
+            (codigoAberto ? (
+              <View style={s.linhaCodigo}>
+                <TextInput
+                  value={codigoTexto}
+                  onChangeText={(t) => {
+                    setCodigoTexto(t.toUpperCase());
+                    setErroCodigo('');
+                  }}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  autoFocus
+                  placeholder="Código promocional ou de convite"
+                  placeholderTextColor={cores.textSecondary}
+                  onSubmitEditing={aplicarCodigo}
+                  style={[s.input, { flex: 1, fontSize: 15 }]}
+                />
+                <Pressable onPress={aplicarCodigo} style={s.aplicar}>
+                  <Text style={s.aplicarTexto}>Aplicar</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={() => setCodigoAberto(true)} hitSlop={6} style={{ alignSelf: 'flex-start', marginTop: Spacing.three }}>
+                <Text style={s.temCodigo}>Tens um código promocional?</Text>
+              </Pressable>
+            ))}
+          {erroCodigo ? <Text style={s.erro}>{erroCodigo}</Text> : null}
 
           <Text style={s.rotulo}>Método de pagamento</Text>
           <View style={s.metodos}>
@@ -156,7 +241,7 @@ export default function Pagamento() {
 
         <View style={s.rodape}>
           <BotaoPrincipal
-            texto={`Pagar ${formatarMzn(preco)}`}
+            texto={`Pagar ${formatarMzn(aPagar)}`}
             onPress={() => {
               Keyboard.dismiss();
               setEstado('a_processar');
@@ -186,6 +271,14 @@ function estilos(c: Palette) {
     metodoTextoAtivo: { fontWeight: '800' },
     input: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, color: c.text, fontSize: 18, fontWeight: '600' },
     rodape: { padding: Spacing.three },
+    desconto: { color: c.textSecondary, fontSize: 14, marginBottom: Spacing.one },
+    riscado: { textDecorationLine: 'line-through' },
+    tirarCodigo: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
+    temCodigo: { color: c.text, fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
+    linhaCodigo: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.three, alignItems: 'center' },
+    aplicar: { backgroundColor: c.primary, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three },
+    aplicarTexto: { color: c.onPrimary, fontWeight: '700' },
+    erro: { color: '#DC2626', fontSize: 13, marginTop: Spacing.one },
     titulo: { color: c.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
     secundarioCentro: { color: c.textSecondary, fontSize: 15, textAlign: 'center' },
     visto: { fontSize: 56, fontWeight: '800' },

@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Quando } from '@/data/agenda';
 import { VIATURAS, type Viatura } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO, type Lugar } from '@/data/lugares';
-import { calcularRota, rotaEstimada, type Rota } from '@/data/rotas';
+import { calcularRotaPor, rotaEstimadaPor, type Rota } from '@/data/rotas';
 import { useInscricoes } from '@/state/inscricoes';
 
 export type Pagamento = 'mpesa' | 'emola';
@@ -19,6 +19,8 @@ type Pedido = {
   /** Localização do telemóvel, para voltar a ela depois de escolher outro ponto de recolha. */
   localAtual: Lugar;
   destino: Lugar | null;
+  /** Paragens pelo caminho, pela ordem (no máximo MAX_PARAGENS). */
+  paragens: Lugar[];
   viatura: Viatura;
   /** Modelos de exemplo mais os carros de motoristas aprovados. */
   viaturas: Viatura[];
@@ -33,11 +35,16 @@ type Pedido = {
   /** Guarda a localização do telemóvel e usa-a como recolha se ainda ninguém escolheu outra. */
   setLocalAtual: (l: Lugar) => void;
   setDestino: (l: Lugar | null) => void;
+  /** Põe a paragem na posição i; i igual ao número de paragens acrescenta uma nova. */
+  setParagem: (i: number, l: Lugar) => void;
+  removerParagem: (i: number) => void;
   setViaturaId: (id: string) => void;
   setPagamento: (p: Pagamento) => void;
   setQuando: (q: Quando | null) => void;
   limpar: () => void;
 };
+
+export const MAX_PARAGENS = 2;
 
 const PedidoContext = createContext<Pedido | null>(null);
 
@@ -49,27 +56,29 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
     setOrigem((atual) => (atual.id === LOCALIZACAO_PADRAO.id ? l : atual));
   }, []);
   const [destino, setDestino] = useState<Lugar | null>(null);
+  const [paragens, setParagens] = useState<Lugar[]>([]);
   const [viaturaId, setViaturaId] = useState(VIATURAS[0].id);
   const [pagamento, setPagamento] = useState<Pagamento>('mpesa');
   const [quando, setQuando] = useState<Quando | null>(null);
   const { viaturasAprovadas } = useInscricoes();
   const [rotaGoogle, setRotaGoogle] = useState<{ chave: string; rota: Rota } | null>(null);
-  const chaveRota = destino ? `${origem.latitude},${origem.longitude}>${destino.latitude},${destino.longitude}` : null;
+  const pontos = useMemo(() => (destino ? [origem, ...paragens, destino] : null), [origem, paragens, destino]);
+  const chaveRota = pontos ? pontos.map((p) => `${p.latitude},${p.longitude}`).join('>') : null;
 
   // Pede a rota pelas estradas sempre que a recolha ou o destino mudam.
   useEffect(() => {
-    if (!destino || !chaveRota) return;
+    if (!pontos || !chaveRota) return;
     let valido = true;
-    calcularRota(origem, destino).then((rota) => {
+    calcularRotaPor(pontos).then((rota) => {
       if (valido) setRotaGoogle({ chave: chaveRota, rota });
     });
     return () => {
       valido = false;
     };
-  }, [origem, destino, chaveRota]);
+  }, [pontos, chaveRota]);
 
   const rotaPronta = rotaGoogle && rotaGoogle.chave === chaveRota ? rotaGoogle.rota : null;
-  const rota = destino ? (rotaPronta ?? rotaEstimada(origem, destino)) : null;
+  const rota = pontos ? (rotaPronta ?? rotaEstimadaPor(pontos)) : null;
   const rotaACarregar = destino != null && rotaPronta == null;
 
   const valor = useMemo(() => {
@@ -78,6 +87,7 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
       origem,
       localAtual,
       destino,
+      paragens,
       viatura: viaturas.find((v) => v.id === viaturaId) ?? VIATURAS[0],
       viaturas,
       pagamento,
@@ -94,6 +104,14 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
         setDestino(l);
         setQuando(null);
       },
+      setParagem: (i: number, l: Lugar) => {
+        setParagens((atual) => (i >= atual.length ? [...atual, l].slice(0, MAX_PARAGENS) : atual.map((p, j) => (j === i ? l : p))));
+        setQuando(null);
+      },
+      removerParagem: (i: number) => {
+        setParagens((atual) => atual.filter((_, j) => j !== i));
+        setQuando(null);
+      },
       setViaturaId: (id: string) => {
         setViaturaId(id);
         setQuando(null);
@@ -102,10 +120,11 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
       setQuando,
       limpar: () => {
         setDestino(null);
+        setParagens([]);
         setQuando(null);
       },
     };
-  }, [origem, localAtual, destino, viaturaId, pagamento, quando, rota, rotaACarregar, viaturasAprovadas, setLocalAtual]);
+  }, [origem, localAtual, destino, paragens, viaturaId, pagamento, quando, rota, rotaACarregar, viaturasAprovadas, setLocalAtual]);
 
   return <PedidoContext.Provider value={valor}>{children}</PedidoContext.Provider>;
 }

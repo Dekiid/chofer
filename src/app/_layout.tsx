@@ -5,10 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
+import { AvisoTopo } from '@/components/aviso-topo';
 import { Logo } from '@/components/logo';
 import { Text } from '@/components/texto';
 
 import { AgendaProvider } from '@/state/agenda';
+import { ContaProvider } from '@/state/conta';
 import { InscricoesProvider } from '@/state/inscricoes';
 import { PedidoProvider } from '@/state/pedido';
 
@@ -45,13 +47,17 @@ export default function RootLayout() {
       <AgendaProvider>
         <InscricoesProvider>
           <PedidoProvider>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="viagem" options={{ gestureEnabled: false }} />
-              <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
-              <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
-            </Stack>
+            <ContaProvider>
+              <StatusBar style="auto" />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="viagem" options={{ gestureEnabled: false }} />
+                <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
+                <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
+              </Stack>
+              <AvisoTopo />
+            </ContaProvider>
           </PedidoProvider>
         </InscricoesProvider>
       </AgendaProvider>

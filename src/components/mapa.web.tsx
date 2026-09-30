@@ -9,11 +9,11 @@ import type { MapaProps, Ponto } from './mapa-tipos';
 // react-native-maps não funciona na web; esta vista só serve para pré-visualizar o layout.
 // Os pontos são projetados na parte de cima do ecrã (a de baixo fica tapada pelo painel),
 // com os marcadores do manual de identidade.
-export function Mapa({ origem, destino, carro, rota }: MapaProps) {
+export function Mapa({ origem, destino, paragens, carro, rota }: MapaProps) {
   const cores = usePalette();
   const [tamanho, setTamanho] = useState({ w: 0, h: 0 });
   const linha = rota ?? (origem && destino ? [origem, destino] : []);
-  const todos = [origem, destino, carro, ...linha].filter((p): p is Ponto => p != null);
+  const todos = [origem, destino, carro, ...(paragens ?? []), ...linha].filter((p): p is Ponto => p != null);
 
   // A área só cresce, para os marcadores não saltarem enquanto o carro se aproxima.
   const caixa = useRef({ minLat: Infinity, maxLat: -Infinity, minLng: Infinity, maxLng: -Infinity });
@@ -59,6 +59,8 @@ export function Mapa({ origem, destino, carro, rota }: MapaProps) {
           <View style={estilos.recolha} />
         </View>
       )}
+      {tamanho.w > 0 &&
+        paragens?.map((p, i) => <View key={`paragem-${i}`} style={[estilos.paragem, { borderColor: cores.text, left: xy(p).x - 6, top: xy(p).y - 6 }]} />)}
       {tamanho.w > 0 && carro && <View style={[estilos.carro, { left: xy(carro).x - 13, top: xy(carro).y - 7 }]} />}
     </View>
   );
@@ -68,6 +70,7 @@ const estilos = StyleSheet.create({
   halo: { position: 'absolute', width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(34,197,94,0.22)', alignItems: 'center', justifyContent: 'center' },
   recolha: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#22C55E', borderWidth: 3, borderColor: '#FFFFFF' },
   destino: { position: 'absolute', width: 14, height: 14, borderWidth: 3 },
+  paragem: { position: 'absolute', width: 12, height: 12, borderWidth: 3, backgroundColor: '#FFFFFF' },
   carro: { position: 'absolute', width: 26, height: 14, borderRadius: 4, backgroundColor: '#000000', borderWidth: 2, borderColor: '#FFFFFF' },
   rota: { position: 'absolute', height: 4, borderRadius: 2 },
 });

@@ -17,6 +17,7 @@ import { formatarMzn, nomeViatura, type Modo, type Viatura } from '@/data/catego
 import { precoCasamento, type Decoracao } from '@/data/casamento';
 import { LOCALIZACAO_PADRAO } from '@/data/lugares';
 import { useAgenda } from '@/state/agenda';
+import { useConta } from '@/state/conta';
 import { useInscricoes } from '@/state/inscricoes';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
@@ -28,6 +29,7 @@ export default function Inicio() {
   const { naoLidas } = useAgenda();
   const avisos = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length + naoLidas;
   const insets = useSafeAreaInsets();
+  const { avisosNaoLidos } = useConta();
   const [alturaPainel, setAlturaPainel] = useState(420);
   const ecraJanela = useWindowDimensions();
   // Telemóveis baixos (iPhone SE, Androids pequenos): lista mais curta para sobrar espaço à foto.
@@ -107,6 +109,17 @@ export default function Inicio() {
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <Logo altura={30} />
+        {/* Conta do cliente: viagens, recibos, locais guardados, convites e avisos. */}
+        <Pressable onPress={() => router.push('/conta')} style={[s.contaPosicao, { top: insets.top + Spacing.two }]} accessibilityLabel="A tua conta">
+          <Vidro interativo style={s.gestao}>
+            <Text style={s.textoGestao}>Conta</Text>
+            {avisosNaoLidos > 0 && (
+              <View style={s.contador}>
+                <Text style={s.textoContador}>{avisosNaoLidos}</Text>
+              </View>
+            )}
+          </Vidro>
+        </Pressable>
         {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
         <Pressable onPress={() => router.push('/gestao')} style={[s.gestaoPosicao, { top: insets.top + Spacing.two }]}>
           <Vidro interativo style={s.gestao}>
@@ -212,6 +225,7 @@ function estilos(c: Palette) {
     contador: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
     textoContador: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
     gestaoPosicao: { position: 'absolute', right: Spacing.three },
+    contaPosicao: { position: 'absolute', left: Spacing.three },
     gestao: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, overflow: 'hidden', ...(VIDRO ? {} : { backgroundColor: c.backgroundElement, borderWidth: 0 }) },
     textoGestao: { color: c.text, fontSize: 14, fontWeight: '600' },
     inscrever: { alignItems: 'center', paddingTop: Spacing.three },

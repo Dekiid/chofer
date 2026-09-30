@@ -1,19 +1,22 @@
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Modal, Pressable, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Mapa } from '@/components/mapa';
 import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoSecundario, Painel } from '@/components/ui';
-import { Spacing, type Palette } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
+import { formatarHora, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { calcularRota, pontoNaRota, restoDaRota, type Rota } from '@/data/rotas';
+import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
 import { calcularPreco } from '@/data/viagem';
+import { ELOGIOS, useConta } from '@/state/conta';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
-import { Text } from '@/components/texto';
+import { Text, TextInput } from '@/components/texto';
 
 type Fase = 'procurar' | 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
 
@@ -22,16 +25,28 @@ const TEMPO_PROCURA = 3000;
 const TEMPO_DESLOCACAO = 10000;
 const PASSO = 250;
 
+/** Valores rápidos de gorjeta, em meticais. A gorjeta vai toda para o motorista. */
+const GORJETAS = [0, 50, 100, 200];
+
 export default function Viagem() {
   const cores = usePalette();
   const s = estilos(cores);
   const pedido = usePedido();
+  const conta = useConta();
   const { origem, destino } = pedido;
+  const viagemConta = conta.viagemAtual;
 
   const [fase, setFase] = useState<Fase>('procurar');
   const [carro, setCarro] = useState<Ponto | null>(null);
   const [progresso, setProgresso] = useState(0);
   const [estrelas, setEstrelas] = useState(0);
+  const [elogios, setElogios] = useState<string[]>([]);
+  const [comentario, setComentario] = useState('');
+  const [gorjeta, setGorjeta] = useState(0);
+  const [sos, setSos] = useState(false);
+  // Sem viagem registada (por exemplo, ao abrir este ecrã diretamente), gera-se um código na mesma.
+  const [codigoLocal] = useState(gerarCodigoRecolha);
+  const codigo = viagemConta?.codigoRecolha ?? codigoLocal;
   // Caminho do motorista até à recolha, pelas estradas quando há rota do Google.
   const [rotaMotorista, setRotaMotorista] = useState<Rota | null>(null);
 
@@ -72,17 +87,43 @@ export default function Viagem() {
     return () => clearInterval(id);
   }, [fase, rotaMotorista, pontosViagem]);
 
-  if (!destino) return <Redirect href="/" />;
-
   const viatura = pedido.viatura;
   const motorista = viatura.motorista ?? MOTORISTA_EXEMPLO;
-  const preco = calcularPreco(viatura, pedido.rota?.km ?? 0, pedido.quando?.tipo === 'imediato');
+  const primeiroNome = motorista.nome.split(' ')[0];
+
+  // Avisos de cada mudança de fase: dentro da app e no telemóvel.
+  const { avisar, atualizarViagem } = conta;
+  const faseAvisada = useRef<Fase>('procurar');
+  useEffect(() => {
+    if (fase === faseAvisada.current || !destino) return;
+    faseAvisada.current = fase;
+    if (fase === 'a_caminho') avisar(`${primeiroNome} vai a caminho`, `${nomeViatura(viatura)} · ${motorista.matricula}. Código de recolha: ${codigo}.`);
+    if (fase === 'chegou') avisar('O teu chauffeur chegou', `${primeiroNome} está à porta num ${nomeViatura(viatura)}. Diz-lhe o código ${codigo}.`);
+    if (fase === 'em_viagem' && viagemConta) atualizarViagem(viagemConta.id, { estado: 'em_curso' });
+    if (fase === 'concluida') avisar('Chegaste ao destino', `Obrigado por viajares com a Chauffeur. Avalia ${primeiroNome} e vê o recibo.`);
+  }, [fase, destino, avisar, atualizarViagem, viagemConta, primeiroNome, viatura, motorista.matricula, codigo]);
+
+  if (!destino) return <Redirect href="/" />;
+
+  const preco = viagemConta ? viagemConta.precoMzn - viagemConta.descontoMzn : calcularPreco(viatura, pedido.rota?.km ?? 0, pedido.quando?.tipo === 'imediato');
   const pagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
   const minutosRestantes = Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
+  const minutosViagem = Math.max(1, Math.round((pedido.rota?.minutos ?? 0) * (1 - progresso)));
 
   function sair() {
     pedido.limpar();
     router.dismissTo('/');
+  }
+
+  function cancelar() {
+    if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'cancelada' });
+    sair();
+  }
+
+  function concluir() {
+    if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'concluida', gorjetaMzn: gorjeta, avaliacao: { estrelas, elogios, comentario: comentario.trim() } });
+    if (gorjeta > 0) avisar('Gorjeta enviada', `${formatarMzn(gorjeta)} por ${pagamento} para ${primeiroNome}. Obrigado!`);
+    sair();
   }
 
   // Estados curtos, como no manual: «Chega em 4 min».
@@ -93,7 +134,31 @@ export default function Viagem() {
     em_viagem: `A caminho de ${destino.nome}`,
     concluida: 'Chegaste ao destino',
   };
-  const contactar = () => Linking.openURL(`tel:${motorista.telefone}`);
+  const ligar = () => Linking.openURL(`tel:${motorista.telefone}`);
+
+  // Mensagem para um familiar ou amigo acompanhar: carro, matrícula, motorista, destino, chegada e onde está agora.
+  async function partilhar() {
+    const chegada = formatarHora(somarMin(new Date(), fase === 'em_viagem' ? minutosViagem : minutosRestantes + (pedido.rota?.minutos ?? 0)));
+    const onde = carro ?? origem;
+    const texto =
+      `Estou numa viagem Chauffeur para ${destino!.nome}.\n` +
+      `Carro: ${nomeViatura(viatura)}, matrícula ${motorista.matricula}. Motorista: ${motorista.nome}.\n` +
+      `Chegada prevista às ${chegada}.\n` +
+      `Onde estou agora: ${ligacaoMapa(onde)}`;
+    try {
+      await Share.share({ message: texto });
+    } catch {
+      // Sem partilha disponível (alguns browsers); não há nada a fazer.
+    }
+  }
+
+  async function partilharLocalizacao() {
+    try {
+      await Share.share({ message: `Preciso de ajuda. Estou num ${nomeViatura(viatura)} (${motorista.matricula}). A minha localização: ${ligacaoMapa(carro ?? origem)}` });
+    } catch {}
+  }
+
+  const comMotorista = fase === 'a_caminho' || fase === 'chegou' || fase === 'em_viagem';
 
   return (
     <View style={s.ecra}>
@@ -101,6 +166,7 @@ export default function Viagem() {
         origem={fase === 'em_viagem' || fase === 'concluida' ? undefined : origem}
         // Como no manual: com o motorista a caminho, só o carro e a recolha.
         destino={fase === 'a_caminho' || fase === 'chegou' ? undefined : destino}
+        paragens={fase === 'em_viagem' ? pedido.paragens : undefined}
         carro={carro}
         // Com o motorista a caminho, a rota é do carro até à recolha.
         rota={
@@ -112,23 +178,14 @@ export default function Viagem() {
                 ? []
                 : pontosViagem
         }
-        margemInferior={360}
+        margemInferior={420}
       />
 
-      {fase === 'chegou' && (
-        <SafeAreaView edges={['top']} style={s.topoAviso} pointerEvents="none">
-          <View style={s.aviso}>
-            <View style={s.avisoIcone}>
-              <Text style={s.avisoC}>c</Text>
-              <View style={s.avisoPonto} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.avisoTitulo}>O teu chauffeur chegou</Text>
-              <Text style={s.avisoTexto}>
-                {motorista.nome.split(' ')[0]} está à porta num {nomeViatura(viatura)}.
-              </Text>
-            </View>
-          </View>
+      {fase !== 'concluida' && (
+        <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
+          <Pressable onPress={() => setSos(true)} style={s.sos} accessibilityLabel="Emergência" hitSlop={8}>
+            <Text style={s.sosTexto}>SOS</Text>
+          </Pressable>
         </SafeAreaView>
       )}
 
@@ -161,12 +218,32 @@ export default function Viagem() {
           </View>
         )}
 
+        {(fase === 'a_caminho' || fase === 'chegou') && (
+          <View style={s.codigo}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.codigoTitulo}>Código de recolha</Text>
+              <Text style={s.secundarioPequeno}>Diz este código ao motorista antes de entrares. Se ele não o souber, não entres.</Text>
+            </View>
+            <Text style={s.codigoNumero} accessibilityLabel={`Código ${codigo.split('').join(' ')}`}>
+              {codigo}
+            </Text>
+          </View>
+        )}
+
+        {comMotorista && (
+          <View style={s.acoes}>
+            <Acao texto="Ligar" onPress={ligar} s={s} />
+            <Acao texto="Mensagem" onPress={() => router.push('/chat')} s={s} contador={conta.naoLidasChat} />
+            <Acao texto="Partilhar" onPress={partilhar} s={s} />
+          </View>
+        )}
+
         {fase === 'concluida' ? (
           <>
             <Text style={s.total}>
-              {formatarMzn(preco)} <Text style={s.secundario}>· pago por {pagamento}</Text>
+              {formatarMzn(preco + gorjeta)} <Text style={s.secundario}>· pago por {pagamento}</Text>
             </Text>
-            <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Como foi a viagem?</Text>
+            <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Como foi a viagem com {primeiroNome}?</Text>
             <View style={s.estrelas}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <Pressable key={n} onPress={() => setEstrelas(n)} accessibilityLabel={`${n} estrelas`}>
@@ -174,28 +251,90 @@ export default function Viagem() {
                 </Pressable>
               ))}
             </View>
-            <BotaoPrincipal texto="Concluir" onPress={sair} desativado={estrelas === 0} />
+            {estrelas > 0 && (
+              <>
+                <View style={s.chips}>
+                  {(estrelas >= 4 ? ELOGIOS : ['Condução perigosa', 'Atrasou', 'Carro sujo', 'Pouco simpático', 'Caminho mais longo']).map((e) => {
+                    const ativo = elogios.includes(e);
+                    return (
+                      <Pressable key={e} onPress={() => setElogios((a) => (ativo ? a.filter((x) => x !== e) : [...a, e]))} style={[s.chip, ativo && s.chipAtivo]}>
+                        <Text style={[s.chipTexto, ativo && s.chipTextoAtivo]}>{e}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <TextInput value={comentario} onChangeText={setComentario} placeholder="Comentário (opcional)" placeholderTextColor={cores.textSecondary} style={s.comentario} maxLength={200} />
+                <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Gorjeta para {primeiroNome}</Text>
+                <View style={s.chips}>
+                  {GORJETAS.map((g) => (
+                    <Pressable key={g} onPress={() => setGorjeta(g)} style={[s.chip, gorjeta === g && s.chipAtivo]}>
+                      <Text style={[s.chipTexto, gorjeta === g && s.chipTextoAtivo]}>{g === 0 ? 'Sem gorjeta' : formatarMzn(g)}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
+            <View style={{ gap: Spacing.two }}>
+              <BotaoPrincipal texto={gorjeta > 0 ? `Concluir e enviar ${formatarMzn(gorjeta)}` : 'Concluir'} onPress={concluir} desativado={estrelas === 0} />
+              {viagemConta && <BotaoSecundario texto="Ver recibo" onPress={() => router.push({ pathname: '/recibo', params: { id: viagemConta.id } })} />}
+            </View>
           </>
         ) : (
           <View style={{ gap: Spacing.two }}>
-            {(fase === 'a_caminho' || fase === 'em_viagem') && <BotaoPrincipal texto="Contactar motorista" onPress={contactar} />}
-            {fase === 'chegou' && (
-              <>
-                <BotaoPrincipal texto="Já estou no carro" onPress={() => setFase('em_viagem')} />
-                <BotaoSecundario texto="Contactar motorista" onPress={contactar} />
-              </>
-            )}
-            {(fase === 'procurar' || fase === 'a_caminho' || fase === 'chegou') && <BotaoSecundario texto="Cancelar pedido" onPress={sair} />}
+            {fase === 'chegou' && <BotaoPrincipal texto="Já estou no carro" onPress={() => setFase('em_viagem')} />}
+            {(fase === 'procurar' || fase === 'a_caminho' || fase === 'chegou') && <BotaoSecundario texto="Cancelar pedido" onPress={cancelar} />}
           </View>
         )}
       </Painel>
+
+      <Modal visible={sos} transparent animationType="fade" onRequestClose={() => setSos(false)} statusBarTranslucent>
+        <Pressable style={s.fundoSos} onPress={() => setSos(false)}>
+          <Pressable style={s.folhaSos} onPress={() => {}}>
+            <Text style={s.tituloSos}>Emergência</Text>
+            <Text style={[s.secundario, { marginBottom: Spacing.three }]}>
+              {nomeViatura(viatura)} · {motorista.matricula} · {motorista.nome}
+            </Text>
+            {EMERGENCIA.map((e) => (
+              <Pressable key={e.numero} onPress={() => Linking.openURL(`tel:${e.numero}`)} style={s.linhaSos}>
+                <Text style={s.nome}>{e.nome}</Text>
+                <Text style={s.numeroSos}>{e.numero}</Text>
+              </Pressable>
+            ))}
+            <Pressable onPress={partilharLocalizacao} style={s.linhaSos}>
+              <Text style={s.nome}>Enviar a minha localização</Text>
+              <Text style={s.secundario}>›</Text>
+            </Pressable>
+            <View style={{ marginTop: Spacing.three }}>
+              <BotaoSecundario texto="Fechar" onPress={() => setSos(false)} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
+  );
+}
+
+function Acao({ texto, onPress, s, contador = 0 }: { texto: string; onPress: () => void; s: ReturnType<typeof estilos>; contador?: number }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.acao, pressed && { opacity: 0.7 }]}>
+      <Text style={s.acaoTexto} numberOfLines={1}>
+        {texto}
+      </Text>
+      {contador > 0 && (
+        <View style={s.contador}>
+          <Text style={s.contadorTexto}>{contador}</Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
 function estilos(c: Palette) {
   return StyleSheet.create({
     ecra: { flex: 1, backgroundColor: c.background },
+    topo: { position: 'absolute', top: 0, right: 0, paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
+    sos: { backgroundColor: '#DC2626', borderRadius: Radius.pill, paddingHorizontal: Spacing.three, height: 40, justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, elevation: 6 },
+    sosTexto: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
     estado: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.three },
     pontoEstado: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.go },
     titulo: { color: c.text, fontSize: 20, fontWeight: '800', letterSpacing: -0.2, flexShrink: 1 },
@@ -204,17 +343,30 @@ function estilos(c: Palette) {
     avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.backgroundSelected, alignItems: 'center', justifyContent: 'center' },
     avatarTexto: { color: c.text, fontSize: 20, fontWeight: '800' },
     matricula: { color: c.text, fontSize: 13, fontWeight: '700', letterSpacing: 0.5, backgroundColor: c.backgroundElement, borderRadius: 6, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, overflow: 'hidden' },
-    topoAviso: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
-    aviso: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 16, padding: Spacing.three, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, elevation: 8 },
-    avisoIcone: { width: 36, height: 36, borderRadius: 9, backgroundColor: '#000000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-    avisoC: { color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginTop: -4 },
-    avisoPonto: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E', marginLeft: 1, marginTop: 8 },
-    avisoTitulo: { color: '#000000', fontSize: 14, fontWeight: '800' },
-    avisoTexto: { color: '#000000', fontSize: 13 },
+    codigo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, marginBottom: Spacing.three },
+    codigoTitulo: { color: c.text, fontSize: 15, fontWeight: '700' },
+    codigoNumero: { color: c.text, fontSize: 28, fontWeight: '800', letterSpacing: 4 },
+    acoes: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.three },
+    acao: { flex: 1, backgroundColor: c.backgroundElement, borderRadius: Radius.pill, paddingVertical: Spacing.two + 4, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+    acaoTexto: { color: c.text, fontSize: 14, fontWeight: '700' },
+    contador: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+    contadorTexto: { color: '#000000', fontSize: 11, fontWeight: '800' },
     nome: { color: c.text, fontSize: 17, fontWeight: '700' },
     secundario: { color: c.textSecondary, fontSize: 14, fontWeight: '400' },
+    secundarioPequeno: { color: c.textSecondary, fontSize: 12, marginTop: 2 },
     total: { color: c.text, fontSize: 28, fontWeight: '800', marginBottom: Spacing.two },
-    estrelas: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.three },
+    estrelas: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
     estrela: { fontSize: 36 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
+    chip: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: c.backgroundElement, borderWidth: 1.5, borderColor: 'transparent' },
+    chipAtivo: { borderColor: c.primary },
+    chipTexto: { color: c.text, fontSize: 13, fontWeight: '600' },
+    chipTextoAtivo: { fontWeight: '800' },
+    comentario: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2, color: c.text, fontSize: 15, marginBottom: Spacing.three },
+    fundoSos: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    folhaSos: { backgroundColor: c.background, borderTopLeftRadius: Radius.sheet, borderTopRightRadius: Radius.sheet, padding: Spacing.four, paddingBottom: Spacing.five },
+    tituloSos: { color: '#DC2626', fontSize: 22, fontWeight: '800', marginBottom: 2 },
+    linhaSos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.backgroundSelected },
+    numeroSos: { color: '#DC2626', fontSize: 17, fontWeight: '800' },
   });
 }

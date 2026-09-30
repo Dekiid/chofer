@@ -13,7 +13,7 @@ export const REGIAO_INICIAL = {
   longitudeDelta: 0.12,
 };
 
-export function Mapa({ origem, destino, carro, rota, margemInferior = 0 }: MapaProps) {
+export function Mapa({ origem, destino, paragens, carro, rota, margemInferior = 0 }: MapaProps) {
   const ref = useRef<MapView>(null);
   const escuro = useColorScheme() === 'dark';
   const corLinha = escuro ? '#FFFFFF' : '#000000';
@@ -52,6 +52,11 @@ export function Mapa({ origem, destino, carro, rota, margemInferior = 0 }: MapaP
           <View style={[marcas.destino, { backgroundColor: corLinha, borderColor: escuro ? '#000000' : '#FFFFFF' }]} />
         </Marker>
       )}
+      {paragens?.map((p, i) => (
+        <Marker key={`paragem-${i}`} coordinate={p} title={`Paragem ${i + 1}`} anchor={{ x: 0.5, y: 0.5 }}>
+          <View style={[marcas.paragem, { borderColor: corLinha }]} />
+        </Marker>
+      ))}
       {carro && (
         <Marker coordinate={carro} title="Motorista" anchor={{ x: 0.5, y: 0.5 }}>
           <View style={marcas.carro} />
@@ -66,5 +71,6 @@ const marcas = StyleSheet.create({
   halo: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(34,197,94,0.22)', alignItems: 'center', justifyContent: 'center' },
   recolha: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#22C55E', borderWidth: 3, borderColor: '#FFFFFF' },
   destino: { width: 14, height: 14, borderWidth: 3 },
+  paragem: { width: 12, height: 12, borderWidth: 3, backgroundColor: '#FFFFFF' },
   carro: { width: 14, height: 26, borderRadius: 5, backgroundColor: '#000000', borderWidth: 2, borderColor: '#FFFFFF' },
 });

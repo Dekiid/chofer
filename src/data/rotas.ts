@@ -22,6 +22,27 @@ export function rotaEstimada(a: Ponto, b: Ponto): Rota {
   return { km, minutos: duracaoMin(km), pontos: [a, b], fonte: 'estimativa' };
 }
 
+/** Junta os troços (recolha → paragens → destino) numa só rota: soma km e minutos, cola os caminhos. */
+export function juntarTrocos(trocos: Rota[]): Rota {
+  return {
+    km: trocos.reduce((s, r) => s + r.km, 0),
+    minutos: trocos.reduce((s, r) => s + r.minutos, 0),
+    pontos: trocos.flatMap((r, i) => (i === 0 ? r.pontos : r.pontos.slice(1))),
+    fonte: trocos.every((r) => r.fonte === trocos[0].fonte) ? trocos[0].fonte : 'estimativa',
+  };
+}
+
+/** Estimativa com paragens: cada troço em linha reta com o fator de estrada. */
+export function rotaEstimadaPor(pontos: Ponto[]): Rota {
+  return juntarTrocos(pontos.slice(1).map((p, i) => rotaEstimada(pontos[i], p)));
+}
+
+/** Rota pelas estradas a passar por todas as paragens, pela ordem. */
+export async function calcularRotaPor(pontos: Ponto[]): Promise<Rota> {
+  const trocos = await Promise.all(pontos.slice(1).map((p, i) => calcularRota(pontos[i], p)));
+  return juntarTrocos(trocos);
+}
+
 const cache = new Map<string, Rota>();
 
 /**

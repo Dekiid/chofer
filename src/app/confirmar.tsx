@@ -17,7 +17,7 @@ import { Text } from '@/components/texto';
 export default function Confirmar() {
   const cores = usePalette();
   const s = estilos(cores);
-  const { origem, destino, viatura, quando, setQuando, rota, rotaACarregar } = usePedido();
+  const { origem, destino, paragens, viatura, quando, setQuando, rota, rotaACarregar } = usePedido();
   const { reservas } = useAgenda();
 
   if (!destino || !rota) return <Redirect href="/destino" />;
@@ -36,7 +36,7 @@ export default function Confirmar() {
 
   return (
     <View style={s.ecra}>
-      <Mapa origem={origem} destino={destino} rota={rota.pontos} margemInferior={600} />
+      <Mapa origem={origem} destino={destino} paragens={paragens} rota={rota.pontos} margemInferior={600} />
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <BotaoVoltar onPress={() => router.back()} />
@@ -47,6 +47,12 @@ export default function Confirmar() {
           <View style={s.pontoRecolha} />
           <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
         </Pressable>
+        {paragens.map((p, i) => (
+          <Pressable key={`${p.id}-${i}`} onPress={() => router.replace('/destino')} style={s.linha}>
+            <View style={s.pontoParagem} />
+            <Text style={s.local} numberOfLines={1}>{p.nome}</Text>
+          </Pressable>
+        ))}
         <Pressable onPress={() => router.replace('/destino')} style={s.linha}>
           <View style={s.ponto} />
           <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
@@ -78,7 +84,7 @@ export default function Confirmar() {
             </Text>
           </View>
           <View style={s.linhaResumo}>
-            <Text style={s.secundario}>Distância</Text>
+            <Text style={s.secundario}>{paragens.length ? `Distância (${paragens.length} ${paragens.length === 1 ? 'paragem' : 'paragens'})` : 'Distância'}</Text>
             <Text style={s.valor}>
               {rotaACarregar ? 'A calcular a rota…' : `${km.toFixed(1).replace('.', ',')} km · cerca de ${duracao} min${rota.fonte === 'estimativa' ? ' (estimativa)' : ''}`}
             </Text>
@@ -112,6 +118,7 @@ function estilos(c: Palette) {
     linha: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
     pontoRecolha: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.go },
     ponto: { width: 8, height: 8, backgroundColor: c.text },
+    pontoParagem: { width: 8, height: 8, borderWidth: 2, borderColor: c.text },
     local: { flex: 1, color: c.text, fontSize: 16, fontWeight: '600' },
     pergunta: { color: c.text, fontSize: 18, fontWeight: '700', marginTop: Spacing.two, marginBottom: Spacing.two },
     resumo: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: Spacing.one, marginVertical: Spacing.three },

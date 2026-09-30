@@ -8,6 +8,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { useAgenda } from '@/state/agenda';
+import { useConta } from '@/state/conta';
 import { useInscricoes } from '@/state/inscricoes';
 import { Text } from '@/components/texto';
 
@@ -17,6 +18,15 @@ export default function Gestao() {
   const s = estilos(cores);
   const { notificacoes, marcarLidas } = useAgenda();
   const pendentes = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length;
+  // Avaliações dos clientes por motorista, para decidir quem continua na plataforma.
+  const porMotorista = new Map<string, { nome: string; matricula: string; estrelas: number[]; notas: string[] }>();
+  for (const v of useConta().viagens) {
+    if (!v.avaliacao) continue;
+    const m = porMotorista.get(v.motorista.matricula) ?? { nome: v.motorista.nome, matricula: v.motorista.matricula, estrelas: [], notas: [] };
+    m.estrelas.push(v.avaliacao.estrelas);
+    m.notas.push(...v.avaliacao.elogios, ...(v.avaliacao.comentario ? [`«${v.avaliacao.comentario}»`] : []));
+    porMotorista.set(v.motorista.matricula, m);
+  }
 
   // Ao sair, as notificações vistas deixam de contar como novas.
   useEffect(() => marcarLidas, [marcarLidas]);
@@ -38,6 +48,24 @@ export default function Gestao() {
           <Text style={s.nome}>Aprovar inscrições{pendentes > 0 ? ` (${pendentes})` : ''}</Text>
           <Text style={s.secundario}>Motoristas à espera de aprovação</Text>
         </Pressable>
+
+        <Text style={s.secao}>Avaliações dos motoristas</Text>
+        {porMotorista.size === 0 && <Text style={s.secundario}>Ainda não há avaliações.</Text>}
+        {[...porMotorista.values()].map((m) => {
+          const media = m.estrelas.reduce((a, b) => a + b, 0) / m.estrelas.length;
+          return (
+            <View key={m.matricula} style={[s.notificacao, media < 4 && s.naoLida]}>
+              <Text style={s.nome}>
+                {m.nome} <Text style={s.secundario}>· {m.matricula}</Text>
+              </Text>
+              <Text style={s.texto}>
+                ★ {media.toFixed(1).replace('.', ',')} em {m.estrelas.length} {m.estrelas.length === 1 ? 'viagem' : 'viagens'}
+                {media < 4 ? ' · abaixo de 4, a rever' : ''}
+              </Text>
+              {m.notas.length > 0 && <Text style={s.secundario}>{[...new Set(m.notas)].slice(0, 6).join(' · ')}</Text>}
+            </View>
+          );
+        })}
 
         <Text style={s.secao}>Notificações</Text>
         {notificacoes.length === 0 && <Text style={s.secundario}>Sem notificações. Os pedidos imediatos aparecem aqui.</Text>}
