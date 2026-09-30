@@ -28,7 +28,10 @@ export type CreditoFoto = {
   pagina: string;
 };
 
-/** Tipos que o motorista escolhe na inscrição, com o preço por km sugerido na aprovação. */
+/** Parte do valor total de cada viagem que fica para o Chauffeur. */
+export const COMISSAO = 0.14;
+
+/** Tipos que o motorista escolhe na inscrição, com o preço por km sugerido para ele começar. */
 export const TIPOS_VIATURA = [
   { tipo: 'Sedan executivo', porKmMzn: 90 },
   { tipo: 'SUV', porKmMzn: 120 },

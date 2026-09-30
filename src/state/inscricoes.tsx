@@ -26,6 +26,8 @@ export type DadosInscricao = {
   matricula: string;
   tipo: string;
   lugares: number;
+  /** Preço por km proposto pelo motorista, em meticais. */
+  porKmMzn: number;
   /** URI local de cada foto. */
   fotos: Record<FotoPedida, string>;
 };
@@ -34,13 +36,12 @@ export type Inscricao = DadosInscricao & {
   id: string;
   estado: EstadoInscricao;
   enviadaEm: Date;
-  /** Definido por nós na aprovação. */
-  porKmMzn?: number;
 };
 
 type Inscricoes = {
   inscricoes: Inscricao[];
   submeter: (dados: DadosInscricao) => void;
+  /** Aprova com o preço proposto, ou com outro se o ajustarmos. */
   aprovar: (id: string, porKmMzn: number) => void;
   rejeitar: (id: string) => void;
   /** Carros aprovados, prontos para aparecer na lista de escolha. */
@@ -79,7 +80,7 @@ function paraViatura(i: Inscricao): Viatura {
     modelo: i.modelo,
     tipo: i.tipo,
     lugares: i.lugares,
-    porKmMzn: i.porKmMzn ?? 0,
+    porKmMzn: i.porKmMzn,
     chegadaMin: 8,
     foto: { uri: i.fotos.frente },
     motorista,

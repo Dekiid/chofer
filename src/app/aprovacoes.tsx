@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { formatarMzn, TIPOS_VIATURA } from '@/data/categorias';
+import { COMISSAO, formatarMzn } from '@/data/categorias';
 import { formatarTelefone } from '@/data/motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type Inscricao } from '@/state/inscricoes';
 
@@ -40,7 +40,7 @@ export default function Aprovacoes() {
                 {i.marca} {i.modelo}
               </Text>
               <Text style={s.secundario}>
-                {i.nome} · {i.estado === 'aprovada' ? `aprovada, ${formatarMzn(i.porKmMzn ?? 0)}/km` : 'rejeitada'}
+                {i.nome} · {i.estado === 'aprovada' ? `aprovada, ${formatarMzn(i.porKmMzn)}/km` : 'rejeitada'}
               </Text>
             </View>
           </View>
@@ -54,8 +54,7 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
   const cores = usePalette();
   const s = estilos(cores);
   const { aprovar, rejeitar } = useInscricoes();
-  const sugerido = TIPOS_VIATURA.find((t) => t.tipo === i.tipo)?.porKmMzn ?? 90;
-  const [preco, setPreco] = useState(String(sugerido));
+  const [preco, setPreco] = useState(String(i.porKmMzn));
   const precoValido = Number(preco) > 0;
 
   return (
@@ -84,8 +83,11 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
         </Pressable>
       </View>
 
-      <Text style={s.rotulo}>Preço por km (MT)</Text>
+      <Text style={s.rotulo}>Preço por km proposto pelo motorista (MT)</Text>
       <TextInput value={preco} onChangeText={setPreco} keyboardType="number-pad" style={s.input} />
+      <Text style={[s.secundario, { marginTop: Spacing.one }]}>
+        {Number(preco) !== i.porKmMzn ? `Proposta original: ${formatarMzn(i.porKmMzn)}/km. ` : ''}Comissão do Chauffeur: {Math.round(COMISSAO * 100)}% do total.
+      </Text>
 
       <View style={s.botoes}>
         <Pressable onPress={() => rejeitar(i.id)} style={[s.botao, { backgroundColor: cores.backgroundSelected }]}>

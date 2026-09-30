@@ -8,11 +8,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { TIPOS_VIATURA } from '@/data/categorias';
+import { COMISSAO, formatarMzn, TIPOS_VIATURA } from '@/data/categorias';
 import { normalizarTelefone } from '@/data/motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type FotoPedida } from '@/state/inscricoes';
 
 const LUGARES = [4, 5, 7];
+// Distância usada no exemplo de ganhos da nota da comissão.
+const KM_EXEMPLO = 10;
 
 export default function Inscricao() {
   const cores = usePalette();
@@ -29,6 +31,7 @@ export default function Inscricao() {
   const [matricula, setMatricula] = useState('');
   const [tipo, setTipo] = useState<string>(TIPOS_VIATURA[0].tipo);
   const [lugares, setLugares] = useState(4);
+  const [preco, setPreco] = useState('');
   const [fotos, setFotos] = useState<Partial<Record<FotoPedida, string>>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
   const [enviada, setEnviada] = useState(false);
@@ -43,6 +46,7 @@ export default function Inscricao() {
     modelo: !modelo.trim(),
     ano: !/^(19|20)\d{2}$/.test(ano.trim()),
     matricula: matricula.trim().length < 5,
+    preco: !(Number(preco) > 0),
     fotos: FOTOS_PEDIDAS.some((f) => !fotos[f.id]),
   };
   const valido = !Object.values(erros).some(Boolean);
@@ -66,6 +70,7 @@ export default function Inscricao() {
       matricula: matricula.trim().toUpperCase(),
       tipo,
       lugares,
+      porKmMzn: Number(preco),
       fotos: fotos as Record<FotoPedida, string>,
     });
     setEnviada(true);
@@ -148,6 +153,21 @@ export default function Inscricao() {
           ))}
         </View>
 
+        <Text style={s.secao}>Preço</Text>
+        {campo('Preço por km que propões (MT)', preco, setPreco, erros.preco, 'Indica o preço por km.', {
+          placeholder: `Ex.: ${TIPOS_VIATURA.find((t) => t.tipo === tipo)?.porKmMzn}`,
+          keyboardType: 'number-pad',
+          maxLength: 4,
+        })}
+        <View style={s.nota}>
+          <Text style={s.notaTitulo}>O Chauffeur fica com {Math.round(COMISSAO * 100)}% do valor total de cada viagem.</Text>
+          <Text style={s.notaTexto}>
+            {Number(preco) > 0
+              ? `Exemplo: numa viagem de ${KM_EXEMPLO} km o cliente paga ${formatarMzn(Number(preco) * KM_EXEMPLO)}. Tu recebes ${formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * (1 - COMISSAO)))} e o Chauffeur fica com ${formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * COMISSAO))}.`
+              : `Tu recebes os outros ${Math.round((1 - COMISSAO) * 100)}%. O preço fica sujeito à nossa aprovação.`}
+          </Text>
+        </View>
+
         <Text style={s.secao}>Fotos do carro</Text>
         <Text style={s.ajuda}>Precisamos destas quatro fotos, com boa luz. A foto de frente é a que os clientes vão ver na app.</Text>
         <View style={s.grelha}>
@@ -201,6 +221,9 @@ function estilos(c: Palette) {
     erro: { color: '#D93025', marginTop: Spacing.one, fontSize: 13 },
     ajuda: { color: c.textSecondary, fontSize: 13, marginTop: -Spacing.two, marginBottom: Spacing.three },
     linha: { flexDirection: 'row', gap: Spacing.two },
+    nota: { backgroundColor: c.backgroundElement, borderLeftWidth: 3, borderLeftColor: c.accent, borderRadius: 10, padding: Spacing.three, gap: Spacing.one },
+    notaTitulo: { color: c.text, fontWeight: '700' },
+    notaTexto: { color: c.textSecondary, fontSize: 13 },
     opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
     opcao: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
     opcaoAtiva: { backgroundColor: c.primary },
