@@ -36,6 +36,7 @@ export default function Inicio() {
   const lista = pedido.viaturas.filter((v) => disponivel(v, modo));
   // No casamento mostra-se sempre a foto do carro com o visual de casamento, com ou sem decoração escolhida.
   const casamento = pedido.viatura.casamento;
+  // A foto de casamento, com cenário, fica um pouco mais pequena que o carro recortado.
   const fotoDecorada = modo === 'casamento' && casamento?.foto ? { foto: casamento.foto, credito: casamento.credito } : undefined;
 
   function mudarModo(m: Modo) {
@@ -79,7 +80,7 @@ export default function Inicio() {
         </View>
         <FotoCarro
           viatura={pedido.viatura}
-          style={[s.foto, { height: alturaFoto }]}
+          style={[s.foto, { height: fotoDecorada ? alturaFoto * 0.82 : alturaFoto }]}
           ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: decoracao === 'com' ? 'Decorado para casamento' : 'Exemplo com decoração' }}
         />
       </View>
