@@ -92,7 +92,7 @@ export default function Inicio() {
         </Pressable>
         {temGaleria && (
           <Pressable onPress={() => setGaleriaAberta(true)} style={s.verFotos} hitSlop={8}>
-            <Text style={s.verFotosTexto}>Toca no carro para ver o interior e mais fotos</Text>
+            <Text style={s.verFotosTexto}>Ver mais fotos</Text>
           </Pressable>
         )}
       </View>
@@ -178,8 +178,8 @@ export default function Inicio() {
 // Espaço do logótipo no topo, abaixo da barra de estado.
 const ALTURA_TOPO = 52;
 const ALTURA_LEGENDA = 54;
-// Espaço da nota "Toca no carro..." por baixo da foto.
-const ALTURA_NOTA = 18;
+// Espaço da nota "Ver mais fotos" por baixo da foto.
+const ALTURA_NOTA = 16;
 
 const MODOS: { id: Modo; nome: string; pergunta: string }[] = [
   { id: 'motorista', nome: 'Com motorista', pergunta: 'Escolhe o teu carro' },
@@ -201,7 +201,7 @@ function estilos(c: Palette) {
     foto: { alignSelf: 'center', maxWidth: '100%', marginHorizontal: Spacing.three, aspectRatio: 16 / 9 },
     legenda: { alignItems: 'center' },
     verFotos: { alignSelf: 'center', marginTop: -Spacing.two },
-    verFotosTexto: { color: c.textSecondary, fontSize: 12, textDecorationLine: 'underline' },
+    verFotosTexto: { color: c.textSecondary, fontSize: 11, textDecorationLine: 'underline' },
     nomeCarro: { color: c.text, fontSize: 24, fontWeight: '800' },
     // Logótipo ao centro; a pastilha da gestão fica à direita, sem o empurrar.
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: Spacing.two + 4, alignItems: 'center' },
