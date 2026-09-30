@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
+import { criarPagamento, estadoPagamento, pagamentosReais } from '@/data/pagamentos';
 import { calcularPreco } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
@@ -15,8 +16,13 @@ import { Text, TextInput } from '@/components/texto';
 
 type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada';
 
-// Tempo simulado até a operadora confirmar; o pagamento real virá do servidor.
+// Sem Supabase configurado, simula-se a confirmação da operadora.
 const TEMPO_CONFIRMACAO = 2500;
+// Pagamento real: pergunta o estado a cada 3 s, durante até 5 minutos.
+const INTERVALO_ESTADO = 3000;
+const TEMPO_MAXIMO_PIN = 5 * 60_000;
+
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function Pagamento() {
   const cores = usePalette();
@@ -25,6 +31,7 @@ export default function Pagamento() {
   const [telefone, setTelefone] = useState('');
   const agenda = useAgenda();
   const [estado, setEstado] = useState<Estado>('preencher');
+  const [erro, setErro] = useState<string | null>(null);
 
   const { destino, viatura, quando } = pedido;
   // O mesmo km do resumo, para o valor pago ser o que o cliente viu.
@@ -33,26 +40,71 @@ export default function Pagamento() {
   const imediato = quando?.tipo === 'imediato';
   const preco = calcularPreco(viatura, km, imediato);
 
+  // Sai do ecrã a meio do pagamento: deixa de perguntar pelo estado.
+  const saiu = useRef(false);
   useEffect(() => {
-    if (estado === 'a_processar') {
-      const t = setTimeout(() => {
-        if (!destino || !quando) return;
-        // Pago: o carro fica ocupado na agenda para não haver sobreposições.
-        const inicio = quando.tipo === 'agendado' ? quando.inicio : new Date();
-        const ocupado = minutosOcupado(duracao, quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
-        agenda.reservar({ viaturaId: viatura.id, inicio, fim: somarMin(inicio, ocupado), tipo: quando.tipo === 'imediato' ? 'imediata' : 'agendada', destino: destino.nome });
-        if (quando.tipo === 'imediato') {
-          agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(preco)} com taxa de pedido imediato.`);
-        }
-        setEstado(quando.tipo === 'imediato' ? 'pago' : 'agendada');
-      }, TEMPO_CONFIRMACAO);
-      return () => clearTimeout(t);
+    saiu.current = false;
+    return () => {
+      saiu.current = true;
+    };
+  }, []);
+
+  // Pago: o carro fica ocupado na agenda para não haver sobreposições, e só então se chama o motorista.
+  function confirmarViagem() {
+    if (!destino || !quando) return;
+    const inicio = quando.tipo === 'agendado' ? quando.inicio : new Date();
+    const ocupado = minutosOcupado(duracao, quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
+    agenda.reservar({ viaturaId: viatura.id, inicio, fim: somarMin(inicio, ocupado), tipo: quando.tipo === 'imediato' ? 'imediata' : 'agendada', destino: destino.nome });
+    if (quando.tipo === 'imediato') {
+      agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(preco)} com taxa de pedido imediato.`);
     }
+    setEstado(quando.tipo === 'imediato' ? 'pago' : 'agendada');
+  }
+
+  async function pagar() {
+    setErro(null);
+    setEstado('a_processar');
+    if (!pagamentosReais) {
+      await esperar(TEMPO_CONFIRMACAO);
+      if (!saiu.current) confirmarViagem();
+      return;
+    }
+    try {
+      const id = await criarPagamento({
+        metodo: pedido.pagamento,
+        telefone: telefone.replace(/\D/g, ''),
+        valorMzn: preco,
+        viaturaId: viatura.id,
+        viagem: {
+          recolha: pedido.origem.nome,
+          destino: destino?.nome,
+          km,
+          quando: quando?.tipo === 'agendado' ? quando.inicio.toISOString() : 'imediato',
+        },
+      });
+      // O cliente tem uns minutos para pôr o PIN; vamos perguntando ao servidor.
+      const limite = Date.now() + TEMPO_MAXIMO_PIN;
+      while (!saiu.current && Date.now() < limite) {
+        await esperar(INTERVALO_ESTADO);
+        const r = await estadoPagamento(id).catch(() => null);
+        if (!r || r.estado === 'pendente') continue;
+        if (r.estado === 'pago') return confirmarViagem();
+        throw new Error(r.estado === 'expirado' ? 'O pedido expirou sem confirmação. Tenta outra vez.' : (r.erro ?? 'O pagamento não foi aceite.'));
+      }
+      throw new Error('Não recebemos a confirmação do pagamento. Tenta outra vez.');
+    } catch (e) {
+      if (saiu.current) return;
+      setErro(e instanceof Error ? e.message : 'O pagamento não foi concluído.');
+      setEstado('preencher');
+    }
+  }
+
+  useEffect(() => {
     if (estado === 'pago') {
       const t = setTimeout(() => router.replace('/viagem'), 1200);
       return () => clearTimeout(t);
     }
-  }, [estado, agenda, destino, quando, viatura, duracao, preco]);
+  }, [estado]);
 
   if (estado === 'agendada' && quando?.tipo === 'agendado') {
     return (
@@ -155,11 +207,12 @@ export default function Pagamento() {
         </Pressable>
 
         <View style={s.rodape}>
+          {erro && <Text style={s.erro}>{erro}</Text>}
           <BotaoPrincipal
             texto={`Pagar ${formatarMzn(preco)}`}
             onPress={() => {
               Keyboard.dismiss();
-              setEstado('a_processar');
+              pagar();
             }}
             desativado={!telefoneValido}
           />
@@ -189,5 +242,6 @@ function estilos(c: Palette) {
     titulo: { color: c.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
     secundarioCentro: { color: c.textSecondary, fontSize: 15, textAlign: 'center' },
     visto: { fontSize: 56, fontWeight: '800' },
+    erro: { color: '#D93025', fontSize: 15, textAlign: 'center', marginBottom: Spacing.two },
   });
 }
