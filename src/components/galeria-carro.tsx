@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
@@ -22,6 +22,10 @@ export function fotosDaGaleria(v: Viatura): FotoGaleria[] {
 /** Galeria em ecrã inteiro, com uma foto por página. */
 export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
   const { width } = useWindowDimensions();
+  // Dentro do Modal o SafeAreaView fica com margens a zero no iOS; as margens do ecrã principal são as certas.
+  const insets = useSafeAreaInsets();
+  // Proporção de cada foto, para a área tocável ser só a imagem e o resto fechar a galeria.
+  const [proporcoes, setProporcoes] = useState<Record<number, number>>({});
   const [pagina, setPagina] = useState(0);
   const [alturaArea, setAlturaArea] = useState(0);
   const rolo = useRef<ScrollView>(null);
@@ -39,8 +43,8 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
   }
 
   return (
-    <Modal visible={visivel} animationType="fade" onRequestClose={fechar} supportedOrientations={['portrait', 'landscape']}>
-      <SafeAreaView style={estilos.ecra}>
+    <Modal visible={visivel} animationType="fade" onRequestClose={fechar} statusBarTranslucent supportedOrientations={['portrait', 'landscape']}>
+      <Pressable onPress={fechar} accessible={false} style={[estilos.ecra, { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom }]}>
         <View style={estilos.topo}>
           <View style={{ flex: 1 }}>
             <Text style={estilos.titulo} numberOfLines={1}>
@@ -50,7 +54,7 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
               {atual.legenda} · {Math.min(pagina, fotos.length - 1) + 1} de {fotos.length}
             </Text>
           </View>
-          <Pressable onPress={fechar} accessibilityLabel="Fechar" style={estilos.fechar}>
+          <Pressable onPress={fechar} accessibilityLabel="Fechar" hitSlop={12} style={({ pressed }) => [estilos.fechar, pressed && { opacity: 0.6 }]}>
             <Text style={estilos.fecharTexto}>×</Text>
           </Pressable>
         </View>
@@ -65,11 +69,26 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
             onScroll={(e) => setPagina(Math.round(e.nativeEvent.contentOffset.x / width))}
             scrollEventThrottle={64}
             style={StyleSheet.absoluteFill}>
-            {fotos.map((f, i) => (
-              <View key={i} style={{ width, height: alturaArea, justifyContent: 'center' }}>
-                <Image source={f.foto} style={{ width, height: Math.max(0, alturaArea - Spacing.three) }} contentFit="contain" transition={200} accessibilityLabel={`${nomeViatura(viatura)}: ${f.legenda}`} />
-              </View>
-            ))}
+            {fotos.map((f, i) => {
+              const alturaMax = Math.max(0, alturaArea - Spacing.three);
+              const proporcao = proporcoes[i] ?? 4 / 3;
+              const larguraFoto = Math.min(width, alturaMax * proporcao);
+              return (
+                // Tocar fora da foto fecha a galeria; tocar na foto não faz nada.
+                <Pressable key={i} onPress={fechar} style={{ width, height: alturaArea, alignItems: 'center', justifyContent: 'center' }}>
+                  <Pressable onPress={() => {}} style={{ width: larguraFoto, height: larguraFoto / proporcao }}>
+                    <Image
+                      source={f.foto}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="contain"
+                      transition={200}
+                      onLoad={(e) => e.source.width > 0 && setProporcoes((p) => ({ ...p, [i]: e.source.width / e.source.height }))}
+                      accessibilityLabel={`${nomeViatura(viatura)}: ${f.legenda}`}
+                    />
+                  </Pressable>
+                </Pressable>
+              );
+            })}
           </ScrollView>
           {pagina > 0 && (
             <Pressable onPress={() => irPara(pagina - 1)} accessibilityLabel="Foto anterior" style={[estilos.seta, { left: Spacing.two }]}>
@@ -100,7 +119,7 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
           )}
           {fotos.length > 1 && <Text style={estilos.dica}>Desliza para ver mais</Text>}
         </View>
-      </SafeAreaView>
+      </Pressable>
     </Modal>
   );
 }
