@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Radius, Spacing } from '@/constants/theme';
@@ -7,10 +7,11 @@ import { usePalette } from '@/constants/use-palette';
 import { Text } from '@/components/texto';
 
 /** Painel que fica por cima do mapa, preso ao fundo do ecrã. */
-export function Painel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Painel({ children, style, onLayout }: { children: ReactNode; style?: StyleProp<ViewStyle>; onLayout?: ViewProps['onLayout'] }) {
   const c = usePalette();
   return (
     <SafeAreaView
+      onLayout={onLayout}
       edges={['bottom']}
       style={[
         {

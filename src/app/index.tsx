@@ -1,8 +1,8 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FotoCarro } from '@/components/foto-carro';
 import { Logo } from '@/components/logo';
@@ -23,6 +23,14 @@ export default function Inicio() {
   const pedido = usePedido();
   const { naoLidas } = useAgenda();
   const avisos = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length + naoLidas;
+  const insets = useSafeAreaInsets();
+  const [alturaPainel, setAlturaPainel] = useState(420);
+  const ecraJanela = useWindowDimensions();
+  // Telemóveis baixos (iPhone SE, Androids pequenos): lista mais curta para sobrar espaço à foto.
+  const ecraPequeno = ecraJanela.height < 740;
+  // Em ecrãs pequenos a foto encolhe para o nome não subir para cima do logótipo.
+  const espacoFoto = ecraJanela.height - insets.top - ALTURA_TOPO - alturaPainel - ALTURA_LEGENDA - Spacing.three * 3;
+  const alturaFoto = Math.max(90, Math.min((ecraJanela.width - Spacing.three * 2) * (9 / 16), espacoFoto));
   const [modo, setModo] = useState<Modo>('motorista');
   const [decoracao, setDecoracao] = useState<Decoracao>('com');
   const lista = pedido.viaturas.filter((v) => disponivel(v, modo));
@@ -63,22 +71,23 @@ export default function Inicio() {
 
   return (
     <View style={s.ecra}>
-      <View style={[s.ecraCarro, { backgroundColor: cores.backgroundElement }]}>
-        <FotoCarro
-          viatura={pedido.viatura}
-          style={s.foto}
-          ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: 'Decorado para casamento' }}
-        />
+      {/* Nome e foto ficam centrados no espaço entre o logótipo e o painel, em qualquer tamanho de ecrã. */}
+      <View style={[s.ecraCarro, { backgroundColor: cores.backgroundElement, paddingTop: insets.top + ALTURA_TOPO, paddingBottom: alturaPainel }]}>
         <View style={s.legenda} pointerEvents="none">
           <Text style={s.nomeCarro}>{nomeViatura(pedido.viatura)}</Text>
           <Text style={s.descricao}>{pedido.viatura.tipo}</Text>
         </View>
+        <FotoCarro
+          viatura={pedido.viatura}
+          style={[s.foto, { height: alturaFoto }]}
+          ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: 'Decorado para casamento' }}
+        />
       </View>
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
-        <Logo altura={30} style={s.marca} />
+        <Logo altura={30} />
         {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
-        <Pressable onPress={() => router.push('/gestao')} style={s.gestao}>
+        <Pressable onPress={() => router.push('/gestao')} style={[s.gestao, { top: insets.top + Spacing.two }]}>
           <Text style={s.textoGestao}>Gestão</Text>
           {avisos > 0 && (
             <View style={s.contador}>
@@ -88,7 +97,7 @@ export default function Inicio() {
         </Pressable>
       </SafeAreaView>
 
-      <Painel>
+      <Painel onLayout={(e) => setAlturaPainel(e.nativeEvent.layout.height)}>
         <View style={s.alternador}>
           {MODOS.map((m) => (
             <Pressable key={m.id} onPress={() => mudarModo(m.id)} style={[s.opcaoModo, modo === m.id && s.opcaoModoAtiva]}>
@@ -107,7 +116,7 @@ export default function Inicio() {
             ))}
           </View>
         )}
-        <ScrollView style={[s.lista, modo === 'casamento' && s.listaCasamento]} contentContainerStyle={{ gap: Spacing.one }}>
+        <ScrollView style={[s.lista, modo === 'casamento' && s.listaCasamento, ecraPequeno && s.listaPequena]} contentContainerStyle={{ gap: Spacing.one }}>
           {lista.map((v) => {
             const ativa = v.id === pedido.viatura.id;
             const p = preco(v);
@@ -149,6 +158,10 @@ export default function Inicio() {
   );
 }
 
+// Espaço do logótipo no topo, abaixo da barra de estado.
+const ALTURA_TOPO = 52;
+const ALTURA_LEGENDA = 54;
+
 const MODOS: { id: Modo; nome: string; pergunta: string }[] = [
   { id: 'motorista', nome: 'Com motorista', pergunta: 'Escolhe o teu carro' },
   { id: 'aluguer', nome: 'Aluguer', pergunta: 'Escolhe o carro para alugar' },
@@ -164,19 +177,19 @@ function disponivel(v: Viatura, modo: Modo): boolean {
 function estilos(c: Palette) {
   return StyleSheet.create({
     ecra: { flex: 1, backgroundColor: c.background },
-    ecraCarro: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    ecraCarro: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', gap: Spacing.three },
     // Todas as fotos estão em 16:9, com o carro a ocupar a mesma largura.
-    foto: { position: 'absolute', top: 124, left: Spacing.three, right: Spacing.three, aspectRatio: 16 / 9 },
-    legenda: { position: 'absolute', top: 64, left: 0, right: 0, alignItems: 'center' },
+    foto: { alignSelf: 'center', maxWidth: '100%', marginHorizontal: Spacing.three, aspectRatio: 16 / 9 },
+    legenda: { alignItems: 'center' },
     nomeCarro: { color: c.text, fontSize: 24, fontWeight: '800' },
-    topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    // Logótipo ao centro; a pastilha da gestão fica à direita, sem o empurrar.
+    topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: Spacing.two + 4, alignItems: 'center' },
     contador: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
     textoContador: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-    gestao: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
+    gestao: { position: 'absolute', right: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
     textoGestao: { color: c.text, fontSize: 14, fontWeight: '600' },
     inscrever: { alignItems: 'center', paddingTop: Spacing.three },
     textoInscrever: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
-    marca: { marginTop: Spacing.two + 2, marginLeft: -2 },
     alternador: { flexDirection: 'row', backgroundColor: c.backgroundElement, borderRadius: Radius.pill, padding: Spacing.one, marginBottom: Spacing.three },
     opcaoModo: { flex: 1, paddingVertical: Spacing.two, borderRadius: Radius.pill, alignItems: 'center' },
     opcaoModoAtiva: { backgroundColor: c.primary },
@@ -189,6 +202,7 @@ function estilos(c: Palette) {
     lista: { marginBottom: Spacing.three, maxHeight: 250 },
     // A escolha da decoração e a nota ocupam espaço; a lista encolhe para o painel não tapar a foto.
     listaCasamento: { maxHeight: 180 },
+    listaPequena: { maxHeight: 140 },
     cartao: { flexDirection: 'row', alignItems: 'center', padding: Spacing.three, borderRadius: Radius.card, borderWidth: 2, borderColor: 'transparent' },
     cartaoAtivo: { borderColor: c.primary, backgroundColor: c.backgroundElement },
     nome: { color: c.text, fontSize: 17, fontWeight: '700' },
