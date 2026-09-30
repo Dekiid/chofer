@@ -7,13 +7,15 @@ export type Rota = {
   minutos: number;
   /** Caminho pelas estradas, para desenhar no mapa e mover o carro. */
   pontos: Ponto[];
-  /** «google» quando veio da Routes API; «estimativa» é a linha reta com o fator de estrada. */
-  fonte: 'google' | 'estimativa';
+  /** De onde veio: Mapbox, Google, ou a estimativa em linha reta com o fator de estrada. */
+  fonte: 'mapbox' | 'google' | 'estimativa';
 };
 
-// Chave da Google Maps Platform, com a Routes API ativa. Vem do ficheiro .env.local (não vai para o GitHub):
-// EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=...
-const CHAVE = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+// Token público do Mapbox (começa por pk.), com a Directions API. Vem do ficheiro .env.local (não vai para o GitHub):
+// EXPO_PUBLIC_MAPBOX_TOKEN=pk...
+const TOKEN_MAPBOX = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+// Alternativa, se um dia se voltar ao Google: EXPO_PUBLIC_GOOGLE_MAPS_API_KEY com a Routes API.
+const CHAVE_GOOGLE = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 export function rotaEstimada(a: Ponto, b: Ponto): Rota {
   const km = distanciaKm(a, b);
@@ -23,50 +25,67 @@ export function rotaEstimada(a: Ponto, b: Ponto): Rota {
 const cache = new Map<string, Rota>();
 
 /**
- * Rota pelas estradas, com o tempo de trânsito atual. Sem chave ou sem rede, fica a estimativa.
- * No produto final este pedido passa para uma função do Supabase, para a chave não ir dentro da app.
+ * Rota pelas estradas, com o trânsito atual. Usa o Mapbox se houver token, senão o Google se houver chave;
+ * sem nenhum dos dois, ou sem rede, fica a estimativa.
  */
 export async function calcularRota(a: Ponto, b: Ponto): Promise<Rota> {
-  if (!CHAVE) return rotaEstimada(a, b);
+  if (!TOKEN_MAPBOX && !CHAVE_GOOGLE) return rotaEstimada(a, b);
   const id = [a.latitude, a.longitude, b.latitude, b.longitude].map((n) => n.toFixed(5)).join(',');
   const guardada = cache.get(id);
   if (guardada) return guardada;
   try {
-    const resposta = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': CHAVE,
-        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
-      },
-      body: JSON.stringify({
-        origin: { location: { latLng: { latitude: a.latitude, longitude: a.longitude } } },
-        destination: { location: { latLng: { latitude: b.latitude, longitude: b.longitude } } },
-        travelMode: 'DRIVE',
-        routingPreference: 'TRAFFIC_AWARE',
-        languageCode: 'pt-PT',
-        units: 'METRIC',
-      }),
-    });
-    if (!resposta.ok) throw new Error(`Routes API ${resposta.status}`);
-    const dados = (await resposta.json()) as { routes?: { distanceMeters: number; duration: string; polyline: { encodedPolyline: string } }[] };
-    const r = dados.routes?.[0];
-    if (!r) throw new Error('Sem rota');
-    const rota: Rota = {
-      km: r.distanceMeters / 1000,
-      minutos: Math.max(1, Math.round(parseInt(r.duration, 10) / 60)),
-      pontos: descodificarPolyline(r.polyline.encodedPolyline),
-      fonte: 'google',
-    };
+    const rota = TOKEN_MAPBOX ? await rotaMapbox(a, b, TOKEN_MAPBOX) : await rotaGoogle(a, b, CHAVE_GOOGLE!);
     cache.set(id, rota);
     return rota;
   } catch (e) {
-    console.warn('Não foi possível obter a rota do Google; fica a estimativa.', e);
+    console.warn('Não foi possível obter a rota; fica a estimativa.', e);
     return rotaEstimada(a, b);
   }
 }
 
-/** Formato «encoded polyline» do Google: pares de lat/lng em diferenças, 5 casas decimais. */
+// Directions API do Mapbox, perfil com trânsito. As coordenadas vão como longitude,latitude.
+async function rotaMapbox(a: Ponto, b: Ponto, token: string): Promise<Rota> {
+  const coords = `${a.longitude},${a.latitude};${b.longitude},${b.latitude}`;
+  const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coords}?geometries=polyline&overview=full&language=pt&access_token=${encodeURIComponent(token)}`;
+  const resposta = await fetch(url);
+  if (!resposta.ok) throw new Error(`Mapbox ${resposta.status}`);
+  const dados = (await resposta.json()) as { code: string; routes?: { distance: number; duration: number; geometry: string }[] };
+  const r = dados.routes?.[0];
+  if (dados.code !== 'Ok' || !r) throw new Error(`Mapbox sem rota (${dados.code})`);
+  return { km: r.distance / 1000, minutos: Math.max(1, Math.round(r.duration / 60)), pontos: descodificarPolyline(r.geometry), fonte: 'mapbox' };
+}
+
+// Routes API do Google (não está em uso; fica para comparação).
+async function rotaGoogle(a: Ponto, b: Ponto, chave: string): Promise<Rota> {
+  const resposta = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': chave,
+      'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
+    },
+    body: JSON.stringify({
+      origin: { location: { latLng: { latitude: a.latitude, longitude: a.longitude } } },
+      destination: { location: { latLng: { latitude: b.latitude, longitude: b.longitude } } },
+      travelMode: 'DRIVE',
+      routingPreference: 'TRAFFIC_AWARE',
+      languageCode: 'pt-PT',
+      units: 'METRIC',
+    }),
+  });
+  if (!resposta.ok) throw new Error(`Routes API ${resposta.status}`);
+  const dados = (await resposta.json()) as { routes?: { distanceMeters: number; duration: string; polyline: { encodedPolyline: string } }[] };
+  const r = dados.routes?.[0];
+  if (!r) throw new Error('Sem rota');
+  return {
+    km: r.distanceMeters / 1000,
+    minutos: Math.max(1, Math.round(parseInt(r.duration, 10) / 60)),
+    pontos: descodificarPolyline(r.polyline.encodedPolyline),
+    fonte: 'google',
+  };
+}
+
+/** Formato «encoded polyline» (Google e Mapbox com geometries=polyline): pares de lat/lng em diferenças, 5 casas decimais. */
 export function descodificarPolyline(texto: string): Ponto[] {
   const pontos: Ponto[] = [];
   let i = 0;
