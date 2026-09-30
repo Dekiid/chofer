@@ -11,6 +11,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { CATEGORIAS_ALUGUER, formatarMzn, nomeViatura, type Modo } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO } from '@/data/lugares';
+import { useAgenda } from '@/state/agenda';
 import { useInscricoes } from '@/state/inscricoes';
 import { usePedido } from '@/state/pedido';
 
@@ -18,7 +19,8 @@ export default function Inicio() {
   const cores = usePalette();
   const s = estilos(cores);
   const pedido = usePedido();
-  const pendentes = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length;
+  const { naoLidas } = useAgenda();
+  const avisos = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length + naoLidas;
   const [modo, setModo] = useState<Modo>('motorista');
   const [aluguerEscolhido, setAluguerEscolhido] = useState(CATEGORIAS_ALUGUER[0].id);
 
@@ -54,8 +56,13 @@ export default function Inicio() {
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <Text style={s.marca}>Chauffeur</Text>
         {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
-        <Pressable onPress={() => router.push('/aprovacoes')} style={s.gestao}>
-          <Text style={s.textoGestao}>Aprovações{pendentes > 0 ? ` (${pendentes})` : ''}</Text>
+        <Pressable onPress={() => router.push('/gestao')} style={s.gestao}>
+          <Text style={s.textoGestao}>Gestão</Text>
+          {avisos > 0 && (
+            <View style={s.contador}>
+              <Text style={s.textoContador}>{avisos}</Text>
+            </View>
+          )}
         </Pressable>
       </SafeAreaView>
 
@@ -134,7 +141,9 @@ function estilos(c: Palette) {
     legenda: { position: 'absolute', top: 64, left: 0, right: 0, alignItems: 'center' },
     nomeCarro: { color: c.text, fontSize: 24, fontWeight: '800' },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    gestao: { marginTop: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
+    contador: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+    textoContador: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+    gestao: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
     textoGestao: { color: c.text, fontSize: 14, fontWeight: '600' },
     inscrever: { alignItems: 'center', paddingTop: Spacing.three },
     textoInscrever: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },

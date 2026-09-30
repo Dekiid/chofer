@@ -66,13 +66,13 @@ export default function Viagem() {
 
   const viatura = pedido.viatura;
   const motorista = viatura.motorista ?? MOTORISTA_EXEMPLO;
-  const preco = calcularPreco(viatura, distanciaKm(origem, destino));
+  const preco = calcularPreco(viatura, distanciaKm(origem, destino), pedido.quando?.tipo === 'imediato');
   const pagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
   const minutosRestantes = Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
 
   function sair() {
     pedido.limpar();
-    router.replace('/');
+    router.dismissTo('/');
   }
 
   const titulo: Record<Fase, string> = {

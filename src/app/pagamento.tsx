@@ -6,11 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
+import { formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
-import { calcularPreco, distanciaKm } from '@/data/viagem';
+import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
+import { useAgenda } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 
-type Estado = 'preencher' | 'a_processar' | 'pago';
+type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada';
 
 // Tempo simulado até a operadora confirmar; o pagamento real virá do servidor.
 const TEMPO_CONFIRMACAO = 2500;
@@ -20,22 +22,58 @@ export default function Pagamento() {
   const s = estilos(cores);
   const pedido = usePedido();
   const [telefone, setTelefone] = useState('');
+  const agenda = useAgenda();
   const [estado, setEstado] = useState<Estado>('preencher');
+
+  const { destino, origem, viatura, quando } = pedido;
+  const km = destino ? distanciaKm(origem, destino) : 0;
+  const imediato = quando?.tipo === 'imediato';
+  const preco = calcularPreco(viatura, km, imediato);
 
   useEffect(() => {
     if (estado === 'a_processar') {
-      const t = setTimeout(() => setEstado('pago'), TEMPO_CONFIRMACAO);
+      const t = setTimeout(() => {
+        if (!destino || !quando) return;
+        // Pago: o carro fica ocupado na agenda para não haver sobreposições.
+        const inicio = quando.tipo === 'agendado' ? quando.inicio : new Date();
+        const ocupado = minutosOcupado(duracaoMin(km), quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
+        agenda.reservar({ viaturaId: viatura.id, inicio, fim: somarMin(inicio, ocupado), tipo: quando.tipo === 'imediato' ? 'imediata' : 'agendada', destino: destino.nome });
+        if (quando.tipo === 'imediato') {
+          agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(preco)} com taxa de pedido imediato.`);
+        }
+        setEstado(quando.tipo === 'imediato' ? 'pago' : 'agendada');
+      }, TEMPO_CONFIRMACAO);
       return () => clearTimeout(t);
     }
     if (estado === 'pago') {
       const t = setTimeout(() => router.replace('/viagem'), 1200);
       return () => clearTimeout(t);
     }
-  }, [estado]);
+  }, [estado, agenda, destino, quando, viatura, km, preco]);
 
-  if (!pedido.destino) return <Redirect href="/" />;
+  if (estado === 'agendada' && quando?.tipo === 'agendado') {
+    return (
+      <SafeAreaView style={[s.ecra, s.centro]}>
+        <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
+        <Text style={s.titulo}>Viagem agendada</Text>
+        <Text style={s.secundarioCentro}>
+          O {nomeViatura(viatura)} vai buscar-te {formatarDia(quando.inicio, new Date()).toLowerCase()} às {formatarHora(quando.inicio)} e leva-te até {destino?.nome}. O horário fica reservado na agenda do carro.
+        </Text>
+        <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
+          <BotaoPrincipal
+            texto="Voltar ao início"
+            onPress={() => {
+              pedido.limpar();
+              router.dismissTo('/');
+            }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  const preco = calcularPreco(pedido.viatura, distanciaKm(pedido.origem, pedido.destino));
+  if (!destino || !quando) return <Redirect href="/" />;
+
   const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento) ?? PAGAMENTOS[0];
   const digitos = telefone.replace(/\D/g, '');
   const telefoneValido = /^8[4-7]\d{7}$/.test(digitos);
@@ -55,7 +93,7 @@ export default function Pagamento() {
           <>
             <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
             <Text style={s.titulo}>Pagamento confirmado</Text>
-            <Text style={s.secundarioCentro}>A chamar o teu {nomeViatura(pedido.viatura)}.</Text>
+            <Text style={s.secundarioCentro}>A chamar o teu {nomeViatura(viatura)}.</Text>
           </>
         )}
       </SafeAreaView>
@@ -73,7 +111,12 @@ export default function Pagamento() {
         <Text style={s.secundario}>Total a pagar</Text>
         <Text style={s.total}>{formatarMzn(preco)}</Text>
         <Text style={s.secundario}>
-          {nomeViatura(pedido.viatura)} até {pedido.destino.nome}
+          {nomeViatura(viatura)} até {destino.nome}
+        </Text>
+        <Text style={s.secundario}>
+          {quando.tipo === 'agendado'
+            ? `Recolha ${formatarDia(quando.inicio, new Date()).toLowerCase()} às ${formatarHora(quando.inicio)}`
+            : 'Pedido imediato, com taxa extra'}
         </Text>
 
         <Text style={s.rotulo}>Método de pagamento</Text>

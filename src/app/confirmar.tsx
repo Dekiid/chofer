@@ -2,27 +2,40 @@ import { Redirect, router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EscolhaHorario } from '@/components/escolha-horario';
 import { Mapa } from '@/components/mapa';
 import { BotaoPrincipal, BotaoVoltar, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
+import { formatarDia, formatarHora, minutosOcupado, reservaQueOcupa, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
-import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
+import { calcularPreco, distanciaKm, duracaoMin, taxaImediato } from '@/data/viagem';
+import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 
 export default function Confirmar() {
   const cores = usePalette();
   const s = estilos(cores);
-  const { origem, destino, viatura } = usePedido();
+  const { origem, destino, viatura, quando, setQuando } = usePedido();
+  const { reservas } = useAgenda();
 
   if (!destino) return <Redirect href="/destino" />;
 
   const km = distanciaKm(origem, destino);
-  const preco = calcularPreco(viatura, km);
+  const duracao = duracaoMin(km);
+  const agora = new Date();
+  const livreAgora = !reservaQueOcupa(reservas, viatura.id, agora, somarMin(agora, minutosOcupado(duracao, viatura.chegadaMin)));
+  const imediato = quando?.tipo === 'imediato';
+  // Uma hora escolhida pode ter sido ocupada entretanto; nesse caso deixa de valer.
+  const quandoValido =
+    quando?.tipo === 'imediato'
+      ? livreAgora
+      : quando?.tipo === 'agendado' && !reservaQueOcupa(reservas, viatura.id, quando.inicio, somarMin(quando.inicio, minutosOcupado(duracao)));
+  const preco = calcularPreco(viatura, km, imediato);
 
   return (
     <View style={s.ecra}>
-      <Mapa origem={origem} destino={destino} margemInferior={420} />
+      <Mapa origem={origem} destino={destino} margemInferior={600} />
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <BotaoVoltar onPress={() => router.back()} />
@@ -38,28 +51,54 @@ export default function Confirmar() {
           <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
         </Pressable>
 
+        <Text style={s.pergunta}>Quando?</Text>
+        <EscolhaHorario
+          viaturaId={viatura.id}
+          ocupadoMin={minutosOcupado(duracao)}
+          reservas={reservas}
+          quando={quando}
+          onMudar={setQuando}
+          livreAgora={livreAgora}
+        />
+
         <View style={s.resumo}>
           <View style={s.linhaResumo}>
             <Text style={s.secundario}>Carro</Text>
             <Text style={s.valor}>{nomeViatura(viatura)}</Text>
           </View>
           <View style={s.linhaResumo}>
+            <Text style={s.secundario}>Recolha</Text>
+            <Text style={s.valor}>
+              {quando?.tipo === 'agendado'
+                ? `${formatarDia(quando.inicio, agora)}, ${formatarHora(quando.inicio)}`
+                : imediato
+                  ? `Agora · chega em ${viatura.chegadaMin} min`
+                  : 'Escolhe a hora'}
+            </Text>
+          </View>
+          <View style={s.linhaResumo}>
             <Text style={s.secundario}>Distância</Text>
             <Text style={s.valor}>
-              {km.toFixed(1).replace('.', ',')} km · cerca de {duracaoMin(km)} min
+              {km.toFixed(1).replace('.', ',')} km · cerca de {duracao} min
             </Text>
           </View>
           <View style={s.linhaResumo}>
             <Text style={s.secundario}>Preço por km</Text>
             <Text style={s.valor}>{formatarMzn(viatura.porKmMzn)}</Text>
           </View>
+          {imediato && (
+            <View style={s.linhaResumo}>
+              <Text style={s.secundario}>Taxa de pedido imediato</Text>
+              <Text style={s.valor}>{formatarMzn(taxaImediato(viatura, km))}</Text>
+            </View>
+          )}
           <View style={[s.linhaResumo, s.linhaTotal]}>
             <Text style={s.total}>Total</Text>
             <Text style={s.total}>{formatarMzn(preco)}</Text>
           </View>
         </View>
 
-        <BotaoPrincipal texto="Continuar para pagamento" onPress={() => router.push('/pagamento')} />
+        <BotaoPrincipal texto="Continuar para pagamento" onPress={() => router.push('/pagamento')} desativado={!quandoValido} />
       </Painel>
     </View>
   );
@@ -72,7 +111,8 @@ function estilos(c: Palette) {
     linha: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
     ponto: { width: 10, height: 10, backgroundColor: c.text },
     local: { flex: 1, color: c.text, fontSize: 16, fontWeight: '600' },
-    resumo: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: Spacing.two, marginVertical: Spacing.three },
+    pergunta: { color: c.text, fontSize: 18, fontWeight: '700', marginTop: Spacing.two, marginBottom: Spacing.two },
+    resumo: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: Spacing.one, marginVertical: Spacing.three },
     linhaResumo: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
     linhaTotal: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.backgroundSelected, paddingTop: Spacing.two, marginTop: Spacing.one },
     secundario: { color: c.textSecondary, fontSize: 15 },

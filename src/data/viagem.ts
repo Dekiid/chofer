@@ -1,3 +1,4 @@
+import { TAXA_IMEDIATO } from './agenda';
 import type { Viatura } from './categorias';
 
 type Ponto = { latitude: number; longitude: number };
@@ -18,9 +19,16 @@ export function duracaoMin(km: number): number {
   return Math.max(3, Math.round((km / 30) * 60));
 }
 
-/** Preço final: quilómetros vezes o preço por km da viatura, arredondado a 10 MT. */
-export function calcularPreco(viatura: Viatura, km: number): number {
-  return Math.round((viatura.porKmMzn * km) / 10) * 10;
+const arredondar = (mzn: number) => Math.round(mzn / 10) * 10;
+
+/** Preço final: quilómetros vezes o preço por km da viatura, mais a taxa se o pedido for imediato; arredondado a 10 MT. */
+export function calcularPreco(viatura: Viatura, km: number, imediato = false): number {
+  return arredondar(viatura.porKmMzn * km * (imediato ? 1 + TAXA_IMEDIATO : 1));
+}
+
+/** Valor da taxa de pedido imediato, para mostrar em separado. */
+export function taxaImediato(viatura: Viatura, km: number): number {
+  return calcularPreco(viatura, km, true) - calcularPreco(viatura, km);
 }
 
 export function interpolar(a: Ponto, b: Ponto, t: number): Ponto {
