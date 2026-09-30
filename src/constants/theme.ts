@@ -17,6 +17,9 @@ export const Colors = {
     go: '#22C55E',
     onGo: '#000000',
     mapa: '#EEF1EF',
+    /** Vidro (liquid glass) quando o efeito nativo não existe: branco translúcido com borda clara. */
+    vidro: 'rgba(255,255,255,0.62)',
+    vidroBorda: 'rgba(255,255,255,0.85)',
   },
   dark: {
     text: '#FFFFFF',
@@ -30,8 +33,16 @@ export const Colors = {
     go: '#22C55E',
     onGo: '#000000',
     mapa: '#161817',
+    vidro: 'rgba(30,32,31,0.58)',
+    vidroBorda: 'rgba(255,255,255,0.14)',
   },
 } as const;
+
+/**
+ * Teste do estilo liquid glass (pedido do Flavio, 2026-09-30): painéis, botões e separadores em vidro.
+ * Pôr a false volta ao visual do manual, sem vidro.
+ */
+export const VIDRO = true;
 
 export type Palette = { [K in keyof typeof Colors.light]: string };
 
@@ -48,5 +59,7 @@ export const Radius = {
   /** Botões e campos de pesquisa. */
   botao: 10,
   sheet: 20,
+  /** Painel flutuante em vidro, com os cantos todos arredondados. */
+  vidro: 32,
   pill: 999,
 } as const;

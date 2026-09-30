@@ -8,7 +8,8 @@ import { FotoCarro } from '@/components/foto-carro';
 import { fotosDaGaleria, GaleriaCarro } from '@/components/galeria-carro';
 import { Logo } from '@/components/logo';
 import { BotaoPrincipal, CampoPesquisa, Painel } from '@/components/ui';
-import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { Vidro } from '@/components/vidro';
+import { Radius, Spacing, VIDRO, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarMzn, nomeViatura, type Modo, type Viatura } from '@/data/categorias';
 import { precoCasamento, type Decoracao } from '@/data/casamento';
@@ -101,24 +102,26 @@ export default function Inicio() {
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <Logo altura={30} />
         {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
-        <Pressable onPress={() => router.push('/gestao')} style={[s.gestao, { top: insets.top + Spacing.two }]}>
-          <Text style={s.textoGestao}>Gestão</Text>
-          {avisos > 0 && (
-            <View style={s.contador}>
-              <Text style={s.textoContador}>{avisos}</Text>
-            </View>
-          )}
+        <Pressable onPress={() => router.push('/gestao')} style={[s.gestaoPosicao, { top: insets.top + Spacing.two }]}>
+          <Vidro interativo style={s.gestao}>
+            <Text style={s.textoGestao}>Gestão</Text>
+            {avisos > 0 && (
+              <View style={s.contador}>
+                <Text style={s.textoContador}>{avisos}</Text>
+              </View>
+            )}
+          </Vidro>
         </Pressable>
       </SafeAreaView>
 
       <Painel onLayout={(e) => setAlturaPainel(e.nativeEvent.layout.height)}>
-        <View style={s.alternador}>
+        <Vidro style={s.alternador}>
           {MODOS.map((m) => (
             <Pressable key={m.id} onPress={() => mudarModo(m.id)} style={[s.opcaoModo, modo === m.id && s.opcaoModoAtiva]}>
               <Text style={[s.textoModo, modo === m.id && s.textoModoAtivo]}>{m.nome}</Text>
             </Pressable>
           ))}
-        </View>
+        </Vidro>
 
         <Text style={s.pergunta}>{MODOS.find((m) => m.id === modo)?.pergunta}</Text>
         {modo === 'casamento' && (
@@ -204,11 +207,12 @@ function estilos(c: Palette) {
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: Spacing.two + 4, alignItems: 'center' },
     contador: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
     textoContador: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-    gestao: { position: 'absolute', right: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
+    gestaoPosicao: { position: 'absolute', right: Spacing.three },
+    gestao: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, overflow: 'hidden', ...(VIDRO ? {} : { backgroundColor: c.backgroundElement, borderWidth: 0 }) },
     textoGestao: { color: c.text, fontSize: 14, fontWeight: '600' },
     inscrever: { alignItems: 'center', paddingTop: Spacing.three },
     textoInscrever: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
-    alternador: { flexDirection: 'row', backgroundColor: c.backgroundElement, borderRadius: Radius.pill, padding: Spacing.one, marginBottom: Spacing.three },
+    alternador: { flexDirection: 'row', borderRadius: Radius.pill, padding: Spacing.one, marginBottom: Spacing.three, overflow: 'hidden', ...(VIDRO ? {} : { backgroundColor: c.backgroundElement, borderWidth: 0 }) },
     opcaoModo: { flex: 1, paddingVertical: Spacing.two, borderRadius: Radius.pill, alignItems: 'center' },
     opcaoModoAtiva: { backgroundColor: c.primary },
     textoModo: { color: c.textSecondary, fontWeight: '600' },
