@@ -8,7 +8,8 @@ import { FotoCarro } from '@/components/foto-carro';
 import { BotaoPrincipal, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { formatarMzn, nomeViatura, type Modo } from '@/data/categorias';
+import { formatarMzn, nomeViatura, type Modo, type Viatura } from '@/data/categorias';
+import { FOTOS_CASAMENTO, precoCasamento, type Decoracao } from '@/data/casamento';
 import { LOCALIZACAO_PADRAO } from '@/data/lugares';
 import { useAgenda } from '@/state/agenda';
 import { useInscricoes } from '@/state/inscricoes';
@@ -21,15 +22,26 @@ export default function Inicio() {
   const { naoLidas } = useAgenda();
   const avisos = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length + naoLidas;
   const [modo, setModo] = useState<Modo>('motorista');
-  const lista = modo === 'motorista' ? pedido.viaturas : pedido.viaturas.filter((v) => v.porDiaMzn !== undefined);
+  const [decoracao, setDecoracao] = useState<Decoracao>('com');
+  const lista = pedido.viaturas.filter((v) => disponivel(v, modo));
+  // Com decoração mostra uma foto genérica de um carro de casamento decorado, diferente para cada carro da lista.
+  const indice = lista.findIndex((v) => v.id === pedido.viatura.id);
+  const exemploDecoracao = modo === 'casamento' && decoracao === 'com' ? FOTOS_CASAMENTO[Math.max(0, indice) % FOTOS_CASAMENTO.length] : undefined;
 
   function mudarModo(m: Modo) {
     setModo(m);
-    // Nem todos os carros estão para aluguer; se o escolhido não estiver, passa para o primeiro que está.
-    if (m === 'aluguer' && pedido.viatura.porDiaMzn === undefined) {
-      const primeiro = pedido.viaturas.find((v) => v.porDiaMzn !== undefined);
+    // Nem todos os carros estão para aluguer ou casamentos; se o escolhido não estiver, passa para o primeiro que está.
+    if (!disponivel(pedido.viatura, m)) {
+      const primeiro = pedido.viaturas.find((v) => disponivel(v, m));
       if (primeiro) pedido.setViaturaId(primeiro.id);
     }
+  }
+
+  function preco(v: Viatura): { valor: number; unidade: string; descricao: string } {
+    if (modo === 'aluguer') return { valor: v.porDiaMzn ?? 0, unidade: '/dia', descricao: `${v.tipo} · ${v.lugares} lugares · sem motorista` };
+    if (modo === 'casamento' && v.casamento)
+      return { valor: precoCasamento(v.casamento, decoracao), unidade: '/evento', descricao: `${v.tipo} · ${v.lugares} lugares` };
+    return { valor: v.porKmMzn, unidade: '/km', descricao: `${v.tipo} · ${v.lugares} lugares · chega em ${v.chegadaMin} min` };
   }
 
   // Usa a localização real como ponto de recolha quando a pessoa autoriza.
@@ -50,7 +62,11 @@ export default function Inicio() {
   return (
     <View style={s.ecra}>
       <View style={[s.ecraCarro, { backgroundColor: cores.backgroundElement }]}>
-        <FotoCarro viatura={pedido.viatura} style={s.foto} />
+        <FotoCarro
+          viatura={pedido.viatura}
+          style={s.foto}
+          ilustracao={exemploDecoracao && { ...exemploDecoracao, etiqueta: 'Exemplo de decoração' }}
+        />
         <View style={s.legenda} pointerEvents="none">
           <Text style={s.nomeCarro}>{nomeViatura(pedido.viatura)}</Text>
           <Text style={s.descricao}>{pedido.viatura.tipo}</Text>
@@ -72,28 +88,36 @@ export default function Inicio() {
 
       <Painel>
         <View style={s.alternador}>
-          {(['motorista', 'aluguer'] as const).map((m) => (
-            <Pressable key={m} onPress={() => mudarModo(m)} style={[s.opcaoModo, modo === m && s.opcaoModoAtiva]}>
-              <Text style={[s.textoModo, modo === m && s.textoModoAtivo]}>{m === 'motorista' ? 'Com motorista' : 'Aluguer'}</Text>
+          {MODOS.map((m) => (
+            <Pressable key={m.id} onPress={() => mudarModo(m.id)} style={[s.opcaoModo, modo === m.id && s.opcaoModoAtiva]}>
+              <Text style={[s.textoModo, modo === m.id && s.textoModoAtivo]}>{m.nome}</Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={s.pergunta}>{modo === 'motorista' ? 'Escolhe o teu carro' : 'Escolhe o carro para alugar'}</Text>
-        <ScrollView style={s.lista} contentContainerStyle={{ gap: Spacing.one }}>
+        <Text style={s.pergunta}>{MODOS.find((m) => m.id === modo)?.pergunta}</Text>
+        {modo === 'casamento' && (
+          <View style={s.decoracoes}>
+            {(['com', 'sem'] as const).map((d) => (
+              <Pressable key={d} onPress={() => setDecoracao(d)} style={[s.decoracao, decoracao === d && s.opcaoModoAtiva]}>
+                <Text style={[s.textoModo, decoracao === d && s.textoModoAtivo]}>{d === 'com' ? 'Com decoração' : 'Sem decoração'}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+        <ScrollView style={[s.lista, modo === 'casamento' && s.listaCasamento]} contentContainerStyle={{ gap: Spacing.one }}>
           {lista.map((v) => {
             const ativa = v.id === pedido.viatura.id;
+            const p = preco(v);
             return (
               <Pressable key={v.id} onPress={() => pedido.setViaturaId(v.id)} style={[s.cartao, ativa && s.cartaoAtivo]}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.nome}>{nomeViatura(v)}</Text>
-                  <Text style={s.descricao}>
-                    {modo === 'motorista' ? `${v.tipo} · ${v.lugares} lugares · chega em ${v.chegadaMin} min` : `${v.tipo} · ${v.lugares} lugares · sem motorista`}
-                  </Text>
+                  <Text style={s.descricao}>{p.descricao}</Text>
                 </View>
                 <Text style={s.preco}>
-                  {formatarMzn(modo === 'motorista' ? v.porKmMzn : (v.porDiaMzn ?? 0))}
-                  <Text style={s.lugares}>{modo === 'motorista' ? '/km' : '/dia'}</Text>
+                  {formatarMzn(p.valor)}
+                  <Text style={s.lugares}>{p.unidade}</Text>
                 </Text>
               </Pressable>
             );
@@ -108,12 +132,31 @@ export default function Inicio() {
               </Text>
             </Pressable>
           </>
-        ) : (
+        ) : modo === 'aluguer' ? (
           <BotaoPrincipal texto={`Alugar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
+        ) : (
+          <>
+            <BotaoPrincipal texto={`Reservar ${nomeViatura(pedido.viatura)}`} onPress={() => {}} />
+            <Text style={[s.descricao, s.notaCasamento]}>
+              {decoracao === 'com' ? 'Com motorista e decoração de flores e fitas.' : 'Com motorista, sem decoração.'}
+            </Text>
+          </>
         )}
       </Painel>
     </View>
   );
+}
+
+const MODOS: { id: Modo; nome: string; pergunta: string }[] = [
+  { id: 'motorista', nome: 'Com motorista', pergunta: 'Escolhe o teu carro' },
+  { id: 'aluguer', nome: 'Aluguer', pergunta: 'Escolhe o carro para alugar' },
+  { id: 'casamento', nome: 'Casamento', pergunta: 'Carro para o teu casamento' },
+];
+
+function disponivel(v: Viatura, modo: Modo): boolean {
+  if (modo === 'aluguer') return v.porDiaMzn !== undefined;
+  if (modo === 'casamento') return v.casamento !== undefined;
+  return true;
 }
 
 function estilos(c: Palette) {
@@ -149,8 +192,13 @@ function estilos(c: Palette) {
     opcaoModoAtiva: { backgroundColor: c.primary },
     textoModo: { color: c.textSecondary, fontWeight: '600' },
     textoModoAtivo: { color: c.onPrimary },
+    decoracoes: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
+    decoracao: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: c.backgroundElement },
+    notaCasamento: { textAlign: 'center', paddingTop: Spacing.two, fontSize: 13 },
     pergunta: { color: c.text, fontSize: 20, fontWeight: '700', marginBottom: Spacing.two },
     lista: { marginBottom: Spacing.three, maxHeight: 250 },
+    // A escolha da decoração e a nota ocupam espaço; a lista encolhe para o painel não tapar a foto.
+    listaCasamento: { maxHeight: 180 },
     cartao: { flexDirection: 'row', alignItems: 'center', padding: Spacing.three, borderRadius: Radius.card, borderWidth: 2, borderColor: 'transparent' },
     cartaoAtivo: { borderColor: c.primary, backgroundColor: c.backgroundElement },
     nome: { color: c.text, fontSize: 17, fontWeight: '700' },

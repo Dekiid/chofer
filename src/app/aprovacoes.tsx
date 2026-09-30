@@ -83,6 +83,11 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
         </Pressable>
       </View>
 
+      {i.casamento && (
+        <Text style={[s.secundario, { marginBottom: Spacing.two }]}>
+          Casamentos: {formatarMzn(i.casamento.semDecoracaoMzn)} sem decoração · {formatarMzn(i.casamento.comDecoracaoMzn)} com decoração
+        </Text>
+      )}
       <Text style={s.rotulo}>Preço por km proposto pelo motorista (MT)</Text>
       <TextInput value={preco} onChangeText={setPreco} keyboardType="number-pad" style={s.input} />
       <Text style={[s.secundario, { marginTop: Spacing.one }]}>

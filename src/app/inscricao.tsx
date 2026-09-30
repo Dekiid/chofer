@@ -32,6 +32,9 @@ export default function Inscricao() {
   const [tipo, setTipo] = useState<string>(TIPOS_VIATURA[0].tipo);
   const [lugares, setLugares] = useState(4);
   const [preco, setPreco] = useState('');
+  const [casamentos, setCasamentos] = useState(false);
+  const [semDecoracao, setSemDecoracao] = useState('');
+  const [comDecoracao, setComDecoracao] = useState('');
   const [fotos, setFotos] = useState<Partial<Record<FotoPedida, string>>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
   const [enviada, setEnviada] = useState(false);
@@ -47,6 +50,8 @@ export default function Inscricao() {
     ano: !/^(19|20)\d{2}$/.test(ano.trim()),
     matricula: matricula.trim().length < 5,
     preco: !(Number(preco) > 0),
+    semDecoracao: casamentos && !(Number(semDecoracao) > 0),
+    comDecoracao: casamentos && !(Number(comDecoracao) > 0),
     fotos: FOTOS_PEDIDAS.some((f) => !fotos[f.id]),
   };
   const valido = !Object.values(erros).some(Boolean);
@@ -71,6 +76,7 @@ export default function Inscricao() {
       tipo,
       lugares,
       porKmMzn: Number(preco),
+      casamento: casamentos ? { semDecoracaoMzn: Number(semDecoracao), comDecoracaoMzn: Number(comDecoracao) } : undefined,
       fotos: fotos as Record<FotoPedida, string>,
     });
     setEnviada(true);
@@ -167,6 +173,37 @@ export default function Inscricao() {
               : `Tu recebes os outros ${Math.round((1 - COMISSAO) * 100)}%. O preço fica sujeito à nossa aprovação.`}
           </Text>
         </View>
+
+        <Text style={s.secao}>Casamentos</Text>
+        <Text style={s.ajuda}>Queres alugar o carro, com motorista, para casamentos? Indica quanto cobras pelo dia do casamento.</Text>
+        <View style={s.opcoes}>
+          {[true, false].map((sim) => (
+            <Pressable key={String(sim)} onPress={() => setCasamentos(sim)} style={[s.opcao, casamentos === sim && s.opcaoAtiva]}>
+              <Text style={[s.textoOpcao, casamentos === sim && s.textoOpcaoAtiva]}>{sim ? 'Sim' : 'Não'}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {casamentos && (
+          <>
+            <View style={s.linha}>
+              <View style={{ flex: 1 }}>
+                {campo('Sem decoração (MT)', semDecoracao, setSemDecoracao, erros.semDecoracao, 'Indica o preço.', {
+                  placeholder: 'Ex.: 9000',
+                  keyboardType: 'number-pad',
+                  maxLength: 6,
+                })}
+              </View>
+              <View style={{ flex: 1 }}>
+                {campo('Com decoração (MT)', comDecoracao, setComDecoracao, erros.comDecoracao, 'Indica o preço.', {
+                  placeholder: 'Ex.: 12500',
+                  keyboardType: 'number-pad',
+                  maxLength: 6,
+                })}
+              </View>
+            </View>
+            <Text style={s.ajuda}>Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço. Aplica-se a mesma comissão de {Math.round(COMISSAO * 100)}%.</Text>
+          </>
+        )}
 
         <Text style={s.secao}>Fotos do carro</Text>
         <Text style={s.ajuda}>Precisamos destas quatro fotos, com boa luz. A foto de frente é a que os clientes vão ver na app.</Text>

@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 
-import type { Viatura } from '@/data/categorias';
+import type { PrecoCasamento, Viatura } from '@/data/categorias';
 import type { Motorista } from '@/data/motorista';
 
 /** Fotos que pedimos a cada motorista; a de frente é a que aparece na app. */
@@ -28,6 +28,8 @@ export type DadosInscricao = {
   lugares: number;
   /** Preço por km proposto pelo motorista, em meticais. */
   porKmMzn: number;
+  /** Só se o dono quiser o carro no sector de casamentos. */
+  casamento?: PrecoCasamento;
   /** URI local de cada foto. */
   fotos: Record<FotoPedida, string>;
 };
@@ -84,6 +86,7 @@ function paraViatura(i: Inscricao): Viatura {
     chegadaMin: 8,
     foto: { uri: i.fotos.frente },
     motorista,
+    casamento: i.casamento,
   };
 }
 
