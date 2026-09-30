@@ -8,7 +8,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
-import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
+import { calcularPreco } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
@@ -26,8 +26,10 @@ export default function Pagamento() {
   const agenda = useAgenda();
   const [estado, setEstado] = useState<Estado>('preencher');
 
-  const { destino, origem, viatura, quando } = pedido;
-  const km = destino ? distanciaKm(origem, destino) : 0;
+  const { destino, viatura, quando } = pedido;
+  // O mesmo km do resumo, para o valor pago ser o que o cliente viu.
+  const km = pedido.rota?.km ?? 0;
+  const duracao = pedido.rota?.minutos ?? 0;
   const imediato = quando?.tipo === 'imediato';
   const preco = calcularPreco(viatura, km, imediato);
 
@@ -37,7 +39,7 @@ export default function Pagamento() {
         if (!destino || !quando) return;
         // Pago: o carro fica ocupado na agenda para não haver sobreposições.
         const inicio = quando.tipo === 'agendado' ? quando.inicio : new Date();
-        const ocupado = minutosOcupado(duracaoMin(km), quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
+        const ocupado = minutosOcupado(duracao, quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
         agenda.reservar({ viaturaId: viatura.id, inicio, fim: somarMin(inicio, ocupado), tipo: quando.tipo === 'imediato' ? 'imediata' : 'agendada', destino: destino.nome });
         if (quando.tipo === 'imediato') {
           agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(preco)} com taxa de pedido imediato.`);
@@ -50,7 +52,7 @@ export default function Pagamento() {
       const t = setTimeout(() => router.replace('/viagem'), 1200);
       return () => clearTimeout(t);
     }
-  }, [estado, agenda, destino, quando, viatura, km, preco]);
+  }, [estado, agenda, destino, quando, viatura, duracao, preco]);
 
   if (estado === 'agendada' && quando?.tipo === 'agendado') {
     return (

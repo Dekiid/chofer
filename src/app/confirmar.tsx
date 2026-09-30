@@ -9,7 +9,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora, minutosOcupado, reservaQueOcupa, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
-import { calcularPreco, distanciaKm, duracaoMin, taxaImediato } from '@/data/viagem';
+import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
@@ -17,13 +17,13 @@ import { Text } from '@/components/texto';
 export default function Confirmar() {
   const cores = usePalette();
   const s = estilos(cores);
-  const { origem, destino, viatura, quando, setQuando } = usePedido();
+  const { origem, destino, viatura, quando, setQuando, rota, rotaACarregar } = usePedido();
   const { reservas } = useAgenda();
 
-  if (!destino) return <Redirect href="/destino" />;
+  if (!destino || !rota) return <Redirect href="/destino" />;
 
-  const km = distanciaKm(origem, destino);
-  const duracao = duracaoMin(km);
+  // Km e tempo pelas estradas (Google), ou a estimativa enquanto a rota não chega.
+  const { km, minutos: duracao } = rota;
   const agora = new Date();
   const livreAgora = !reservaQueOcupa(reservas, viatura.id, agora, somarMin(agora, minutosOcupado(duracao, viatura.chegadaMin)));
   const imediato = quando?.tipo === 'imediato';
@@ -36,7 +36,7 @@ export default function Confirmar() {
 
   return (
     <View style={s.ecra}>
-      <Mapa origem={origem} destino={destino} margemInferior={600} />
+      <Mapa origem={origem} destino={destino} rota={rota.pontos} margemInferior={600} />
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <BotaoVoltar onPress={() => router.back()} />
@@ -80,7 +80,7 @@ export default function Confirmar() {
           <View style={s.linhaResumo}>
             <Text style={s.secundario}>Distância</Text>
             <Text style={s.valor}>
-              {km.toFixed(1).replace('.', ',')} km · cerca de {duracao} min
+              {rotaACarregar ? 'A calcular a rota…' : `${km.toFixed(1).replace('.', ',')} km · cerca de ${duracao} min${rota.fonte === 'estimativa' ? ' (estimativa)' : ''}`}
             </Text>
           </View>
           <View style={s.linhaResumo}>
@@ -99,7 +99,7 @@ export default function Confirmar() {
           </View>
         </View>
 
-        <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido} />
+        <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido || rotaACarregar} />
       </Painel>
     </View>
   );

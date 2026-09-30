@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,7 +10,8 @@ import { Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
-import { calcularPreco, distanciaKm, interpolar } from '@/data/viagem';
+import { calcularRota, pontoNaRota, restoDaRota, type Rota } from '@/data/rotas';
+import { calcularPreco } from '@/data/viagem';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
 
@@ -31,30 +32,37 @@ export default function Viagem() {
   const [carro, setCarro] = useState<Ponto | null>(null);
   const [progresso, setProgresso] = useState(0);
   const [estrelas, setEstrelas] = useState(0);
-  const inicioCarro = useRef<Ponto | null>(null);
+  // Caminho do motorista até à recolha, pelas estradas quando há rota do Google.
+  const [rotaMotorista, setRotaMotorista] = useState<Rota | null>(null);
 
   // Procurar motorista e, quando encontrado, colocá-lo a cerca de 2 km da recolha.
   useEffect(() => {
     if (fase !== 'procurar') return;
-    const t = setTimeout(() => {
-      inicioCarro.current = { latitude: origem.latitude + 0.012, longitude: origem.longitude - 0.012 };
-      setCarro(inicioCarro.current);
+    let valido = true;
+    const inicio = { latitude: origem.latitude + 0.012, longitude: origem.longitude - 0.012 };
+    const espera = new Promise((fim) => setTimeout(fim, TEMPO_PROCURA));
+    Promise.all([calcularRota(inicio, origem), espera]).then(([rota]) => {
+      if (!valido) return;
+      setRotaMotorista(rota);
+      setCarro(inicio);
       setProgresso(0);
       setFase('a_caminho');
-    }, TEMPO_PROCURA);
-    return () => clearTimeout(t);
+    });
+    return () => {
+      valido = false;
+    };
   }, [fase, origem]);
 
-  // Mover o carro até à recolha (a_caminho) ou até ao destino (em_viagem).
+  // Mover o carro pela rota até à recolha (a_caminho) ou até ao destino (em_viagem).
+  const pontosViagem = pedido.rota?.pontos;
   useEffect(() => {
-    if ((fase !== 'a_caminho' && fase !== 'em_viagem') || !destino) return;
-    const de = fase === 'a_caminho' ? inicioCarro.current : origem;
-    const para = fase === 'a_caminho' ? origem : destino;
-    if (!de) return;
+    if (fase !== 'a_caminho' && fase !== 'em_viagem') return;
+    const pontos = fase === 'a_caminho' ? rotaMotorista?.pontos : pontosViagem;
+    if (!pontos) return;
     let t = 0;
     const id = setInterval(() => {
       t = Math.min(1, t + PASSO / TEMPO_DESLOCACAO);
-      setCarro(interpolar(de, para, t));
+      setCarro(pontoNaRota(pontos, t));
       setProgresso(t);
       if (t >= 1) {
         clearInterval(id);
@@ -62,13 +70,13 @@ export default function Viagem() {
       }
     }, PASSO);
     return () => clearInterval(id);
-  }, [fase, origem, destino]);
+  }, [fase, rotaMotorista, pontosViagem]);
 
   if (!destino) return <Redirect href="/" />;
 
   const viatura = pedido.viatura;
   const motorista = viatura.motorista ?? MOTORISTA_EXEMPLO;
-  const preco = calcularPreco(viatura, distanciaKm(origem, destino), pedido.quando?.tipo === 'imediato');
+  const preco = calcularPreco(viatura, pedido.rota?.km ?? 0, pedido.quando?.tipo === 'imediato');
   const pagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
   const minutosRestantes = Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
 
@@ -95,7 +103,15 @@ export default function Viagem() {
         destino={fase === 'a_caminho' || fase === 'chegou' ? undefined : destino}
         carro={carro}
         // Com o motorista a caminho, a rota é do carro até à recolha.
-        rota={fase === 'a_caminho' && carro ? [carro, origem] : fase === 'em_viagem' && carro ? [carro, destino] : undefined}
+        rota={
+          fase === 'a_caminho' && rotaMotorista
+            ? restoDaRota(rotaMotorista.pontos, progresso)
+            : fase === 'em_viagem' && pontosViagem
+              ? restoDaRota(pontosViagem, progresso)
+              : fase === 'chegou' || fase === 'concluida'
+                ? []
+                : pontosViagem
+        }
         margemInferior={360}
       />
 
