@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FotoCarro } from '@/components/foto-carro';
+import { Logo } from '@/components/logo';
 import { BotaoPrincipal, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
@@ -74,7 +75,7 @@ export default function Inicio() {
       </View>
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
-        <Text style={s.marca}>Chauffeur</Text>
+        <Logo altura={30} style={s.marca} />
         {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
         <Pressable onPress={() => router.push('/gestao')} style={s.gestao}>
           <Text style={s.textoGestao}>Gestão</Text>
@@ -174,19 +175,7 @@ function estilos(c: Palette) {
     textoGestao: { color: c.text, fontSize: 14, fontWeight: '600' },
     inscrever: { alignItems: 'center', paddingTop: Spacing.three },
     textoInscrever: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
-    marca: {
-      alignSelf: 'flex-start',
-      marginTop: Spacing.two,
-      paddingHorizontal: Spacing.three,
-      paddingVertical: Spacing.two,
-      borderRadius: Radius.pill,
-      backgroundColor: c.primary,
-      color: c.onPrimary,
-      fontSize: 16,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-      overflow: 'hidden',
-    },
+    marca: { marginTop: Spacing.two + 2, marginLeft: -2 },
     alternador: { flexDirection: 'row', backgroundColor: c.backgroundElement, borderRadius: Radius.pill, padding: Spacing.one, marginBottom: Spacing.three },
     opcaoModo: { flex: 1, paddingVertical: Spacing.two, borderRadius: Radius.pill, alignItems: 'center' },
     opcaoModoAtiva: { backgroundColor: c.primary },

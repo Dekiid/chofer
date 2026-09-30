@@ -1,5 +1,5 @@
 /**
- * Paleta do Chauffeur: preto e branco, com um dourado discreto como único destaque.
+ * Paleta do Chauffeur: preto e branco, com o verde do ponto do logótipo como único destaque.
  */
 
 export const Colors = {
@@ -11,7 +11,7 @@ export const Colors = {
     backgroundSelected: '#E6E6E6',
     primary: '#000000',
     onPrimary: '#FFFFFF',
-    accent: '#B8914A',
+    accent: '#22C55E',
   },
   dark: {
     text: '#FFFFFF',
@@ -21,7 +21,7 @@ export const Colors = {
     backgroundSelected: '#2A2A2A',
     primary: '#FFFFFF',
     onPrimary: '#000000',
-    accent: '#D4AF6A',
+    accent: '#22C55E',
   },
 } as const;
 
