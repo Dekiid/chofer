@@ -22,9 +22,13 @@ export default function Destino() {
   // Na recolha, a localização do telemóvel aparece sempre primeiro, para poder voltar a ela.
   const resultados = campo === 'origem' && !texto.trim() ? [pedido.localAtual, ...encontrados] : encontrados;
 
+  // O teclado só abre quando a pessoa toca num campo para escrever, não ao abrir o ecrã.
+  const [focar, setFocar] = useState(false);
+
   function editar(c: 'origem' | 'destino') {
     setCampo(c);
     setTexto('');
+    setFocar(true);
   }
 
   function escolher(l: Lugar) {
@@ -51,7 +55,7 @@ export default function Destino() {
           <View style={s.pontoRecolha} />
           {campo === 'origem' ? (
             <TextInput
-              autoFocus
+              autoFocus={focar}
               value={texto}
               onChangeText={setTexto}
               placeholder="Ponto de recolha"
@@ -71,7 +75,7 @@ export default function Destino() {
           <View style={s.ponto} />
           {campo === 'destino' ? (
             <TextInput
-              autoFocus
+              autoFocus={focar}
               value={texto}
               onChangeText={setTexto}
               placeholder="Destino"
@@ -91,6 +95,7 @@ export default function Destino() {
         data={resultados}
         keyExtractor={(l) => l.id}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         ListEmptyComponent={<Text style={s.vazio}>Nenhum lugar encontrado.</Text>}
         renderItem={({ item }) => (
           <Pressable style={s.item} onPress={() => escolher(item)}>

@@ -26,7 +26,7 @@ export default function Aprovacoes() {
         <BotaoVoltar onPress={() => router.back()} />
         <Text style={s.titulo}>Aprovar inscrições</Text>
       </View>
-      <ScrollView contentContainerStyle={s.conteudo}>
+      <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {inscricoes.length === 0 && <Text style={s.secundario}>Ainda não há inscrições.</Text>}
         {pendentes.length > 0 && <Text style={s.secao}>À espera de aprovação ({pendentes.length})</Text>}
         {pendentes.map((i) => (

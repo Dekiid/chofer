@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
@@ -105,30 +105,32 @@ export default function Pagamento() {
 
   return (
     <SafeAreaView style={s.ecra}>
-      <View style={s.cabecalho}>
-        <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.tituloCabecalho}>Pagamento</Text>
-      </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.cabecalho}>
+          <BotaoVoltar onPress={() => router.back()} />
+          <Text style={s.tituloCabecalho}>Pagamento</Text>
+        </View>
 
-      <View style={s.corpo}>
-        <Text style={s.secundario}>Total a pagar</Text>
-        <Text style={s.total}>{formatarMzn(preco)}</Text>
-        <Text style={s.secundario}>
-          {nomeViatura(viatura)} até {destino.nome}
-        </Text>
-        <Text style={s.secundario}>
-          {quando.tipo === 'agendado'
-            ? `Recolha ${formatarDia(quando.inicio, new Date()).toLowerCase()} às ${formatarHora(quando.inicio)}`
-            : 'Pedido imediato, com taxa extra'}
-        </Text>
+        {/* Tocar fora do campo esconde o teclado (o teclado numérico do iPhone não tem tecla para fechar). */}
+        <Pressable style={s.corpo} onPress={Keyboard.dismiss} accessible={false}>
+          <Text style={s.secundario}>Total a pagar</Text>
+          <Text style={s.total}>{formatarMzn(preco)}</Text>
+          <Text style={s.secundario}>
+            {nomeViatura(viatura)} até {destino.nome}
+          </Text>
+          <Text style={s.secundario}>
+            {quando.tipo === 'agendado'
+              ? `Recolha ${formatarDia(quando.inicio, new Date()).toLowerCase()} às ${formatarHora(quando.inicio)}`
+              : 'Pedido imediato, com taxa extra'}
+          </Text>
 
-        <Text style={s.rotulo}>Método de pagamento</Text>
-        <View style={s.metodos}>
-          {PAGAMENTOS.map((p) => {
-            const ativo = p.id === pedido.pagamento;
-            return (
-              <Pressable key={p.id} onPress={() => pedido.setPagamento(p.id)} style={[s.metodo, ativo && s.metodoAtivo]}>
-                <Text style={[s.metodoTexto, ativo && s.metodoTextoAtivo]}>{p.nome}</Text>
+          <Text style={s.rotulo}>Método de pagamento</Text>
+          <View style={s.metodos}>
+            {PAGAMENTOS.map((p) => {
+              const ativo = p.id === pedido.pagamento;
+              return (
+                <Pressable key={p.id} onPress={() => pedido.setPagamento(p.id)} style={[s.metodo, ativo && s.metodoAtivo]}>
+                  <Text style={[s.metodoTexto, ativo && s.metodoTextoAtivo]}>{p.nome}</Text>
               </Pressable>
             );
           })}
@@ -137,18 +139,32 @@ export default function Pagamento() {
         <Text style={s.rotulo}>Número {metodo.nome}</Text>
         <TextInput
           value={telefone}
-          onChangeText={setTelefone}
+          onChangeText={(t) => {
+            setTelefone(t);
+            // Número completo: o teclado baixa sozinho para se ver o botão de pagar.
+            if (/^8[4-7]\d{7}$/.test(t.replace(/\D/g, ''))) Keyboard.dismiss();
+          }}
           keyboardType="phone-pad"
           placeholder={`Começa por ${metodo.prefixos}`}
           placeholderTextColor={cores.textSecondary}
           maxLength={12}
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
           style={s.input}
         />
-      </View>
+        </Pressable>
 
-      <View style={s.rodape}>
-        <BotaoPrincipal texto={`Pagar ${formatarMzn(preco)}`} onPress={() => setEstado('a_processar')} desativado={!telefoneValido} />
-      </View>
+        <View style={s.rodape}>
+          <BotaoPrincipal
+            texto={`Pagar ${formatarMzn(preco)}`}
+            onPress={() => {
+              Keyboard.dismiss();
+              setEstado('a_processar');
+            }}
+            desativado={!telefoneValido}
+          />
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

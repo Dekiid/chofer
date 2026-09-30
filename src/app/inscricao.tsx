@@ -119,7 +119,7 @@ export default function Inscricao() {
         <Text style={s.tituloCabecalho}>Inscrever o meu carro</Text>
       </View>
 
-      <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <Text style={s.secao}>Dados pessoais</Text>
         {campo('Nome completo', nome, setNome, erros.nome, 'Escreve o nome completo.', { placeholder: 'Ex.: João Macuácua', autoComplete: 'name' })}
         {campo('Número de contacto', telefone, setTelefone, erros.telefone, 'Número móvel moçambicano, ex.: 84 123 4567.', {
