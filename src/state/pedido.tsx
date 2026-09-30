@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 import type { Quando } from '@/data/agenda';
 import { VIATURAS, type Viatura } from '@/data/categorias';
@@ -13,7 +13,10 @@ export const PAGAMENTOS: { id: Pagamento; nome: string; prefixos: string }[] = [
 ];
 
 type Pedido = {
+  /** Onde o carro vai buscar; por defeito a localização do telemóvel, mas pode ser outro sítio (pedir para outra pessoa). */
   origem: Lugar;
+  /** Localização do telemóvel, para voltar a ela depois de escolher outro ponto de recolha. */
+  localAtual: Lugar;
   destino: Lugar | null;
   viatura: Viatura;
   /** Modelos de exemplo mais os carros de motoristas aprovados. */
@@ -22,6 +25,8 @@ type Pedido = {
   /** Hora marcada ou imediato; null enquanto o cliente não escolhe. */
   quando: Quando | null;
   setOrigem: (l: Lugar) => void;
+  /** Guarda a localização do telemóvel e usa-a como recolha se ainda ninguém escolheu outra. */
+  setLocalAtual: (l: Lugar) => void;
   setDestino: (l: Lugar | null) => void;
   setViaturaId: (id: string) => void;
   setPagamento: (p: Pagamento) => void;
@@ -33,6 +38,11 @@ const PedidoContext = createContext<Pedido | null>(null);
 
 export function PedidoProvider({ children }: { children: ReactNode }) {
   const [origem, setOrigem] = useState<Lugar>(LOCALIZACAO_PADRAO);
+  const [localAtual, setLocalAtualEstado] = useState<Lugar>(LOCALIZACAO_PADRAO);
+  const setLocalAtual = useCallback((l: Lugar) => {
+    setLocalAtualEstado(l);
+    setOrigem((atual) => (atual.id === LOCALIZACAO_PADRAO.id ? l : atual));
+  }, []);
   const [destino, setDestino] = useState<Lugar | null>(null);
   const [viaturaId, setViaturaId] = useState(VIATURAS[0].id);
   const [pagamento, setPagamento] = useState<Pagamento>('mpesa');
@@ -43,12 +53,17 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
     const viaturas = [...VIATURAS, ...viaturasAprovadas];
     return {
       origem,
+      localAtual,
       destino,
       viatura: viaturas.find((v) => v.id === viaturaId) ?? VIATURAS[0],
       viaturas,
       pagamento,
       quando,
-      setOrigem,
+      setOrigem: (l: Lugar) => {
+        setOrigem(l);
+        setQuando(null);
+      },
+      setLocalAtual,
       // Mudar o destino ou o carro muda a duração e a agenda, por isso a hora escolhida deixa de valer.
       setDestino: (l: Lugar | null) => {
         setDestino(l);
@@ -65,7 +80,7 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
         setQuando(null);
       },
     };
-  }, [origem, destino, viaturaId, pagamento, quando, viaturasAprovadas]);
+  }, [origem, localAtual, destino, viaturaId, pagamento, quando, viaturasAprovadas, setLocalAtual]);
 
   return <PedidoContext.Provider value={valor}>{children}</PedidoContext.Provider>;
 }

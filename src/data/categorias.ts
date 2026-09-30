@@ -19,6 +19,8 @@ export type Viatura = {
   credito?: CreditoFoto;
   /** Motorista do carro; nos modelos de exemplo fica o motorista simulado. */
   motorista?: Motorista;
+  /** Preço por dia no aluguer sem motorista, em meticais; sem valor, o carro não aparece no aluguer. */
+  porDiaMzn?: number;
 };
 
 export type CreditoFoto = {
@@ -40,22 +42,14 @@ export const TIPOS_VIATURA = [
   { tipo: 'Clássico', porKmMzn: 70 },
 ] as const;
 
-export type CategoriaAluguer = {
-  id: string;
-  nome: string;
-  descricao: string;
-  lugares: number;
-  porDiaMzn: number;
-};
-
 // Valores provisórios para o protótipo; os preços reais vêm do painel de gestão.
 export const VIATURAS: Viatura[] = [
-  { id: 'bmw-serie-5', foto: require('../../assets/carros/bmw-serie-5.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'BMW_G60_520d_1X7A1681.jpg'), marca: 'BMW', modelo: 'Série 5', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 90, chegadaMin: 4 },
-  { id: 'mercedes-classe-e', foto: require('../../assets/carros/mercedes-classe-e.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W214_1X7A1841.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe E', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 95, chegadaMin: 5 },
-  { id: 'bmw-x5', foto: require('../../assets/carros/bmw-x5.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC BY-SA 4.0', 'BMW_X5_xDrive35d_(G05)_front.jpg'), marca: 'BMW', modelo: 'X5', tipo: 'SUV', lugares: 5, porKmMzn: 120, chegadaMin: 7 },
-  { id: 'range-rover-sport', foto: require('../../assets/carros/range-rover-sport.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC0', 'Land_Rover_RANGE_ROVER_SPORT_DYNAMIC_HSE_D300_(L461)_front.jpg'), marca: 'Range Rover', modelo: 'Sport', tipo: 'SUV de luxo', lugares: 5, porKmMzn: 150, chegadaMin: 9 },
-  { id: 'mercedes-classe-s', foto: require('../../assets/carros/mercedes-classe-s.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W223_1X7A7340.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe S', tipo: 'Topo de gama', lugares: 4, porKmMzn: 180, chegadaMin: 12 },
-  { id: 'vw-fusca', foto: require('../../assets/carros/vw-fusca.jpg'), credito: commons('Rutger van der Maar', 'CC BY 2.0', 'Volkswagen_Käfer_front.jpg'), marca: 'Volkswagen', modelo: 'Fusca', tipo: 'Clássico', lugares: 4, porKmMzn: 70, chegadaMin: 10 },
+  { id: 'bmw-serie-5', foto: require('../../assets/carros/bmw-serie-5.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'BMW_G60_520d_1X7A1681.jpg'), marca: 'BMW', modelo: 'Série 5', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 90, chegadaMin: 4, porDiaMzn: 6500 },
+  { id: 'mercedes-classe-e', foto: require('../../assets/carros/mercedes-classe-e.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W214_1X7A1841.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe E', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 95, chegadaMin: 5, porDiaMzn: 7000 },
+  { id: 'bmw-x5', foto: require('../../assets/carros/bmw-x5.jpg'), credito: commons('Mr.choppers', 'CC BY-SA 3.0', '2020_BMW_X5_xDrive_40i,_front_left.jpg'), marca: 'BMW', modelo: 'X5', tipo: 'SUV', lugares: 5, porKmMzn: 120, chegadaMin: 7, porDiaMzn: 9800 },
+  { id: 'range-rover-sport', foto: require('../../assets/carros/range-rover-sport.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC0', 'Land_Rover_RANGE_ROVER_SPORT_DYNAMIC_HSE_D300_(L461)_front.jpg'), marca: 'Range Rover', modelo: 'Sport', tipo: 'SUV de luxo', lugares: 5, porKmMzn: 150, chegadaMin: 9, porDiaMzn: 12500 },
+  { id: 'mercedes-classe-s', foto: require('../../assets/carros/mercedes-classe-s.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W223_1X7A7340.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe S', tipo: 'Topo de gama', lugares: 4, porKmMzn: 180, chegadaMin: 12, porDiaMzn: 15000 },
+  { id: 'vw-fusca', foto: require('../../assets/carros/vw-fusca.jpg'), credito: commons('Rutger van der Maar', 'CC BY 2.0', 'Volkswagen_Käfer_front.jpg'), marca: 'Volkswagen', modelo: 'Fusca', tipo: 'Clássico', lugares: 4, porKmMzn: 70, chegadaMin: 10, porDiaMzn: 4000 },
 ];
 
 function commons(autor: string, licenca: string, ficheiro: string): CreditoFoto {
@@ -65,11 +59,6 @@ function commons(autor: string, licenca: string, ficheiro: string): CreditoFoto 
 export function nomeViatura(v: Viatura): string {
   return `${v.marca} ${v.modelo}`;
 }
-
-export const CATEGORIAS_ALUGUER: CategoriaAluguer[] = [
-  { id: 'executivo-dia', nome: 'Executivo', descricao: 'Sedan premium, sem motorista', lugares: 5, porDiaMzn: 6500 },
-  { id: 'suv-dia', nome: 'SUV', descricao: 'SUV 4x4, sem motorista', lugares: 7, porDiaMzn: 9800 },
-];
 
 export function formatarMzn(valor: number): string {
   return `${valor.toLocaleString('pt-PT')} MT`;

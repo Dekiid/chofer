@@ -5,7 +5,7 @@ import type { Motorista } from '@/data/motorista';
 
 /** Fotos que pedimos a cada motorista; a de frente é a que aparece na app. */
 export const FOTOS_PEDIDAS = [
-  { id: 'frente', nome: 'Frente', dica: 'De frente, na diagonal, com o carro inteiro' },
+  { id: 'frente', nome: 'Frente', dica: 'Telemóvel na horizontal, de frente na diagonal, carro inteiro com espaço à volta' },
   { id: 'lateral', nome: 'Lateral', dica: 'De lado, com as duas rodas visíveis' },
   { id: 'traseira', nome: 'Traseira', dica: 'De trás, com a matrícula visível' },
   { id: 'interior', nome: 'Interior', dica: 'Bancos de trás, onde o cliente se senta' },

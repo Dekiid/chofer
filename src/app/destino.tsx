@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,41 +6,84 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { pesquisarLugares } from '@/data/lugares';
+import { pesquisarLugares, type Lugar } from '@/data/lugares';
 import { usePedido } from '@/state/pedido';
 
 export default function Destino() {
   const cores = usePalette();
   const s = estilos(cores);
   const pedido = usePedido();
+  // Qual dos dois campos se está a preencher: o destino (o normal) ou o ponto de recolha.
+  const params = useLocalSearchParams<{ campo?: string }>();
+  const [campo, setCampo] = useState<'origem' | 'destino'>(params.campo === 'origem' ? 'origem' : 'destino');
   const [texto, setTexto] = useState('');
-  const resultados = pesquisarLugares(texto);
+  const encontrados = pesquisarLugares(texto);
+  // Na recolha, a localização do telemóvel aparece sempre primeiro, para poder voltar a ela.
+  const resultados = campo === 'origem' && !texto.trim() ? [pedido.localAtual, ...encontrados] : encontrados;
+
+  function editar(c: 'origem' | 'destino') {
+    setCampo(c);
+    setTexto('');
+  }
+
+  function escolher(l: Lugar) {
+    if (campo === 'origem') {
+      pedido.setOrigem(l);
+      // Se o destino já estava escolhido (veio da confirmação), volta logo para lá.
+      if (pedido.destino) router.replace('/confirmar');
+      else editar('destino');
+      return;
+    }
+    pedido.setDestino(l);
+    router.replace('/confirmar');
+  }
 
   return (
     <SafeAreaView style={s.ecra}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Escolher destino</Text>
+        <Text style={s.titulo}>{campo === 'origem' ? 'Onde te vamos buscar?' : 'Escolher destino'}</Text>
       </View>
 
       <View style={s.campos}>
-        <View style={s.linhaCampo}>
+        <Pressable onPress={() => editar('origem')} style={[s.linhaCampo, campo === 'origem' && s.campoAtivo]}>
           <View style={[s.ponto, { borderRadius: 5 }]} />
-          <Text style={s.origem} numberOfLines={1}>
-            {pedido.origem.nome}
-          </Text>
-        </View>
-        <View style={s.linhaCampo}>
+          {campo === 'origem' ? (
+            <TextInput
+              autoFocus
+              value={texto}
+              onChangeText={setTexto}
+              placeholder="Ponto de recolha"
+              placeholderTextColor={cores.textSecondary}
+              style={s.input}
+            />
+          ) : (
+            <>
+              <Text style={s.origem} numberOfLines={1}>
+                {pedido.origem.nome}
+              </Text>
+              <Text style={s.mudar}>Mudar</Text>
+            </>
+          )}
+        </Pressable>
+        <Pressable onPress={() => editar('destino')} style={[s.linhaCampo, campo === 'destino' && s.campoAtivo]}>
           <View style={s.ponto} />
-          <TextInput
-            autoFocus
-            value={texto}
-            onChangeText={setTexto}
-            placeholder="Para onde?"
-            placeholderTextColor={cores.textSecondary}
-            style={s.input}
-          />
-        </View>
+          {campo === 'destino' ? (
+            <TextInput
+              autoFocus
+              value={texto}
+              onChangeText={setTexto}
+              placeholder="Para onde?"
+              placeholderTextColor={cores.textSecondary}
+              style={s.input}
+            />
+          ) : (
+            <Text style={s.origem} numberOfLines={1}>
+              {pedido.destino?.nome ?? 'Para onde?'}
+            </Text>
+          )}
+        </Pressable>
+        {campo === 'origem' && <Text style={s.ajuda}>Podes pedir para outra pessoa: escolhe onde o motorista a deve ir buscar.</Text>}
       </View>
 
       <FlatList
@@ -49,12 +92,7 @@ export default function Destino() {
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={<Text style={s.vazio}>Nenhum lugar encontrado.</Text>}
         renderItem={({ item }) => (
-          <Pressable
-            style={s.item}
-            onPress={() => {
-              pedido.setDestino(item);
-              router.replace('/confirmar');
-            }}>
+          <Pressable style={s.item} onPress={() => escolher(item)}>
             <Text style={s.nome}>{item.nome}</Text>
             <Text style={s.zona}>{item.zona}</Text>
           </Pressable>
@@ -73,6 +111,9 @@ function estilos(c: Palette) {
     linhaCampo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: c.backgroundElement, borderRadius: Radius.card, paddingHorizontal: Spacing.three },
     ponto: { width: 10, height: 10, backgroundColor: c.text },
     origem: { flex: 1, color: c.textSecondary, fontSize: 16, paddingVertical: Spacing.three },
+    campoAtivo: { borderWidth: 1.5, borderColor: c.primary },
+    mudar: { color: c.text, fontWeight: '700', textDecorationLine: 'underline' },
+    ajuda: { color: c.textSecondary, fontSize: 13 },
     input: { flex: 1, color: c.text, fontSize: 17, fontWeight: '600', paddingVertical: Spacing.three },
     item: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.backgroundSelected },
     nome: { color: c.text, fontSize: 16, fontWeight: '600' },

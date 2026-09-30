@@ -42,7 +42,7 @@ export default function Confirmar() {
       </SafeAreaView>
 
       <Painel>
-        <Pressable onPress={() => router.replace('/destino')} style={s.linha}>
+        <Pressable onPress={() => router.replace({ pathname: '/destino', params: { campo: 'origem' } })} style={s.linha}>
           <View style={[s.ponto, { borderRadius: 5 }]} />
           <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
         </Pressable>
