@@ -1,5 +1,6 @@
 import { Redirect, router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EscolhaHorario } from '@/components/escolha-horario';
@@ -9,6 +10,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora, minutosOcupado, reservaQueOcupa, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
+import { lugarNoPonto } from '@/data/moradas';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
@@ -17,8 +19,14 @@ import { Text } from '@/components/texto';
 export default function Confirmar() {
   const cores = usePalette();
   const s = estilos(cores);
-  const { origem, destino, paragens, viatura, quando, setQuando, rota, rotaACarregar } = usePedido();
+  const pedido = usePedido();
+  const { origem, destino, paragens, viatura, quando, setQuando, rota, rotaACarregar } = pedido;
   const { reservas } = useAgenda();
+  // Ao tocar no mapa o painel encolhe, para se ver bem o caminho e acertar os pontos.
+  const [aberto, setAberto] = useState(true);
+  const encolher = () => aberto && setAberto(false);
+  // Na web o rato não gera toques, só ponteiros.
+  const aoTocarNoMapa = Platform.OS === 'web' ? { onPointerDown: encolher } : { onTouchStart: encolher };
 
   if (!destino || !rota) return <Redirect href="/destino" />;
 
@@ -36,77 +44,114 @@ export default function Confirmar() {
 
   return (
     <View style={s.ecra}>
-      <Mapa origem={origem} destino={destino} paragens={paragens} rota={rota.pontos} margemInferior={600} />
+      <View style={StyleSheet.absoluteFill} {...aoTocarNoMapa}>
+        <Mapa
+          origem={origem}
+          destino={destino}
+          paragens={paragens}
+          rota={rota.pontos}
+          margemInferior={600}
+          onMoverOrigem={async (p) => pedido.setOrigem(await lugarNoPonto(p))}
+          onMoverDestino={async (p) => pedido.setDestino(await lugarNoPonto(p))}
+          onMoverParagem={async (i, p) => pedido.setParagem(i, await lugarNoPonto(p))}
+        />
+      </View>
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <BotaoVoltar onPress={() => router.back()} />
       </SafeAreaView>
 
-      <Painel>
-        <Pressable onPress={() => router.replace({ pathname: '/destino', params: { campo: 'origem' } })} style={s.linha}>
-          <View style={s.pontoRecolha} />
-          <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
-        </Pressable>
-        {paragens.map((p, i) => (
-          <Pressable key={`${p.id}-${i}`} onPress={() => router.replace('/destino')} style={s.linha}>
-            <View style={s.pontoParagem} />
-            <Text style={s.local} numberOfLines={1}>{p.nome}</Text>
-          </Pressable>
-        ))}
-        <Pressable onPress={() => router.replace('/destino')} style={s.linha}>
-          <View style={s.ponto} />
-          <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
-        </Pressable>
-
-        <Text style={s.pergunta}>Quando?</Text>
-        <EscolhaHorario
-          viaturaId={viatura.id}
-          ocupadoMin={minutosOcupado(duracao)}
-          reservas={reservas}
-          quando={quando}
-          onMudar={setQuando}
-          livreAgora={livreAgora}
-        />
-
-        <View style={s.resumo}>
-          <View style={s.linhaResumo}>
-            <Text style={s.secundario}>Carro</Text>
-            <Text style={s.valor}>{nomeViatura(viatura)}</Text>
-          </View>
-          <View style={s.linhaResumo}>
-            <Text style={s.secundario}>Recolha</Text>
-            <Text style={s.valor}>
-              {quando?.tipo === 'agendado'
-                ? `${formatarDia(quando.inicio, agora)}, ${formatarHora(quando.inicio)}`
-                : imediato
-                  ? `Agora · chega em ${viatura.chegadaMin} min`
-                  : 'Escolhe a hora'}
-            </Text>
-          </View>
-          <View style={s.linhaResumo}>
-            <Text style={s.secundario}>{paragens.length ? `Distância (${paragens.length} ${paragens.length === 1 ? 'paragem' : 'paragens'})` : 'Distância'}</Text>
-            <Text style={s.valor}>
-              {rotaACarregar ? 'A calcular a rota…' : `${km.toFixed(1).replace('.', ',')} km · cerca de ${duracao} min${rota.fonte === 'estimativa' ? ' (estimativa)' : ''}`}
-            </Text>
-          </View>
-          <View style={s.linhaResumo}>
-            <Text style={s.secundario}>Preço por km</Text>
-            <Text style={s.valor}>{formatarMzn(viatura.porKmMzn)}</Text>
-          </View>
-          {imediato && (
-            <View style={s.linhaResumo}>
-              <Text style={s.secundario}>Taxa de pedido imediato</Text>
-              <Text style={s.valor}>{formatarMzn(taxaImediato(viatura, km))}</Text>
+      {!aberto && (
+        <Painel>
+          <Pressable onPress={() => setAberto(true)} accessibilityLabel="Mostrar os detalhes da viagem">
+            <View style={s.mini}>
+              <View style={{ flex: 1 }}>
+                <View style={s.linhaMini}>
+                  <View style={s.pontoRecolha} />
+                  <Text style={s.localMini} numberOfLines={1}>{origem.nome}</Text>
+                </View>
+                <View style={s.linhaMini}>
+                  <View style={s.ponto} />
+                  <Text style={s.localMini} numberOfLines={1}>{destino.nome}</Text>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={s.totalMini}>{formatarMzn(preco)}</Text>
+                <Text style={s.detalhes}>Ver detalhes</Text>
+              </View>
             </View>
-          )}
-          <View style={[s.linhaResumo, s.linhaTotal]}>
-            <Text style={s.total}>Total</Text>
-            <Text style={s.total}>{formatarMzn(preco)}</Text>
-          </View>
-        </View>
+          </Pressable>
+          {Platform.OS !== 'web' && <Text style={s.dica}>Para acertar a recolha ou o destino, mantém o dedo no ponto e arrasta-o no mapa.</Text>}
+        </Painel>
+      )}
 
-        <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido || rotaACarregar} />
-      </Painel>
+      {aberto && (
+        <Painel>
+          <Pressable onPress={() => router.replace({ pathname: '/destino', params: { campo: 'origem' } })} style={s.linha}>
+            <View style={s.pontoRecolha} />
+            <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
+          </Pressable>
+          {paragens.map((p, i) => (
+            <Pressable key={`${p.id}-${i}`} onPress={() => router.replace('/destino')} style={s.linha}>
+              <View style={s.pontoParagem} />
+              <Text style={s.local} numberOfLines={1}>{p.nome}</Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => router.replace('/destino')} style={s.linha}>
+            <View style={s.ponto} />
+            <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
+          </Pressable>
+
+          <Text style={s.pergunta}>Quando?</Text>
+          <EscolhaHorario
+            viaturaId={viatura.id}
+            ocupadoMin={minutosOcupado(duracao)}
+            reservas={reservas}
+            quando={quando}
+            onMudar={setQuando}
+            livreAgora={livreAgora}
+          />
+
+          <View style={s.resumo}>
+            <View style={s.linhaResumo}>
+              <Text style={s.secundario}>Carro</Text>
+              <Text style={s.valor}>{nomeViatura(viatura)}</Text>
+            </View>
+            <View style={s.linhaResumo}>
+              <Text style={s.secundario}>Recolha</Text>
+              <Text style={s.valor}>
+                {quando?.tipo === 'agendado'
+                  ? `${formatarDia(quando.inicio, agora)}, ${formatarHora(quando.inicio)}`
+                  : imediato
+                    ? `Agora · chega em ${viatura.chegadaMin} min`
+                    : 'Escolhe a hora'}
+              </Text>
+            </View>
+            <View style={s.linhaResumo}>
+              <Text style={s.secundario}>{paragens.length ? `Distância (${paragens.length} ${paragens.length === 1 ? 'paragem' : 'paragens'})` : 'Distância'}</Text>
+              <Text style={s.valor}>
+                {rotaACarregar ? 'A calcular a rota…' : `${km.toFixed(1).replace('.', ',')} km · cerca de ${duracao} min${rota.fonte === 'estimativa' ? ' (estimativa)' : ''}`}
+              </Text>
+            </View>
+            <View style={s.linhaResumo}>
+              <Text style={s.secundario}>Preço por km</Text>
+              <Text style={s.valor}>{formatarMzn(viatura.porKmMzn)}</Text>
+            </View>
+            {imediato && (
+              <View style={s.linhaResumo}>
+                <Text style={s.secundario}>Taxa de pedido imediato</Text>
+                <Text style={s.valor}>{formatarMzn(taxaImediato(viatura, km))}</Text>
+              </View>
+            )}
+            <View style={[s.linhaResumo, s.linhaTotal]}>
+              <Text style={s.total}>Total</Text>
+              <Text style={s.total}>{formatarMzn(preco)}</Text>
+            </View>
+          </View>
+
+          <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido || rotaACarregar} />
+        </Painel>
+      )}
     </View>
   );
 }
@@ -127,5 +172,11 @@ function estilos(c: Palette) {
     secundario: { color: c.textSecondary, fontSize: 15 },
     valor: { color: c.text, fontSize: 15, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
     total: { color: c.text, fontSize: 22, fontWeight: '800' },
+    mini: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingBottom: Spacing.two },
+    linhaMini: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: 3 },
+    localMini: { flex: 1, color: c.text, fontSize: 15, fontWeight: '600' },
+    totalMini: { color: c.text, fontSize: 18, fontWeight: '800' },
+    detalhes: { color: c.text, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline', marginTop: 2 },
+    dica: { color: c.textSecondary, fontSize: 13, paddingBottom: Spacing.one },
   });
 }

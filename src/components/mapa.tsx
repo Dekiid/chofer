@@ -13,7 +13,7 @@ export const REGIAO_INICIAL = {
   longitudeDelta: 0.12,
 };
 
-export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, margemInferior = 0 }: MapaProps) {
+export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, margemInferior = 0, onMoverOrigem, onMoverDestino, onMoverParagem }: MapaProps) {
   const ref = useRef<MapView>(null);
   const escuro = useColorScheme() === 'dark';
   const corLinha = escuro ? '#FFFFFF' : '#000000';
@@ -56,19 +56,35 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
       customMapStyle={escuro ? MAPA_ESCURO : []}>
       {linha.length > 1 && <Polyline coordinates={linha} strokeWidth={4} strokeColor={corLinha} />}
       {origem && (
-        <Marker coordinate={origem} title="Recolha" anchor={{ x: 0.5, y: 0.5 }}>
+        <Marker
+          coordinate={origem}
+          title="Recolha"
+          anchor={{ x: 0.5, y: 0.5 }}
+          draggable={!!onMoverOrigem}
+          onDragEnd={(e) => onMoverOrigem?.(e.nativeEvent.coordinate)}>
           <View style={marcas.halo}>
             <View style={marcas.recolha} />
           </View>
         </Marker>
       )}
       {destino && (
-        <Marker coordinate={destino} title="Destino" anchor={{ x: 0.5, y: 0.5 }}>
+        <Marker
+          coordinate={destino}
+          title="Destino"
+          anchor={{ x: 0.5, y: 0.5 }}
+          draggable={!!onMoverDestino}
+          onDragEnd={(e) => onMoverDestino?.(e.nativeEvent.coordinate)}>
           <View style={[marcas.destino, { backgroundColor: corLinha, borderColor: escuro ? '#000000' : '#FFFFFF' }]} />
         </Marker>
       )}
       {paragens?.map((p, i) => (
-        <Marker key={`paragem-${i}`} coordinate={p} title={`Paragem ${i + 1}`} anchor={{ x: 0.5, y: 0.5 }}>
+        <Marker
+          key={`paragem-${i}`}
+          coordinate={p}
+          title={`Paragem ${i + 1}`}
+          anchor={{ x: 0.5, y: 0.5 }}
+          draggable={!!onMoverParagem}
+          onDragEnd={(e) => onMoverParagem?.(i, e.nativeEvent.coordinate)}>
           <View style={[marcas.paragem, { borderColor: corLinha }]} />
         </Marker>
       ))}

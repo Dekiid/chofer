@@ -12,4 +12,8 @@ export type MapaProps = {
   seguirCarro?: boolean;
   /** Altura do painel por baixo do mapa, para o enquadramento não ficar tapado. */
   margemInferior?: number;
+  /** Com estas funções, os marcadores podem ser arrastados (mantém o dedo e arrasta) para acertar o local. */
+  onMoverOrigem?: (p: Ponto) => void;
+  onMoverDestino?: (p: Ponto) => void;
+  onMoverParagem?: (i: number, p: Ponto) => void;
 };

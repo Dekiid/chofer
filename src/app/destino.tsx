@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MarcarNoMapa } from '@/components/marcar-no-mapa';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
@@ -33,6 +34,8 @@ export default function Destino() {
 
   // O teclado só abre quando a pessoa toca num campo para escrever, não ao abrir o ecrã.
   const [focar, setFocar] = useState(false);
+  // Marcar o local com o pin, em vez de o procurar pelo nome.
+  const [noMapa, setNoMapa] = useState(false);
 
   function editar(c: Campo) {
     setCampo(c);
@@ -85,6 +88,22 @@ export default function Destino() {
   const paragemNova = campo.tipo === 'paragem' && campo.i >= pedido.paragens.length;
   const nomeAGuardar = aGuardar && LOCAIS.find((x) => x.tipo === aGuardar)!.nome;
 
+  if (noMapa) {
+    // O mapa abre no local que já estava escolhido para este campo, ou perto da recolha.
+    const atual = campo.tipo === 'origem' ? pedido.origem : campo.tipo === 'paragem' ? (pedido.paragens[campo.i] ?? pedido.destino ?? pedido.origem) : (pedido.destino ?? pedido.origem);
+    return (
+      <MarcarNoMapa
+        tipo={aGuardar ? 'destino' : campo.tipo}
+        inicial={atual}
+        onVoltar={() => setNoMapa(false)}
+        onConfirmar={(l) => {
+          setNoMapa(false);
+          escolher(l);
+        }}
+      />
+    );
+  }
+
   if (soGuardar) {
     return (
       <SafeAreaView style={s.ecra}>
@@ -98,7 +117,7 @@ export default function Destino() {
             {campoInput('Procura a morada')}
           </View>
         </View>
-        <ListaLugares resultados={resultados} onEscolher={escolher} s={s} />
+        <ListaLugares resultados={resultados} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
       </SafeAreaView>
     );
   }
@@ -184,15 +203,27 @@ export default function Destino() {
       </ScrollView>
       {aGuardar && <Text style={[s.ajuda, { marginHorizontal: Spacing.three, marginBottom: Spacing.two }]}>Escolhe a morada de {nomeAGuardar}. Fica guardada para a próxima vez.</Text>}
 
-      <ListaLugares resultados={resultados} onEscolher={escolher} s={s} />
+      <ListaLugares resultados={resultados} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
     </SafeAreaView>
   );
 }
 
-function ListaLugares({ resultados, onEscolher, s }: { resultados: Lugar[]; onEscolher: (l: Lugar) => void; s: ReturnType<typeof estilos> }) {
+function ListaLugares({ resultados, onEscolher, onMapa, s }: { resultados: Lugar[]; onEscolher: (l: Lugar) => void; onMapa: () => void; s: ReturnType<typeof estilos> }) {
   return (
     <FlatList
       data={resultados}
+      ListHeaderComponent={
+        <Pressable style={[s.item, s.itemMapa]} onPress={onMapa}>
+          <View style={s.iconePin}>
+            <View style={s.cabecaPin} />
+            <View style={s.hastePin} />
+          </View>
+          <View>
+            <Text style={s.nome}>Marcar no mapa</Text>
+            <Text style={s.zona}>Põe o pin no sítio exato</Text>
+          </View>
+        </Pressable>
+      }
       keyExtractor={(l) => l.id}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
@@ -231,6 +262,10 @@ function estilos(c: Palette) {
     localNome: { color: c.text, fontSize: 14, fontWeight: '700' },
     localZona: { color: c.textSecondary, fontSize: 12, marginTop: 1 },
     item: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.backgroundSelected },
+    itemMapa: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+    iconePin: { width: 20, alignItems: 'center' },
+    cabecaPin: { width: 12, height: 12, borderRadius: 6, borderWidth: 3, borderColor: c.text },
+    hastePin: { width: 2, height: 7, backgroundColor: c.text },
     nome: { color: c.text, fontSize: 16, fontWeight: '600' },
     zona: { color: c.textSecondary, marginTop: 2 },
     vazio: { color: c.textSecondary, textAlign: 'center', marginTop: Spacing.five },
