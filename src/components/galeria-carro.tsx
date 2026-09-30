@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView as ScrollViewGestos } from 'react-native-gesture-handler';
 import Animated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -43,21 +43,30 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
     setPagina(i);
   }
 
+  const arrasto = useSharedValue(0);
+
   function fechar() {
     setPagina(0);
-    arrasto.value = 0;
     onFechar();
   }
+
+  // A foto só volta ao centro depois de o Modal acabar de desaparecer. Repô-la logo ao fechar
+  // fazia-a saltar de volta ao meio durante o fade, e isso via-se como um tremor.
+  useEffect(() => {
+    if (visivel) return;
+    const t = setTimeout(() => (arrasto.value = 0), 400);
+    return () => clearTimeout(t);
+  }, [visivel, arrasto]);
 
   // Arrastar para cima ou para baixo fecha a galeria; um arrasto curto volta ao lugar.
   // Com o Gesture Handler o gesto funciona também em cima da foto: o arrasto vertical é dele,
   // o horizontal falha logo e fica para o ScrollView passar de foto.
-  const arrasto = useSharedValue(0);
   const gesto = Gesture.Pan()
     .activeOffsetY([-12, 12])
     .failOffsetX([-12, 12])
     .onUpdate((e) => {
-      arrasto.value = e.translationY;
+      // Desconta os 12 px que o gesto espera antes de começar, para a foto não dar um salto.
+      arrasto.value = e.translationY - Math.sign(e.translationY) * 12;
     })
     .onEnd((e) => {
       if (Math.abs(e.translationY) > 110 || Math.abs(e.velocityY) > 900) {
@@ -89,7 +98,9 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
                     </Text>
                   </View>
                   <Pressable onPress={fechar} accessibilityLabel="Fechar" hitSlop={12} style={({ pressed }) => [estilos.fechar, pressed && { opacity: 0.6 }]}>
-                    <Text style={estilos.fecharTexto}>×</Text>
+                    {/* Um X desenhado com dois traços fica sempre no centro; o carácter × dependia da letra. */}
+                    <View style={[estilos.traco, { transform: [{ rotate: '45deg' }] }]} />
+                    <View style={[estilos.traco, { transform: [{ rotate: '-45deg' }] }]} />
                   </Pressable>
                 </View>
 
@@ -175,7 +186,7 @@ const estilos = StyleSheet.create({
   titulo: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
   subtitulo: { color: '#A3A8A5', fontSize: 14, marginTop: 2 },
   fechar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1F2120', alignItems: 'center', justifyContent: 'center' },
-  fecharTexto: { color: '#FFFFFF', fontSize: 26, lineHeight: 28, marginTop: -2 },
+  traco: { position: 'absolute', width: 16, height: 2, borderRadius: 1, backgroundColor: '#FFFFFF' },
   seta: { position: 'absolute', top: '50%', marginTop: -20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(31,33,32,0.8)', alignItems: 'center', justifyContent: 'center' },
   setaTexto: { color: '#FFFFFF', fontSize: 26, lineHeight: 28, marginTop: -3 },
   rodape: { alignItems: 'center', gap: Spacing.two, paddingBottom: Spacing.three, paddingHorizontal: Spacing.three },
