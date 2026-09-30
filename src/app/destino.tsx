@@ -43,7 +43,7 @@ export default function Destino() {
     <SafeAreaView style={s.ecra}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>{campo === 'origem' ? 'Onde te vamos buscar?' : 'Escolher destino'}</Text>
+        <Text style={s.titulo}>{campo === 'origem' ? 'Onde te vamos buscar?' : 'Para onde vamos?'}</Text>
       </View>
 
       <View style={s.campos}>
@@ -74,7 +74,7 @@ export default function Destino() {
               autoFocus
               value={texto}
               onChangeText={setTexto}
-              placeholder="Para onde?"
+              placeholder="Destino"
               placeholderTextColor={cores.textSecondary}
               style={s.input}
             />

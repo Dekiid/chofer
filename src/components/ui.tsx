@@ -36,14 +36,15 @@ export function Painel({ children, style }: { children: ReactNode; style?: Style
   );
 }
 
-export function BotaoPrincipal({ texto, onPress, desativado }: { texto: string; onPress: () => void; desativado?: boolean }) {
+/** Verde com texto preto (confirmar, pagar, contactar); «escuro» é o preto do manual, para «Pedir chauffeur». */
+export function BotaoPrincipal({ texto, onPress, desativado, escuro }: { texto: string; onPress: () => void; desativado?: boolean; escuro?: boolean }) {
   const c = usePalette();
   return (
     <Pressable
       onPress={onPress}
       disabled={desativado}
-      style={{ backgroundColor: c.go, opacity: desativado ? 0.4 : 1, borderRadius: Radius.botao, paddingVertical: Spacing.three, alignItems: 'center' }}>
-      <Text style={{ color: c.onGo, fontSize: 16, fontWeight: '700' }}>{texto}</Text>
+      style={{ backgroundColor: escuro ? c.primary : c.go, opacity: desativado ? 0.4 : 1, borderRadius: Radius.botao, paddingVertical: Spacing.three, alignItems: 'center' }}>
+      <Text style={{ color: escuro ? c.onPrimary : c.onGo, fontSize: 16, fontWeight: '700' }}>{texto}</Text>
     </Pressable>
   );
 }

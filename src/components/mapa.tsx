@@ -13,19 +13,21 @@ export const REGIAO_INICIAL = {
   longitudeDelta: 0.12,
 };
 
-export function Mapa({ origem, destino, carro, margemInferior = 0 }: MapaProps) {
+export function Mapa({ origem, destino, carro, rota, margemInferior = 0 }: MapaProps) {
   const ref = useRef<MapView>(null);
   const escuro = useColorScheme() === 'dark';
   const corLinha = escuro ? '#FFFFFF' : '#000000';
+  const linha = rota ?? (origem && destino ? [origem, destino] : []);
 
   // Enquadra a origem e o destino quando mudam.
   useEffect(() => {
-    const pontos = [origem, destino].filter((p) => p != null);
+    const pontos = [origem, destino, ...(rota ?? [])].filter((p) => p != null);
     if (pontos.length === 0) return;
     ref.current?.fitToCoordinates(pontos, {
       edgePadding: { top: 80, right: 60, bottom: margemInferior + 40, left: 60 },
       animated: true,
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- a rota muda a cada passo do carro; só se reenquadra quando mudam os pontos fixos.
   }, [origem, destino, margemInferior]);
 
   return (
@@ -37,7 +39,7 @@ export function Mapa({ origem, destino, carro, margemInferior = 0 }: MapaProps) 
       showsMyLocationButton={false}
       userInterfaceStyle={escuro ? 'dark' : 'light'}
       customMapStyle={escuro ? MAPA_ESCURO : []}>
-      {origem && destino && <Polyline coordinates={[origem, destino]} strokeWidth={4} strokeColor={corLinha} />}
+      {linha.length > 1 && <Polyline coordinates={linha} strokeWidth={4} strokeColor={corLinha} />}
       {origem && (
         <Marker coordinate={origem} title="Recolha" anchor={{ x: 0.5, y: 0.5 }}>
           <View style={marcas.halo}>

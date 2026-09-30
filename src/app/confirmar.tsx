@@ -99,7 +99,7 @@ export default function Confirmar() {
           </View>
         </View>
 
-        <BotaoPrincipal texto="Continuar para pagamento" onPress={() => router.push('/pagamento')} desativado={!quandoValido} />
+        <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido} />
       </Painel>
     </View>
   );

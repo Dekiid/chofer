@@ -127,7 +127,7 @@ export default function Inicio() {
         </ScrollView>
         {modo === 'motorista' ? (
           <>
-            <CampoPesquisa texto="Para onde?" onPress={() => router.push('/destino')} />
+            <CampoPesquisa texto="Para onde vamos?" onPress={() => router.push('/destino')} />
             <Pressable onPress={() => router.push('/inscricao')} style={s.inscrever}>
               <Text style={s.descricao}>
                 Tens um carro premium? <Text style={s.textoInscrever}>Inscreve-te como motorista</Text>

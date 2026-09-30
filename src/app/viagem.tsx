@@ -1,11 +1,12 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Mapa } from '@/components/mapa';
 import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoSecundario, Painel } from '@/components/ui';
-import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
@@ -76,20 +77,50 @@ export default function Viagem() {
     router.dismissTo('/');
   }
 
+  // Estados curtos, como no manual: «Chega em 4 min».
   const titulo: Record<Fase, string> = {
     procurar: 'A procurar motorista',
-    a_caminho: `O motorista chega em ${minutosRestantes} min`,
-    chegou: 'O motorista chegou',
+    a_caminho: `Chega em ${minutosRestantes} min`,
+    chegou: 'O teu chauffeur chegou',
     em_viagem: `A caminho de ${destino.nome}`,
     concluida: 'Chegaste ao destino',
   };
+  const contactar = () => Linking.openURL(`tel:${motorista.telefone}`);
 
   return (
     <View style={s.ecra}>
-      <Mapa origem={fase === 'em_viagem' || fase === 'concluida' ? undefined : origem} destino={destino} carro={carro} margemInferior={360} />
+      <Mapa
+        origem={fase === 'em_viagem' || fase === 'concluida' ? undefined : origem}
+        // Como no manual: com o motorista a caminho, só o carro e a recolha.
+        destino={fase === 'a_caminho' || fase === 'chegou' ? undefined : destino}
+        carro={carro}
+        // Com o motorista a caminho, a rota é do carro até à recolha.
+        rota={fase === 'a_caminho' && carro ? [carro, origem] : fase === 'em_viagem' && carro ? [carro, destino] : undefined}
+        margemInferior={360}
+      />
+
+      {fase === 'chegou' && (
+        <SafeAreaView edges={['top']} style={s.topoAviso} pointerEvents="none">
+          <View style={s.aviso}>
+            <View style={s.avisoIcone}>
+              <Text style={s.avisoC}>c</Text>
+              <View style={s.avisoPonto} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.avisoTitulo}>O teu chauffeur chegou</Text>
+              <Text style={s.avisoTexto}>
+                {motorista.nome.split(' ')[0]} está à porta num {nomeViatura(viatura)}.
+              </Text>
+            </View>
+          </View>
+        </SafeAreaView>
+      )}
 
       <Painel>
-        <Text style={s.titulo}>{titulo[fase]}</Text>
+        <View style={s.estado}>
+          {fase !== 'procurar' && <View style={s.pontoEstado} />}
+          <Text style={s.titulo}>{titulo[fase]}</Text>
+        </View>
 
         {fase === 'procurar' ? (
           <View style={s.procura}>
@@ -108,16 +139,9 @@ export default function Viagem() {
                 {motorista.nome}{' '}
                 {motorista.avaliacao !== undefined && <Text style={s.secundario}>★ {motorista.avaliacao.toString().replace('.', ',')}</Text>}
               </Text>
-              <Text style={s.secundario}>
-                {nomeViatura(viatura)} · {motorista.matricula}
-              </Text>
+              <Text style={s.secundario}>{nomeViatura(viatura)}</Text>
             </View>
-            <Pressable
-              onPress={() => Linking.openURL(`tel:${motorista.telefone}`)}
-              accessibilityLabel={`Ligar a ${motorista.nome}`}
-              style={s.ligar}>
-              <Text style={s.ligarTexto}>Ligar</Text>
-            </Pressable>
+            <Text style={s.matricula}>{motorista.matricula}</Text>
           </View>
         )}
 
@@ -138,7 +162,13 @@ export default function Viagem() {
           </>
         ) : (
           <View style={{ gap: Spacing.two }}>
-            {fase === 'chegou' && <BotaoPrincipal texto="Iniciar viagem" onPress={() => setFase('em_viagem')} />}
+            {(fase === 'a_caminho' || fase === 'em_viagem') && <BotaoPrincipal texto="Contactar motorista" onPress={contactar} />}
+            {fase === 'chegou' && (
+              <>
+                <BotaoPrincipal texto="Já estou no carro" onPress={() => setFase('em_viagem')} />
+                <BotaoSecundario texto="Contactar motorista" onPress={contactar} />
+              </>
+            )}
             {(fase === 'procurar' || fase === 'a_caminho' || fase === 'chegou') && <BotaoSecundario texto="Cancelar pedido" onPress={sair} />}
           </View>
         )}
@@ -150,15 +180,23 @@ export default function Viagem() {
 function estilos(c: Palette) {
   return StyleSheet.create({
     ecra: { flex: 1, backgroundColor: c.background },
-    titulo: { color: c.text, fontSize: 22, fontWeight: '700', marginBottom: Spacing.three },
+    estado: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.three },
+    pontoEstado: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.go },
+    titulo: { color: c.text, fontSize: 20, fontWeight: '800', letterSpacing: -0.2, flexShrink: 1 },
     procura: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginBottom: Spacing.four },
-    motorista: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, borderRadius: Radius.card, backgroundColor: c.backgroundElement, marginBottom: Spacing.three },
-    avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
-    avatarTexto: { color: c.onPrimary, fontSize: 20, fontWeight: '700' },
+    motorista: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginBottom: Spacing.three },
+    avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.backgroundSelected, alignItems: 'center', justifyContent: 'center' },
+    avatarTexto: { color: c.text, fontSize: 20, fontWeight: '800' },
+    matricula: { color: c.text, fontSize: 13, fontWeight: '700', letterSpacing: 0.5, backgroundColor: c.backgroundElement, borderRadius: 6, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, overflow: 'hidden' },
+    topoAviso: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
+    aviso: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 16, padding: Spacing.three, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, elevation: 8 },
+    avisoIcone: { width: 36, height: 36, borderRadius: 9, backgroundColor: '#000000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    avisoC: { color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginTop: -4 },
+    avisoPonto: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E', marginLeft: 1, marginTop: 8 },
+    avisoTitulo: { color: '#000000', fontSize: 14, fontWeight: '800' },
+    avisoTexto: { color: '#000000', fontSize: 13 },
     nome: { color: c.text, fontSize: 17, fontWeight: '700' },
     secundario: { color: c.textSecondary, fontSize: 14, fontWeight: '400' },
-    ligar: { backgroundColor: c.primary, borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
-    ligarTexto: { color: c.onPrimary, fontWeight: '700' },
     total: { color: c.text, fontSize: 28, fontWeight: '800', marginBottom: Spacing.two },
     estrelas: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.three },
     estrela: { fontSize: 36 },

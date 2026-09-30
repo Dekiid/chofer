@@ -5,8 +5,9 @@ const POSITIVO = require('../../assets/marca/logo-positivo.png');
 const NEGATIVO = require('../../assets/marca/logo-negativo.png');
 
 /** Logótipo oficial: texto preto no modo claro, branco no modo escuro. */
-export function Logo({ altura = 28, style }: { altura?: number; style?: StyleProp<ImageStyle> }) {
-  const escuro = useColorScheme() === 'dark';
+export function Logo({ altura = 28, style, variante }: { altura?: number; style?: StyleProp<ImageStyle>; variante?: 'positivo' | 'negativo' }) {
+  const modo = useColorScheme();
+  const escuro = variante ? variante === 'negativo' : modo === 'dark';
   // Os ficheiros têm 720 × 150.
   return (
     <Image

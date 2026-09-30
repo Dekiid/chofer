@@ -1,32 +1,73 @@
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/texto';
 import { usePalette } from '@/constants/use-palette';
 
-import type { MapaProps } from './mapa-tipos';
+import type { MapaProps, Ponto } from './mapa-tipos';
 
-// react-native-maps não funciona na web; esta vista só serve para pré-visualizar o layout,
-// com os marcadores do manual de identidade em posições fixas.
-export function Mapa({ origem, destino }: MapaProps) {
+// react-native-maps não funciona na web; esta vista só serve para pré-visualizar o layout.
+// Os pontos são projetados na parte de cima do ecrã (a de baixo fica tapada pelo painel),
+// com os marcadores do manual de identidade.
+export function Mapa({ origem, destino, carro, rota }: MapaProps) {
   const cores = usePalette();
+  const [tamanho, setTamanho] = useState({ w: 0, h: 0 });
+  const linha = rota ?? (origem && destino ? [origem, destino] : []);
+  const todos = [origem, destino, carro, ...linha].filter((p): p is Ponto => p != null);
+
+  // A área só cresce, para os marcadores não saltarem enquanto o carro se aproxima.
+  const caixa = useRef({ minLat: Infinity, maxLat: -Infinity, minLng: Infinity, maxLng: -Infinity });
+  for (const p of todos) {
+    const c = caixa.current;
+    caixa.current = {
+      minLat: Math.min(c.minLat, p.latitude),
+      maxLat: Math.max(c.maxLat, p.latitude),
+      minLng: Math.min(c.minLng, p.longitude),
+      maxLng: Math.max(c.maxLng, p.longitude),
+    };
+  }
+  const { minLat, maxLat, minLng, maxLng } = caixa.current;
+  const xy = (p: Ponto) => ({
+    x: tamanho.w * (0.2 + 0.6 * (maxLng === minLng ? 0.5 : (p.longitude - minLng) / (maxLng - minLng))),
+    y: tamanho.h * (0.12 + 0.16 * (maxLat === minLat ? 0.5 : (maxLat - p.latitude) / (maxLat - minLat))),
+  });
+
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: cores.mapa, alignItems: 'center', paddingTop: 60 }]}>
+    <View
+      style={[StyleSheet.absoluteFill, { backgroundColor: cores.mapa, alignItems: 'center', paddingTop: 60 }]}
+      onLayout={(e) => setTamanho({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <Text style={{ color: cores.textSecondary }}>Mapa de Maputo e Matola</Text>
-      {origem && destino && <View style={[estilos.rota, { backgroundColor: cores.text }]} />}
-      {destino && <View style={[estilos.destino, { backgroundColor: cores.text, borderColor: cores.background }]} />}
-      {origem && (
-        <View style={estilos.halo}>
+      {tamanho.w > 0 &&
+        linha.slice(1).map((p, i) => {
+          const a = xy(linha[i]);
+          const b = xy(p);
+          const comprimento = Math.hypot(b.x - a.x, b.y - a.y);
+          const angulo = Math.atan2(b.y - a.y, b.x - a.x);
+          return (
+            <View
+              key={i}
+              style={[
+                estilos.rota,
+                { backgroundColor: cores.text, left: (a.x + b.x) / 2 - comprimento / 2, top: (a.y + b.y) / 2 - 2, width: comprimento, transform: [{ rotate: `${angulo}rad` }] },
+              ]}
+            />
+          );
+        })}
+      {tamanho.w > 0 && destino && <View style={[estilos.destino, { backgroundColor: cores.text, borderColor: cores.background, left: xy(destino).x - 7, top: xy(destino).y - 7 }]} />}
+      {tamanho.w > 0 && origem && (
+        <View style={[estilos.halo, { left: xy(origem).x - 18, top: xy(origem).y - 18 }]}>
           <View style={estilos.recolha} />
         </View>
       )}
+      {tamanho.w > 0 && carro && <View style={[estilos.carro, { left: xy(carro).x - 13, top: xy(carro).y - 7 }]} />}
     </View>
   );
 }
 
-// Recolha a 30% / 24%, destino a 70% / 12% do ecrã; a rota é a linha entre os dois.
 const estilos = StyleSheet.create({
-  halo: { position: 'absolute', left: '30%', top: '24%', width: 36, height: 36, marginLeft: -18, marginTop: -18, borderRadius: 18, backgroundColor: 'rgba(34,197,94,0.22)', alignItems: 'center', justifyContent: 'center' },
+  halo: { position: 'absolute', width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(34,197,94,0.22)', alignItems: 'center', justifyContent: 'center' },
   recolha: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#22C55E', borderWidth: 3, borderColor: '#FFFFFF' },
-  destino: { position: 'absolute', left: '70%', top: '12%', width: 14, height: 14, marginLeft: -7, marginTop: -7, borderWidth: 3 },
-  rota: { position: 'absolute', left: '30%', top: '24%', width: '48%', height: 4, marginTop: -2, transformOrigin: 'left center', transform: [{ rotate: '-33deg' }] },
+  destino: { position: 'absolute', width: 14, height: 14, borderWidth: 3 },
+  carro: { position: 'absolute', width: 26, height: 14, borderRadius: 4, backgroundColor: '#000000', borderWidth: 2, borderColor: '#FFFFFF' },
+  rota: { position: 'absolute', height: 4, borderRadius: 2 },
 });
