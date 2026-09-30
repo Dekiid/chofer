@@ -178,6 +178,7 @@ export default function Viagem() {
                 ? []
                 : pontosViagem
         }
+        seguirCarro={fase === 'a_caminho' || fase === 'em_viagem'}
         margemInferior={420}
       />
 
@@ -232,7 +233,8 @@ export default function Viagem() {
 
         {comMotorista && (
           <View style={s.acoes}>
-            <Acao texto="Ligar" onPress={ligar} s={s} />
+            {/* Já dentro do carro não faz sentido ligar ao motorista. */}
+            {fase !== 'em_viagem' && <Acao texto="Ligar" onPress={ligar} s={s} />}
             <Acao texto="Mensagem" onPress={() => router.push('/chat')} s={s} contador={conta.naoLidasChat} />
             <Acao texto="Partilhar" onPress={partilhar} s={s} />
           </View>

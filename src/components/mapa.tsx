@@ -13,7 +13,7 @@ export const REGIAO_INICIAL = {
   longitudeDelta: 0.12,
 };
 
-export function Mapa({ origem, destino, paragens, carro, rota, margemInferior = 0 }: MapaProps) {
+export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, margemInferior = 0 }: MapaProps) {
   const ref = useRef<MapView>(null);
   const escuro = useColorScheme() === 'dark';
   const corLinha = escuro ? '#FFFFFF' : '#000000';
@@ -29,6 +29,21 @@ export function Mapa({ origem, destino, paragens, carro, rota, margemInferior = 
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- a rota muda a cada passo do carro; só se reenquadra quando mudam os pontos fixos.
   }, [origem, destino, margemInferior]);
+
+  // Acompanhar o carro: de segundo a segundo e meio, enquadra o carro e o que falta da rota.
+  // O zoom aproxima-se à medida que o carro chega, e o carro nunca sai do ecrã.
+  const ultimoEnquadramento = useRef(0);
+  useEffect(() => {
+    if (!seguirCarro || !carro) return;
+    const agora = Date.now();
+    if (agora - ultimoEnquadramento.current < 1500) return;
+    ultimoEnquadramento.current = agora;
+    const pontos = rota && rota.length > 1 ? rota : [carro, ...[origem, destino].filter((p) => p != null)];
+    ref.current?.fitToCoordinates(pontos, {
+      edgePadding: { top: 100, right: 70, bottom: margemInferior + 60, left: 70 },
+      animated: true,
+    });
+  }, [seguirCarro, carro, rota, origem, destino, margemInferior]);
 
   return (
     <MapView

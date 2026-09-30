@@ -8,6 +8,8 @@ export type MapaProps = {
   carro?: Ponto | null;
   /** Linha da rota; por omissão liga a recolha ao destino. Com o motorista a caminho, liga o carro à recolha. */
   rota?: Ponto[];
+  /** Com o carro a andar, o mapa acompanha-o: enquadra o carro e o resto da rota, como na Uber. */
+  seguirCarro?: boolean;
   /** Altura do painel por baixo do mapa, para o enquadramento não ficar tapado. */
   margemInferior?: number;
 };
