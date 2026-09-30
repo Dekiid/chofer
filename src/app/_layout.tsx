@@ -13,6 +13,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="viagem" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
         </Stack>
       </PedidoProvider>
     </ThemeProvider>

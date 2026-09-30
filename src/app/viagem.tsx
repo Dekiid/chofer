@@ -7,9 +7,9 @@ import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoSecundario, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { CATEGORIAS_MOTORISTA, formatarMzn } from '@/data/categorias';
+import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
-import { distanciaKm, estimarPreco, interpolar } from '@/data/viagem';
+import { calcularPreco, distanciaKm, interpolar } from '@/data/viagem';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 
 type Fase = 'procurar' | 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
@@ -64,10 +64,10 @@ export default function Viagem() {
 
   if (!destino) return <Redirect href="/" />;
 
-  const categoria = CATEGORIAS_MOTORISTA.find((c) => c.id === pedido.categoriaId) ?? CATEGORIAS_MOTORISTA[0];
-  const preco = estimarPreco(categoria, distanciaKm(origem, destino));
+  const viatura = pedido.viatura;
+  const preco = calcularPreco(viatura, distanciaKm(origem, destino));
   const pagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
-  const minutosRestantes = Math.max(1, Math.round(categoria.chegadaMin * (1 - progresso)));
+  const minutosRestantes = Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
 
   function sair() {
     pedido.limpar();
@@ -93,7 +93,7 @@ export default function Viagem() {
           <View style={s.procura}>
             <ActivityIndicator color={cores.text} />
             <Text style={s.secundario}>
-              {categoria.nome} · {formatarMzn(preco)} · {pagamento}
+              {nomeViatura(viatura)} · {formatarMzn(preco)} pago por {pagamento}
             </Text>
           </View>
         ) : (
@@ -105,7 +105,7 @@ export default function Viagem() {
               <Text style={s.nome}>
                 {MOTORISTA_EXEMPLO.nome} <Text style={s.secundario}>★ {MOTORISTA_EXEMPLO.avaliacao.toString().replace('.', ',')}</Text>
               </Text>
-              <Text style={s.secundario}>{MOTORISTA_EXEMPLO.viatura}</Text>
+              <Text style={s.secundario}>{nomeViatura(viatura)}</Text>
             </View>
             <Text style={s.matricula}>{MOTORISTA_EXEMPLO.matricula}</Text>
           </View>
@@ -114,7 +114,7 @@ export default function Viagem() {
         {fase === 'concluida' ? (
           <>
             <Text style={s.total}>
-              {formatarMzn(preco)} <Text style={s.secundario}>· {pagamento}</Text>
+              {formatarMzn(preco)} <Text style={s.secundario}>· pago por {pagamento}</Text>
             </Text>
             <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Como foi a viagem?</Text>
             <View style={s.estrelas}>

@@ -1,24 +1,23 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 
-import { CATEGORIAS_MOTORISTA } from '@/data/categorias';
+import { VIATURAS, type Viatura } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO, type Lugar } from '@/data/lugares';
 
-export type Pagamento = 'mpesa' | 'emola' | 'numerario';
+export type Pagamento = 'mpesa' | 'emola';
 
-export const PAGAMENTOS: { id: Pagamento; nome: string }[] = [
-  { id: 'mpesa', nome: 'M-Pesa' },
-  { id: 'emola', nome: 'e-Mola' },
-  { id: 'numerario', nome: 'Numerário' },
+export const PAGAMENTOS: { id: Pagamento; nome: string; prefixos: string }[] = [
+  { id: 'mpesa', nome: 'M-Pesa', prefixos: '84 ou 85' },
+  { id: 'emola', nome: 'e-Mola', prefixos: '86 ou 87' },
 ];
 
 type Pedido = {
   origem: Lugar;
   destino: Lugar | null;
-  categoriaId: string;
+  viatura: Viatura;
   pagamento: Pagamento;
   setOrigem: (l: Lugar) => void;
   setDestino: (l: Lugar | null) => void;
-  setCategoriaId: (id: string) => void;
+  setViaturaId: (id: string) => void;
   setPagamento: (p: Pagamento) => void;
   limpar: () => void;
 };
@@ -28,25 +27,22 @@ const PedidoContext = createContext<Pedido | null>(null);
 export function PedidoProvider({ children }: { children: ReactNode }) {
   const [origem, setOrigem] = useState<Lugar>(LOCALIZACAO_PADRAO);
   const [destino, setDestino] = useState<Lugar | null>(null);
-  const [categoriaId, setCategoriaId] = useState(CATEGORIAS_MOTORISTA[0].id);
+  const [viaturaId, setViaturaId] = useState(VIATURAS[0].id);
   const [pagamento, setPagamento] = useState<Pagamento>('mpesa');
 
   const valor = useMemo(
     () => ({
       origem,
       destino,
-      categoriaId,
+      viatura: VIATURAS.find((v) => v.id === viaturaId) ?? VIATURAS[0],
       pagamento,
       setOrigem,
       setDestino,
-      setCategoriaId,
+      setViaturaId,
       setPagamento,
-      limpar: () => {
-        setDestino(null);
-        setCategoriaId(CATEGORIAS_MOTORISTA[0].id);
-      },
+      limpar: () => setDestino(null),
     }),
-    [origem, destino, categoriaId, pagamento],
+    [origem, destino, viaturaId, pagamento],
   );
 
   return <PedidoContext.Provider value={valor}>{children}</PedidoContext.Provider>;

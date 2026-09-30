@@ -8,8 +8,8 @@ import { Mapa } from '@/components/mapa';
 import { BotaoPrincipal, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { CATEGORIAS_ALUGUER, formatarMzn, type Modo } from '@/data/categorias';
-import { LOCALIZACAO_PADRAO, LUGARES, type Lugar } from '@/data/lugares';
+import { CATEGORIAS_ALUGUER, formatarMzn, nomeViatura, VIATURAS, type Modo } from '@/data/categorias';
+import { LOCALIZACAO_PADRAO } from '@/data/lugares';
 import { usePedido } from '@/state/pedido';
 
 export default function Inicio() {
@@ -34,11 +34,6 @@ export default function Inicio() {
     })();
   }, [setOrigem]);
 
-  function escolherDestino(lugar: Lugar) {
-    pedido.setDestino(lugar);
-    router.push('/confirmar');
-  }
-
   return (
     <View style={s.ecra}>
       <Mapa origem={pedido.origem} />
@@ -58,18 +53,27 @@ export default function Inicio() {
 
         {modo === 'motorista' ? (
           <>
-            <Pressable style={s.destino} onPress={() => router.push('/destino')}>
-              <Text style={s.textoDestino}>Para onde?</Text>
-            </Pressable>
-            {LUGARES.slice(0, 3).map((l) => (
-              <Pressable key={l.id} style={s.sugestao} onPress={() => escolherDestino(l)}>
-                <View style={s.iconeLugar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.nome}>{l.nome}</Text>
-                  <Text style={s.descricao}>{l.zona}</Text>
-                </View>
-              </Pressable>
-            ))}
+            <Text style={s.pergunta}>Escolhe o teu carro</Text>
+            <ScrollView style={s.lista} contentContainerStyle={{ gap: Spacing.one }}>
+              {VIATURAS.map((v) => {
+                const ativa = v.id === pedido.viatura.id;
+                return (
+                  <Pressable key={v.id} onPress={() => pedido.setViaturaId(v.id)} style={[s.cartao, ativa && s.cartaoAtivo]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.nome}>{nomeViatura(v)}</Text>
+                      <Text style={s.descricao}>
+                        {v.tipo} · {v.lugares} lugares · chega em {v.chegadaMin} min
+                      </Text>
+                    </View>
+                    <Text style={s.preco}>
+                      {formatarMzn(v.porKmMzn)}
+                      <Text style={s.lugares}>/km</Text>
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <BotaoPrincipal texto="Para onde?" onPress={() => router.push('/destino')} />
           </>
         ) : (
           <>
@@ -124,9 +128,8 @@ function estilos(c: Palette) {
     textoModoAtivo: { color: c.onPrimary },
     destino: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, marginBottom: Spacing.two },
     textoDestino: { color: c.text, fontSize: 18, fontWeight: '600' },
-    sugestao: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three },
-    iconeLugar: { width: 10, height: 10, borderRadius: 2, backgroundColor: c.text },
-    lista: { marginBottom: Spacing.three, maxHeight: 260 },
+    pergunta: { color: c.text, fontSize: 20, fontWeight: '700', marginBottom: Spacing.two },
+    lista: { marginBottom: Spacing.three, maxHeight: 340 },
     cartao: { flexDirection: 'row', alignItems: 'center', padding: Spacing.three, borderRadius: Radius.card, borderWidth: 2, borderColor: 'transparent' },
     cartaoAtivo: { borderColor: c.primary, backgroundColor: c.backgroundElement },
     nome: { color: c.text, fontSize: 17, fontWeight: '700' },

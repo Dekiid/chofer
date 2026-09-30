@@ -1,12 +1,12 @@
 export type Modo = 'motorista' | 'aluguer';
 
-export type CategoriaMotorista = {
+export type Viatura = {
   id: string;
-  nome: string;
-  descricao: string;
+  marca: string;
+  modelo: string;
+  tipo: string;
   lugares: number;
-  /** Tarifa em meticais: valor fixo inicial mais valor por km. */
-  baseMzn: number;
+  /** Preço por quilómetro, em meticais. */
   porKmMzn: number;
   chegadaMin: number;
 };
@@ -20,11 +20,17 @@ export type CategoriaAluguer = {
 };
 
 // Valores provisórios para o protótipo; os preços reais vêm do painel de gestão.
-export const CATEGORIAS_MOTORISTA: CategoriaMotorista[] = [
-  { id: 'executivo', nome: 'Executivo', descricao: 'Sedan premium', lugares: 4, baseMzn: 250, porKmMzn: 75, chegadaMin: 4 },
-  { id: 'suv', nome: 'SUV', descricao: 'Mais espaço e bagagem', lugares: 6, baseMzn: 350, porKmMzn: 105, chegadaMin: 7 },
-  { id: 'luxo', nome: 'Luxo', descricao: 'Topo de gama', lugares: 4, baseMzn: 600, porKmMzn: 180, chegadaMin: 12 },
+export const VIATURAS: Viatura[] = [
+  { id: 'bmw-serie-5', marca: 'BMW', modelo: 'Série 5', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 90, chegadaMin: 4 },
+  { id: 'mercedes-classe-e', marca: 'Mercedes-Benz', modelo: 'Classe E', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 95, chegadaMin: 5 },
+  { id: 'bmw-x5', marca: 'BMW', modelo: 'X5', tipo: 'SUV', lugares: 5, porKmMzn: 120, chegadaMin: 7 },
+  { id: 'range-rover-sport', marca: 'Range Rover', modelo: 'Sport', tipo: 'SUV de luxo', lugares: 5, porKmMzn: 150, chegadaMin: 9 },
+  { id: 'mercedes-classe-s', marca: 'Mercedes-Benz', modelo: 'Classe S', tipo: 'Topo de gama', lugares: 4, porKmMzn: 180, chegadaMin: 12 },
 ];
+
+export function nomeViatura(v: Viatura): string {
+  return `${v.marca} ${v.modelo}`;
+}
 
 export const CATEGORIAS_ALUGUER: CategoriaAluguer[] = [
   { id: 'executivo-dia', nome: 'Executivo', descricao: 'Sedan premium, sem motorista', lugares: 5, porDiaMzn: 6500 },

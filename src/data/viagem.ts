@@ -1,4 +1,4 @@
-import type { CategoriaMotorista } from './categorias';
+import type { Viatura } from './categorias';
 
 type Ponto = { latitude: number; longitude: number };
 
@@ -18,9 +18,9 @@ export function duracaoMin(km: number): number {
   return Math.max(3, Math.round((km / 30) * 60));
 }
 
-/** Preço arredondado a 10 MT. */
-export function estimarPreco(categoria: CategoriaMotorista, km: number): number {
-  return Math.round((categoria.baseMzn + categoria.porKmMzn * km) / 10) * 10;
+/** Preço final: quilómetros vezes o preço por km da viatura, arredondado a 10 MT. */
+export function calcularPreco(viatura: Viatura, km: number): number {
+  return Math.round((viatura.porKmMzn * km) / 10) * 10;
 }
 
 export function interpolar(a: Ponto, b: Ponto, t: number): Ponto {
