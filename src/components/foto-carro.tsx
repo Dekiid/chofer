@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { nomeViatura, paginaFoto, urlFoto, type Viatura } from '@/data/categorias';
+import { nomeViatura, type Viatura } from '@/data/categorias';
 
 /** Foto real do modelo escolhido, com o crédito exigido pela licença. */
 export function FotoCarro({ viatura, style }: { viatura: Viatura; style?: StyleProp<ViewStyle> }) {
@@ -20,7 +20,7 @@ export function FotoCarro({ viatura, style }: { viatura: Viatura; style?: StyleP
         </View>
       ) : (
         <Image
-          source={{ uri: urlFoto(viatura) }}
+          source={viatura.foto}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={250}
@@ -28,8 +28,10 @@ export function FotoCarro({ viatura, style }: { viatura: Viatura; style?: StyleP
           onError={() => setFalhou(viatura.id)}
         />
       )}
-      <Pressable onPress={() => WebBrowser.openBrowserAsync(paginaFoto(viatura))} style={estilos.credito}>
-        <Text style={estilos.creditoTexto}>Foto: Wikimedia Commons</Text>
+      <Pressable onPress={() => WebBrowser.openBrowserAsync(viatura.credito.pagina)} style={estilos.credito}>
+        <Text style={estilos.creditoTexto}>
+          Foto: {viatura.credito.autor} · {viatura.credito.licenca}
+        </Text>
       </Pressable>
     </View>
   );

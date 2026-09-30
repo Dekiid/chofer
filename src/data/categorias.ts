@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from 'react-native';
+
 export type Modo = 'motorista' | 'aluguer';
 
 export type Viatura = {
@@ -9,8 +11,16 @@ export type Viatura = {
   /** Preço por quilómetro, em meticais. */
   porKmMzn: number;
   chegadaMin: number;
-  /** Nome do ficheiro da foto no Wikimedia Commons (licença livre, autor na página do ficheiro). */
-  foto: string;
+  /** Foto local em assets/carros (créditos em assets/carros/CREDITOS.md). */
+  foto: ImageSourcePropType;
+  credito: CreditoFoto;
+};
+
+export type CreditoFoto = {
+  autor: string;
+  licenca: string;
+  /** Página do ficheiro no Wikimedia Commons. */
+  pagina: string;
 };
 
 export type CategoriaAluguer = {
@@ -23,20 +33,15 @@ export type CategoriaAluguer = {
 
 // Valores provisórios para o protótipo; os preços reais vêm do painel de gestão.
 export const VIATURAS: Viatura[] = [
-  { id: 'bmw-serie-5', foto: 'BMW_G60_520d_1X7A1681.jpg', marca: 'BMW', modelo: 'Série 5', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 90, chegadaMin: 4 },
-  { id: 'mercedes-classe-e', foto: 'Mercedes-Benz_W214_1X7A1841.jpg', marca: 'Mercedes-Benz', modelo: 'Classe E', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 95, chegadaMin: 5 },
-  { id: 'bmw-x5', foto: 'BMW_G05_IMG_2670.jpg', marca: 'BMW', modelo: 'X5', tipo: 'SUV', lugares: 5, porKmMzn: 120, chegadaMin: 7 },
-  { id: 'range-rover-sport', foto: 'Land_Rover_Range_Rover_Sport_L461_Varesine_Blue_(4).jpg', marca: 'Range Rover', modelo: 'Sport', tipo: 'SUV de luxo', lugares: 5, porKmMzn: 150, chegadaMin: 9 },
-  { id: 'mercedes-classe-s', foto: 'Mercedes-Benz_W223_1X7A7340.jpg', marca: 'Mercedes-Benz', modelo: 'Classe S', tipo: 'Topo de gama', lugares: 4, porKmMzn: 180, chegadaMin: 12 },
+  { id: 'bmw-serie-5', foto: require('../../assets/carros/bmw-serie-5.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'BMW_G60_520d_1X7A1681.jpg'), marca: 'BMW', modelo: 'Série 5', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 90, chegadaMin: 4 },
+  { id: 'mercedes-classe-e', foto: require('../../assets/carros/mercedes-classe-e.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W214_1X7A1841.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe E', tipo: 'Sedan executivo', lugares: 4, porKmMzn: 95, chegadaMin: 5 },
+  { id: 'bmw-x5', foto: require('../../assets/carros/bmw-x5.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC BY-SA 4.0', 'BMW_X5_xDrive35d_(G05)_front.jpg'), marca: 'BMW', modelo: 'X5', tipo: 'SUV', lugares: 5, porKmMzn: 120, chegadaMin: 7 },
+  { id: 'range-rover-sport', foto: require('../../assets/carros/range-rover-sport.jpg'), credito: commons('Tokumeigakarinoaoshima', 'CC0', 'Land_Rover_RANGE_ROVER_SPORT_DYNAMIC_HSE_D300_(L461)_front.jpg'), marca: 'Range Rover', modelo: 'Sport', tipo: 'SUV de luxo', lugares: 5, porKmMzn: 150, chegadaMin: 9 },
+  { id: 'mercedes-classe-s', foto: require('../../assets/carros/mercedes-classe-s.jpg'), credito: commons('Alexander-93', 'CC BY-SA 4.0', 'Mercedes-Benz_W223_1X7A7340.jpg'), marca: 'Mercedes-Benz', modelo: 'Classe S', tipo: 'Topo de gama', lugares: 4, porKmMzn: 180, chegadaMin: 12 },
 ];
 
-// Special:FilePath redireciona para a imagem no tamanho pedido.
-export function urlFoto(v: Viatura, largura = 1024): string {
-  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(v.foto)}?width=${largura}`;
-}
-
-export function paginaFoto(v: Viatura): string {
-  return `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(v.foto)}`;
+function commons(autor: string, licenca: string, ficheiro: string): CreditoFoto {
+  return { autor, licenca, pagina: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(ficheiro)}` };
 }
 
 export function nomeViatura(v: Viatura): string {
