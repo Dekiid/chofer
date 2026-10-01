@@ -87,8 +87,8 @@ type ModoMotorista = {
   casa: Lugar | null;
   setCasa: (l: Lugar | null) => void;
   irParaCasa: boolean;
-  /** Liga o modo; devolve false se já usou as vezes do dia. */
-  ligarIrParaCasa: () => boolean;
+  /** Liga o modo; devolve false se já usou as vezes do dia. A casa acabada de escolher pode vir já aqui. */
+  ligarIrParaCasa: (casaNova?: Lugar) => boolean;
   desligarIrParaCasa: () => void;
   usosCasaHoje: number;
 };
@@ -454,8 +454,8 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       casa,
       setCasa,
       irParaCasa,
-      ligarIrParaCasa: () => {
-        if (!casa || usosCasaHoje >= MAX_IR_PARA_CASA_POR_DIA) return false;
+      ligarIrParaCasa: (casaNova?: Lugar) => {
+        if (!(casaNova ?? casa) || usosCasaHoje >= MAX_IR_PARA_CASA_POR_DIA) return false;
         setUsosCasa({ dia: hoje, n: usosCasaHoje + 1 });
         setIrParaCasa(true);
         return true;

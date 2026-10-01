@@ -276,7 +276,8 @@ function Disponivel({ s }: { s: S }) {
       {estado}
       <Animated.View style={[{ overflow: 'hidden' }, meio]}>
       <View
-        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+        // No fluxo normal (sem posição absoluta): a altura é a do conteúdo e os toques chegam a tudo o que está dentro.
+        style={{ flexShrink: 0 }}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
           meioNatural.value = h;
@@ -398,6 +399,7 @@ function IrParaCasa({ s }: { s: S }) {
   const [noMapa, setNoMapa] = useState(false);
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState('');
+  const pedidoLigar = useRef(false);
   // Escreve-se a zona ou o bairro; sem texto, aparecem a casa guardada na conta e alguns sítios conhecidos.
   const opcoes = texto.trim()
     ? pesquisarLugares(texto).slice(0, 6)
@@ -406,19 +408,36 @@ function IrParaCasa({ s }: { s: S }) {
   function mudar(v: boolean) {
     setErro('');
     if (!v) return m.desligarIrParaCasa();
-    if (!m.casa) return setEscolher(true);
+    if (!m.casa) {
+      pedidoLigar.current = true;
+      return setEscolher(true);
+    }
     if (!m.ligarIrParaCasa()) setErro(t('Já usaste as {n} vezes de hoje.', { n: MAX_IR_PARA_CASA_POR_DIA }));
   }
-  function guardar(l: Lugar) {
-    m.setCasa({ id: l.id, nome: l.nome, zona: l.zona, latitude: l.latitude, longitude: l.longitude });
+  function fecharEscolha() {
+    setErro('');
     setEscolher(false);
     setNoMapa(false);
     setTexto('');
   }
+  function cancelarEscolha() {
+    pedidoLigar.current = false;
+    fecharEscolha();
+  }
+  function guardar(l: Lugar) {
+    const casa = { id: l.id, nome: l.nome, zona: l.zona, latitude: l.latitude, longitude: l.longitude };
+    m.setCasa(casa);
+    fecharEscolha();
+    // Quem ligou o interruptor sem casa escolhida fica logo com o «ir para casa» ligado.
+    if (pedidoLigar.current) {
+      pedidoLigar.current = false;
+      if (!m.ligarIrParaCasa(casa)) setErro(t('Já usaste as {n} vezes de hoje.', { n: MAX_IR_PARA_CASA_POR_DIA }));
+    }
+  }
   return (
     <View style={[s.caixa, { gap: Spacing.one }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
-        <Pressable style={{ flex: 1 }} onPress={() => !m.irParaCasa && setEscolher((e) => !e)} accessibilityLabel={t('Escolher a casa')}>
+        <Pressable style={{ flex: 1 }} onPress={() => !m.irParaCasa && setEscolher(true)} accessibilityLabel={t('Escolher a casa')}>
           <Text style={s.nomePequeno}>{t('Ir para casa')}</Text>
           <Text style={s.secundarioPequeno}>
             {m.irParaCasa && m.casa
@@ -433,31 +452,42 @@ function IrParaCasa({ s }: { s: S }) {
         <Switch value={m.irParaCasa} onValueChange={mudar} disabled={!m.irParaCasa && m.casa != null && restam <= 0} accessibilityLabel={t('Ir para casa')} />
       </View>
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
-      {escolher && (
-        <View style={{ gap: Spacing.two, marginTop: Spacing.one }}>
-          <TextInput
-            value={texto}
-            onChangeText={setTexto}
-            placeholder={t('Escreve a zona ou o bairro')}
-            placeholderTextColor={cores.textSecondary}
-            style={s.campoCasa}
-            accessibilityLabel={t('Zona da casa')}
-          />
-          <View style={s.elogios}>
-            {opcoes.map((l) => (
-              <Pressable key={l.id} onPress={() => guardar(l)} style={[s.elogio, m.casa?.id === l.id && { borderWidth: 1.5 }]}>
-                <Text style={s.secundarioPequeno}>{l.id === casaDaConta?.id ? t('Casa guardada · {zona}', { zona: l.zona }) : nomeLugar(l)}</Text>
+      {/* A escolha da casa abre num ecrã próprio, fora da caixa que desliza: assim o teclado, a lista e o mapa não dependem do gesto da caixa. */}
+      <Modal visible={escolher} animationType="slide" presentationStyle="fullScreen" onRequestClose={cancelarEscolha}>
+        {noMapa ? (
+          <MarcarNoMapa tipo="casa" inicial={m.casa ?? casaDaConta ?? { id: 'posicao', nome: t('A tua localização'), zona: '', latitude: m.posicao.latitude, longitude: m.posicao.longitude }} onConfirmar={guardar} onVoltar={() => setNoMapa(false)} />
+        ) : (
+          <SafeAreaView style={[s.ecraCasa, { backgroundColor: cores.background }]}>
+            <View style={s.estado}>
+              <Text style={[s.titulo, { flex: 1 }]}>{t('Onde fica a tua casa?')}</Text>
+              <Pressable onPress={cancelarEscolha} hitSlop={12} accessibilityLabel={t('Fechar')}>
+                <Text style={s.nomePequeno}>{t('Fechar')}</Text>
               </Pressable>
-            ))}
-            {texto.trim() !== '' && opcoes.length === 0 && <Text style={s.secundarioPequeno}>{t('Não encontrei essa zona. Marca-a no mapa.')}</Text>}
-          </View>
-          <Pressable onPress={() => setNoMapa(true)} style={s.botaoMapaCasa} accessibilityLabel={t('Marcar a casa no mapa')}>
-            <Text style={s.nomePequeno}>{t('Marcar no mapa')}</Text>
-          </Pressable>
-        </View>
-      )}
-      <Modal visible={noMapa} animationType="slide" onRequestClose={() => setNoMapa(false)}>
-        <MarcarNoMapa tipo="casa" inicial={m.casa ?? casaDaConta ?? { id: 'posicao', nome: t('A tua localização'), zona: '', latitude: m.posicao.latitude, longitude: m.posicao.longitude }} onConfirmar={guardar} onVoltar={() => setNoMapa(false)} />
+            </View>
+            <TextInput
+              value={texto}
+              onChangeText={setTexto}
+              autoFocus
+              placeholder={t('Escreve a zona ou o bairro')}
+              placeholderTextColor={cores.textSecondary}
+              style={[s.campoCasa, { backgroundColor: cores.backgroundElement }]}
+              accessibilityLabel={t('Zona da casa')}
+            />
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: Spacing.two }}>
+              <View style={s.elogios}>
+                {opcoes.map((l) => (
+                  <Pressable key={l.id} onPress={() => guardar(l)} style={[s.elogio, m.casa?.id === l.id && { borderWidth: 1.5 }]}>
+                    <Text style={s.secundarioPequeno}>{l.id === casaDaConta?.id ? t('Casa guardada · {zona}', { zona: l.zona }) : nomeLugar(l)}</Text>
+                  </Pressable>
+                ))}
+                {texto.trim() !== '' && opcoes.length === 0 && <Text style={s.secundarioPequeno}>{t('Não encontrei essa zona. Marca-a no mapa.')}</Text>}
+              </View>
+              <Pressable onPress={() => setNoMapa(true)} style={s.botaoMapaCasa} accessibilityLabel={t('Marcar a casa no mapa')}>
+                <Text style={s.nomePequeno}>{t('Marcar no mapa')}</Text>
+              </Pressable>
+            </ScrollView>
+          </SafeAreaView>
+        )}
       </Modal>
     </View>
   );
@@ -745,6 +775,7 @@ function estilos(c: Palette) {
     secundarioPequeno: { color: c.textSecondary, fontSize: 12, marginTop: 1 },
     elogios: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
     campoCasa: { backgroundColor: c.background, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, color: c.text, fontSize: 15 },
+    ecraCasa: { flex: 1, padding: Spacing.three, gap: Spacing.three },
     botaoMapaCasa: { alignItems: 'center', borderRadius: Radius.pill, paddingVertical: Spacing.two, borderWidth: 1.5, borderColor: c.text },
     elogio: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: c.backgroundElement },
     ligacao: { color: c.text, fontWeight: '800', textDecorationLine: 'underline' },
