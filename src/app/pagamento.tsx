@@ -328,7 +328,9 @@ export default function Pagamento() {
 
   const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento) ?? PAGAMENTOS[0];
   const digitos = telefone.replace(/\D/g, '');
-  const telefoneValido = /^8[4-7]\d{7}$/.test(digitos);
+  // Com a fatura da empresa não há número de telefone para cobrar.
+  const naFatura = metodo.id === 'empresa' && conta.empresa != null;
+  const telefoneValido = naFatura || /^8[4-7]\d{7}$/.test(digitos);
 
   if (estado !== 'preencher') {
     return (
@@ -336,9 +338,11 @@ export default function Pagamento() {
         {estado === 'a_processar' ? (
           <>
             <ActivityIndicator size="large" color={cores.text} />
-            <Text style={s.titulo}>Confirma no teu telemóvel</Text>
+            <Text style={s.titulo}>{naFatura ? 'A juntar à fatura' : 'Confirma no teu telemóvel'}</Text>
             <Text style={s.secundarioCentro}>
-              Enviámos um pedido de {formatarMzn(aPagar)} por {metodo.nome} para o número {digitos}. Introduz o teu PIN para autorizar.
+              {naFatura
+                ? `${formatarMzn(aPagar)} vão para a fatura de ${conta.empresa?.nome} deste mês.`
+                : `Enviámos um pedido de ${formatarMzn(aPagar)} por ${metodo.nome} para o número ${digitos}. Introduz o teu PIN para autorizar.`}
             </Text>
           </>
         ) : (
@@ -415,7 +419,7 @@ export default function Pagamento() {
 
           <Text style={s.rotulo}>Método de pagamento</Text>
           <View style={s.metodos}>
-            {PAGAMENTOS.map((p) => {
+            {PAGAMENTOS.filter((p) => p.id !== 'empresa' || conta.empresa).map((p) => {
               const ativo = p.id === pedido.pagamento;
               return (
                 <Pressable key={p.id} onPress={() => pedido.setPagamento(p.id)} style={[s.metodo, ativo && s.metodoAtivo]}>
@@ -425,6 +429,12 @@ export default function Pagamento() {
           })}
         </View>
 
+        {naFatura ? (
+          <Text style={[s.secundario, { marginTop: Spacing.three }]}>
+            Vai para a fatura mensal de {conta.empresa?.nome} (NUIT {conta.empresa?.nuit}).
+          </Text>
+        ) : (
+        <>
         <Text style={s.rotulo}>Número {metodo.nome}</Text>
         <TextInput
           value={telefone}
@@ -441,12 +451,14 @@ export default function Pagamento() {
           onSubmitEditing={Keyboard.dismiss}
           style={s.input}
         />
+        </>
+        )}
         </FecharTeclado>
 
         <View style={s.rodape}>
           <NotaPagamento />
           <BotaoPrincipal
-            texto={`Pagar ${formatarMzn(aPagar)}`}
+            texto={naFatura ? `Pôr na fatura · ${formatarMzn(aPagar)}` : `Pagar ${formatarMzn(aPagar)}`}
             onPress={() => {
               Keyboard.dismiss();
               processar();

@@ -64,6 +64,14 @@ export default function Conta() {
           <Text style={s.nome}>As tuas viagens</Text>
           <Text style={s.secundario}>Histórico, viagens marcadas e recibos</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/ajuda')} style={s.entrada}>
+          <Text style={s.nome}>Ajuda</Text>
+          <Text style={s.secundario}>Objetos perdidos, cobranças, queixas e perguntas frequentes</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/empresa')} style={s.entrada}>
+          <Text style={s.nome}>Conta de empresa</Text>
+          <Text style={s.secundario}>{conta.empresa ? `${conta.empresa.nome} · fatura mensal` : 'Viagens de trabalho numa fatura por mês'}</Text>
+        </Pressable>
 
         {/* O modo motorista é só para motoristas aprovados; os outros veem como se inscrever. */}
         {motorista.pode ? (

@@ -59,6 +59,9 @@ export type ViagemFeita = {
 
 export const totalPago = (v: ViagemFeita) => (v.estado === 'cancelada' ? (v.taxaCancelamentoMzn ?? 0) : v.precoMzn - v.descontoMzn + v.gorjetaMzn);
 
+/** Conta de empresa: as viagens pagas com «Fatura da empresa» juntam-se numa fatura por mês. */
+export type Empresa = { nome: string; nuit: string; emailFaturas: string };
+
 export type Mensagem = { id: string; de: 'cliente' | 'motorista'; texto: string; em: Date; lida: boolean };
 export type Aviso = { id: string; titulo: string; texto: string; em: Date; lido: boolean };
 
@@ -87,6 +90,9 @@ type Conta = {
   marcarAvisosLidos: () => void;
   avisosNoTelemovel: boolean;
   setAvisosNoTelemovel: (v: boolean) => void;
+
+  empresa: Empresa | null;
+  setEmpresa: (e: Empresa | null) => void;
 
   promo: Promo | null;
   setPromo: (p: Promo | null) => void;
@@ -133,6 +139,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
     aeroporto: LUGARES.find((l) => l.id === 'aeroporto') ?? null,
   }));
   const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo);
+  const [empresa, setEmpresa] = useGuardado<Empresa | null>(chave && `${chave}.empresa`, null);
   const [viagemAtualId, setViagemAtualId] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
@@ -221,6 +228,8 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       marcarAvisosLidos: () => setAvisos((atual) => (atual.some((a) => !a.lido) ? atual.map((a) => ({ ...a, lido: true })) : atual)),
       avisosNoTelemovel,
       setAvisosNoTelemovel,
+      empresa,
+      setEmpresa,
       promo,
       setPromo,
       // No produto final o código vem da conta do cliente; aqui é fixo.
@@ -228,7 +237,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       creditoMzn: 0,
       amigosConvidados: 0,
     };
-  }, [locais, setLocais, viagens, setViagens, viagemAtualId, mensagens, avisos, avisoTopo, avisosNoTelemovel, promo, avisar, enviarMensagem, marcarChatLido]);
+  }, [locais, setLocais, viagens, setViagens, viagemAtualId, mensagens, avisos, avisoTopo, avisosNoTelemovel, empresa, setEmpresa, promo, avisar, enviarMensagem, marcarChatLido]);
 
   return <ContaContext.Provider value={valor}>{children}</ContaContext.Provider>;
 }

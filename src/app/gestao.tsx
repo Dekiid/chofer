@@ -8,8 +8,10 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { useAgenda } from '@/state/agenda';
-import { useConta } from '@/state/conta';
-import { useInscricoes } from '@/state/inscricoes';
+import { COMISSAO, formatarMzn } from '@/data/categorias';
+import { totalPago, useConta } from '@/state/conta';
+import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
+import { useSuporte } from '@/state/suporte';
 import { Text } from '@/components/texto';
 
 // Área da equipa. No protótipo fica na app; no produto final passa para o painel de gestão.
@@ -17,10 +19,19 @@ export default function Gestao() {
   const cores = usePalette();
   const s = estilos(cores);
   const { notificacoes, marcarLidas } = useAgenda();
-  const pendentes = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length;
+  const { inscricoes } = useInscricoes();
+  const pendentes = inscricoes.filter((i) => i.estado === 'pendente').length;
+  const ajudaAbertos = useSuporte().pedidos.filter((p) => p.estado === 'aberto').length;
+  const { viagens } = useConta();
+  // Resumo de hoje, com as viagens deste telemóvel (no produto final, de todos os clientes).
+  const deHoje = viagens.filter((v) => v.recolhaEm.toDateString() === new Date().toDateString() && v.estado !== 'agendada');
+  const feitasHoje = deHoje.filter((v) => v.estado !== 'cancelada');
+  const receita = deHoje.reduce((t, v) => t + totalPago(v), 0);
+  const comissao = Math.round(feitasHoje.reduce((t, v) => t + (v.precoMzn - v.descontoMzn), 0) * COMISSAO);
+  const motoristas = inscricoes.filter((i) => i.estado === 'aprovada');
   // Avaliações dos clientes por motorista, para decidir quem continua na plataforma.
   const porMotorista = new Map<string, { nome: string; matricula: string; estrelas: number[]; notas: string[] }>();
-  for (const v of useConta().viagens) {
+  for (const v of viagens) {
     if (!v.avaliacao) continue;
     const m = porMotorista.get(v.motorista.matricula) ?? { nome: v.motorista.nome, matricula: v.motorista.matricula, estrelas: [], notas: [] };
     m.estrelas.push(v.avaliacao.estrelas);
@@ -37,9 +48,27 @@ export default function Gestao() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Gestão</Text>
+        <Text style={s.titulo}>Painel de gestão</Text>
       </View>
       <ScrollView contentContainerStyle={s.conteudo}>
+        <Text style={s.nota}>Em testes, o painel fica na app e vê os dados deste telemóvel. Antes do lançamento passa para um painel web só da equipa.</Text>
+        <View style={s.numeros}>
+          {[
+            { n: String(feitasHoje.length), t: 'viagens hoje' },
+            { n: formatarMzn(receita), t: 'recebido hoje' },
+            { n: formatarMzn(comissao), t: `comissão ${Math.round(COMISSAO * 100)}%` },
+            { n: String(deHoje.length - feitasHoje.length), t: 'canceladas' },
+          ].map((x) => (
+            <View key={x.t} style={s.numero}>
+              <Text style={s.numeroValor}>{x.n}</Text>
+              <Text style={s.secundario}>{x.t}</Text>
+            </View>
+          ))}
+        </View>
+        <Pressable onPress={() => router.push('/suporte')} style={[s.entrada, ajudaAbertos > 0 && s.naoLida]}>
+          <Text style={s.nome}>Ajuda e queixas{ajudaAbertos > 0 ? ` (${ajudaAbertos})` : ''}</Text>
+          <Text style={s.secundario}>Responder, objetos perdidos e reembolsos</Text>
+        </Pressable>
         <Pressable onPress={() => router.push('/agenda')} style={s.entrada}>
           <Text style={s.nome}>Agenda das viaturas</Text>
           <Text style={s.secundario}>Horários livres e ocupados de cada carro</Text>
@@ -48,6 +77,25 @@ export default function Gestao() {
           <Text style={s.nome}>Aprovar inscrições{pendentes > 0 ? ` (${pendentes})` : ''}</Text>
           <Text style={s.secundario}>Motoristas à espera de aprovação</Text>
         </Pressable>
+
+        <Text style={s.secao}>Motoristas e documentos</Text>
+        {motoristas.length === 0 && <Text style={s.secundario}>Ainda não há motoristas aprovados.</Text>}
+        {motoristas.map((i) => {
+          const docs = estadoDocumentos(i.validades);
+          const mal = docs.filter((d) => d.estado !== 'ok');
+          return (
+            <View key={i.id} style={[s.notificacao, mal.length > 0 && s.naoLida]}>
+              <Text style={s.nome}>
+                {i.nome} <Text style={s.secundario}>· {i.marca} {i.modelo} · {i.matricula}</Text>
+              </Text>
+              <Text style={s.texto}>
+                {mal.length === 0
+                  ? 'Documentos em dia'
+                  : mal.map((d) => (d.estado === 'em_falta' ? `${d.nome}: sem validade` : d.estado === 'expirado' ? `${d.nome}: expirado` : `${d.nome}: expira em ${d.dias} dias`)).join(' · ')}
+              </Text>
+            </View>
+          );
+        })}
 
         <Text style={s.secao}>Avaliações dos motoristas</Text>
         {porMotorista.size === 0 && <Text style={s.secundario}>Ainda não há avaliações.</Text>}
@@ -95,5 +143,9 @@ function estilos(c: Palette) {
     secundario: { color: c.textSecondary, fontSize: 14, fontWeight: '400' },
     notificacao: { borderRadius: Radius.card, padding: Spacing.three, borderWidth: 1, borderColor: c.backgroundSelected },
     naoLida: { borderColor: c.accent, borderLeftWidth: 4 },
+    nota: { color: c.textSecondary, fontSize: 12, fontStyle: 'italic' },
+    numeros: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+    numero: { flexBasis: '48%', flexGrow: 1, backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three },
+    numeroValor: { color: c.text, fontSize: 20, fontWeight: '800' },
   });
 }

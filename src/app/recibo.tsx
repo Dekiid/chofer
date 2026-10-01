@@ -93,6 +93,9 @@ export default function Recibo() {
           </View>
         </View>
         {v.estado === 'agendada' && <CancelarReserva v={v} />}
+        <Text style={[s.secundario, { textDecorationLine: 'underline', marginTop: Spacing.two }]} onPress={() => router.push({ pathname: '/ajuda', params: { viagem: v.id } })}>
+          Ajuda com esta viagem
+        </Text>
         {v.avaliacao && (
           <Text style={s.secundario}>
             A tua avaliação: {'★'.repeat(v.avaliacao.estrelas)}

@@ -19,6 +19,7 @@ import { ModoMotoristaProvider } from '@/state/modo-motorista';
 import { PedidoProvider } from '@/state/pedido';
 import { useMotoristaAprovado } from '@/state/permissoes';
 import { SessaoProvider, useSessao } from '@/state/sessao';
+import { SuporteProvider } from '@/state/suporte';
 
 // O ecrã de abertura (fundo preto com o logótipo) fica até a letra da marca carregar.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -48,10 +49,12 @@ export default function RootLayout() {
             <PedidoProvider>
               <ModoMotoristaProvider>
                 <ContaProvider>
-                  <StatusBar style="auto" />
-                  <Navegacao />
-                  <AvisoTopo />
-                  <BemVindo />
+                  <SuporteProvider>
+                    <StatusBar style="auto" />
+                    <Navegacao />
+                    <AvisoTopo />
+                    <BemVindo />
+                  </SuporteProvider>
                 </ContaProvider>
               </ModoMotoristaProvider>
             </PedidoProvider>
@@ -95,6 +98,9 @@ function Navegacao() {
         <Stack.Screen name="aprovacoes" />
         <Stack.Screen name="gestao" />
         <Stack.Screen name="agenda" />
+        <Stack.Screen name="ajuda" />
+        <Stack.Screen name="suporte" />
+        <Stack.Screen name="empresa" />
         {/* Só para motoristas aprovados (ou a conta de demonstração). */}
         <Stack.Protected guard={motorista.pode}>
           {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}

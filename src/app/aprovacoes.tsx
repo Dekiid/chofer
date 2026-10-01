@@ -8,8 +8,9 @@ import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { COMISSAO, formatarMzn } from '@/data/categorias';
+import { formatarData } from '@/data/datas';
 import { formatarTelefone } from '@/data/motorista';
-import { FOTOS_PEDIDAS, useInscricoes, type Inscricao } from '@/state/inscricoes';
+import { estadoDocumentos, FOTOS_PEDIDAS, useInscricoes, type Inscricao } from '@/state/inscricoes';
 import { Text, TextInput } from '@/components/texto';
 
 // Aprovação interna. No protótipo fica na app; no produto final passa para o painel de gestão, só para a equipa.
@@ -79,6 +80,11 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
       <View style={s.dados}>
         <Text style={s.texto}>{i.nome}</Text>
         <Text style={s.secundario}>BI {i.documento} · Carta {i.cartaConducao}</Text>
+        {i.validades && (
+          <Text style={s.secundario}>
+            Validade: {estadoDocumentos(i.validades).map((d) => `${d.nome.split(' ')[0].toLowerCase()} ${d.validade ? formatarData(d.validade) : '—'}`).join(' · ')}
+          </Text>
+        )}
         <Pressable onPress={() => Linking.openURL(`tel:${i.telefone}`)}>
           <Text style={s.link}>{formatarTelefone(i.telefone)}</Text>
         </Pressable>

@@ -7,11 +7,13 @@ import type { ReservaDias } from '@/data/reserva';
 import { calcularRotaPor, rotaEstimadaPor, type Rota } from '@/data/rotas';
 import { useInscricoes } from '@/state/inscricoes';
 
-export type Pagamento = 'mpesa' | 'emola';
+export type Pagamento = 'mpesa' | 'emola' | 'empresa';
 
 export const PAGAMENTOS: { id: Pagamento; nome: string; prefixos: string }[] = [
   { id: 'mpesa', nome: 'M-Pesa', prefixos: '84 ou 85' },
   { id: 'emola', nome: 'e-Mola', prefixos: '86 ou 87' },
+  // Só aparece a quem tem conta de empresa: a viagem vai para a fatura do mês.
+  { id: 'empresa', nome: 'Fatura da empresa', prefixos: '' },
 ];
 
 type Pedido = {
