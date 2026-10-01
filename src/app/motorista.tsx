@@ -22,7 +22,7 @@ import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
 import { useAcompanharChat, useChat } from '@/state/chat';
-import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
+import { estadoDocumentos, telefoneCondutor, useInscricoes } from '@/state/inscricoes';
 import { ganhoMotorista, HORAS_ATE_DESCANSO, minutosPausa, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
@@ -118,8 +118,9 @@ function EscolherCarro({ s }: { s: S }) {
   const m = useModoMotorista();
   const { perfil } = useSessao();
   const { inscricoes } = useInscricoes();
-  // Cada motorista conduz só os carros pessoais que inscreveu e foram aprovados. A conta de demonstração usa a frota de exemplo.
-  const minhas = inscricoes.filter((i) => i.telefone === perfil?.telefone);
+  // Cada motorista conduz só os carros aprovados que lhe cabem: os seus, ou os de um dono que o indicou como motorista.
+  // A conta de demonstração usa a frota de exemplo.
+  const minhas = inscricoes.filter((i) => telefoneCondutor(i) === perfil?.telefone);
   const aprovados = new Set(minhas.filter((i) => i.estado === 'aprovada').map((i) => i.id));
   const carros = viaturas.filter((v) => !v.soCasamento && (perfil?.motoristaDemo ? !v.id.startsWith('insc-') : aprovados.has(v.id)));
   const pendentes = minhas.filter((i) => i.estado === 'pendente').length;

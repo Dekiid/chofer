@@ -143,3 +143,19 @@ as $$
   select id, estado, resposta, reembolso_mzn, respondido_em from public.pedidos_ajuda where cliente_telefone = p_telefone;
 $$;
 grant execute on function public.respostas_ajuda(text) to anon, authenticated;
+
+-- Resumo do dono: as viagens dos carros que inscreveu, dos últimos 35 dias.
+-- Protótipo: pede só o número. Quando as contas usarem SMS, passa a usar o número da sessão (auth.jwt()).
+create or replace function public.viagens_dos_carros(p_telefone text)
+returns table (id text, viatura_id text, estado text, total_mzn integer, dados jsonb, atualizada_em timestamptz)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select v.id, i.id, v.estado, v.total_mzn, v.dados, v.atualizada_em
+  from public.viagens v
+  join public.inscricoes i on i.id = v.dados ->> 'viaturaId'
+  where i.telefone = p_telefone and v.criada_em > now() - interval '35 days';
+$$;
+grant execute on function public.viagens_dos_carros(text) to anon, authenticated;

@@ -82,7 +82,7 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
       </Text>
 
       <View style={s.dados}>
-        <Text style={s.texto}>{i.nome}</Text>
+        <Text style={s.texto}>{i.motorista ? t('Dono: {nome}', { nome: i.nome }) : i.nome}</Text>
         <Text style={s.secundario}>{t('BI {bi} · Carta {carta}', { bi: i.documento, carta: i.cartaConducao })}</Text>
         {i.validades && (
           <Text style={s.secundario}>
@@ -96,6 +96,15 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
         <Pressable onPress={() => Linking.openURL(`tel:${i.telefone}`)}>
           <Text style={s.link}>{formatarTelefone(i.telefone)}</Text>
         </Pressable>
+        {i.motorista && (
+          <>
+            <Text style={[s.texto, { marginTop: Spacing.two }]}>{t('Conduzido por {nome}', { nome: i.motorista.nome })}</Text>
+            <Text style={s.secundario}>{t('A carta acima é a do motorista.')}</Text>
+            <Pressable onPress={() => Linking.openURL(`tel:${i.motorista!.telefone}`)}>
+              <Text style={s.link}>{formatarTelefone(i.motorista.telefone)}</Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       {i.casamento?.foto && <Image source={i.casamento.foto} style={[s.fotoGrande, { marginBottom: Spacing.one }]} contentFit="cover" />}

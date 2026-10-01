@@ -13,7 +13,7 @@ export function exemplo(): Dados {
       { id: 'v5', cliente_telefone: '+258847654321', estado: 'agendada', total_mzn: 2200, viatura: 'Mercedes-Benz Classe S', criada_em: h(5), dados: { origem: lugar('Sommerschield'), destino: lugar('Ponta do Ouro'), recolhaEm: new Date(Date.now() + 2 * 86_400_000).toISOString(), pagamento: 'M-Pesa', motorista: { nome: 'Abel S.' }, clienteNome: 'Ana', km: 110 } },
     ],
     inscricoes: [
-      { id: 'i1', telefone: '+258845550001', estado: 'pendente', por_km_mzn: 95, enviada_em: h(1), dados: { nome: 'João Matsinhe', marca: 'Toyota', modelo: 'Land Cruiser', ano: '2022', matricula: 'AHB 456 MC', tipo: 'SUV', lugares: 7, documento: '110100123456B', cartaConducao: 'MC-998877', validades: { carta: '2028-05-01', seguro: '2026-12-31', inspecao: '2027-03-15' } } },
+      { id: 'i1', telefone: '+258845550001', estado: 'pendente', por_km_mzn: 95, enviada_em: h(1), dados: { nome: 'João Matsinhe', marca: 'Toyota', modelo: 'Land Cruiser', ano: '2022', matricula: 'AHB 456 MC', tipo: 'SUV', lugares: 7, documento: '110100123456B', cartaConducao: 'MC-998877', validades: { carta: '2028-05-01', seguro: '2026-12-31', inspecao: '2027-03-15' }, motorista: { nome: 'Abel Sitoe', telefone: '+258847654321' } } },
       { id: 'i2', telefone: '+258840000000', estado: 'aprovada', por_km_mzn: 90, enviada_em: h(200), dados: { nome: 'Carlos M.', marca: 'BMW', modelo: 'Série 5', ano: '2021', matricula: 'AFK 123 MC', tipo: 'Executivo', lugares: 4, documento: '110100654321A', cartaConducao: 'MC-112233' } },
     ],
     avaliacoes: [

@@ -112,6 +112,7 @@ function Navegacao() {
         <Stack.Screen name="empresa" />
         <Stack.Screen name="opcoes" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="seguranca" />
+        <Stack.Screen name="frota" />
         {/* Só para motoristas aprovados (ou a conta de demonstração). */}
         <Stack.Protected guard={motorista.pode}>
           {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}

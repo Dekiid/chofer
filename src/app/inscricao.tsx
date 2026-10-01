@@ -31,10 +31,15 @@ export default function Inscricao() {
   const { submeter } = useInscricoes();
   const { perfil } = useSessao();
 
-  const [nome, setNome] = useState('');
+  // Quem já inscreveu um carro não volta a escrever os dados de dono.
+  const anterior = useInscricoes().inscricoes.find((i) => i.telefone === perfil?.telefone);
+  const [nome, setNome] = useState(anterior?.nome ?? '');
+  const [quemConduz, setQuemConduz] = useState<'eu' | 'outro'>('eu');
+  const [motoristaNome, setMotoristaNome] = useState('');
+  const [motoristaTelefone, setMotoristaTelefone] = useState('');
   // O número da conta, para o carro ficar ligado a este motorista no modo motorista.
   const [telefone, setTelefone] = useState(perfil?.telefone.replace(/^\+258/, '') ?? '');
-  const [documento, setDocumento] = useState('');
+  const [documento, setDocumento] = useState(anterior?.documento ?? '');
   const [cartaConducao, setCartaConducao] = useState('');
   const [marca, setMarca] = useState('');
   const [modelo, setModelo] = useState('');
@@ -55,7 +60,11 @@ export default function Inscricao() {
   const [enviada, setEnviada] = useState(false);
 
   const telefoneValido = normalizarTelefone(telefone);
+  const outro = quemConduz === 'outro';
+  const motoristaTelefoneValido = normalizarTelefone(motoristaTelefone);
   const erros = {
+    motoristaNome: outro && motoristaNome.trim().length < 3,
+    motoristaTelefone: outro && (!motoristaTelefoneValido || motoristaTelefoneValido === telefoneValido),
     nome: nome.trim().length < 3,
     telefone: !telefoneValido,
     documento: documento.trim().length < 5,
@@ -99,6 +108,7 @@ export default function Inscricao() {
         : undefined,
       fotos: fotos as Record<FotoPedida, string>,
       validades: { carta: lerData(validadeCarta)!, seguro: lerData(validadeSeguro)!, inspecao: lerData(validadeInspecao)! },
+      motorista: outro && motoristaTelefoneValido ? { nome: motoristaNome.trim(), telefone: motoristaTelefoneValido } : undefined,
     });
     setEnviada(true);
   }
@@ -144,12 +154,31 @@ export default function Inscricao() {
           keyboardType: 'phone-pad',
           autoComplete: 'tel',
         })}
-        <Text style={s.ajuda}>{t('Os clientes usam este número para te ligar durante a viagem.')}</Text>
+        <Text style={s.ajuda}>{outro ? t('O teu número, para falarmos contigo sobre o carro e veres o resumo dos teus carros.') : t('Os clientes usam este número para te ligar durante a viagem.')}</Text>
         {campo(t('Número do BI'), documento, setDocumento, erros.documento, t('Escreve o número do BI.'), { autoCapitalize: 'characters' })}
-        {campo(t('Número da carta de condução'), cartaConducao, setCartaConducao, erros.cartaConducao, t('Escreve o número da carta.'), {
+
+        <Text style={s.secao}>{t('Quem conduz este carro?')}</Text>
+        <View style={s.opcoes}>
+          {(['eu', 'outro'] as const).map((q) => (
+            <Pressable key={q} onPress={() => setQuemConduz(q)} style={[s.opcao, quemConduz === q && s.opcaoAtiva]}>
+              <Text style={[s.textoOpcao, quemConduz === q && s.textoOpcaoAtiva]}>{q === 'eu' ? t('Sou eu') : t('Outra pessoa')}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {outro && (
+          <>
+            <Text style={s.ajuda}>{t('O motorista entra na app com o número dele e fica com o modo motorista só para este carro. Os clientes ligam-lhe a ele. Tu vês o resumo do carro.')}</Text>
+            {campo(t('Nome do motorista'), motoristaNome, setMotoristaNome, erros.motoristaNome, t('Escreve o nome completo.'), { placeholder: t('Ex.: {exemplo}', { exemplo: 'Abel Sitoe' }) })}
+            {campo(t('Número do motorista'), motoristaTelefone, setMotoristaTelefone, erros.motoristaTelefone, t('Número móvel moçambicano, diferente do teu.'), {
+              placeholder: '84 765 4321',
+              keyboardType: 'phone-pad',
+            })}
+          </>
+        )}
+        {campo(outro ? t('Número da carta de condução do motorista') : t('Número da carta de condução'), cartaConducao, setCartaConducao, erros.cartaConducao, t('Escreve o número da carta.'), {
           autoCapitalize: 'characters',
         })}
-        {campo(t('Carta válida até'), validadeCarta, (v) => setValidadeCarta(mascaraData(v)), erros.validadeCarta, t('Data futura, DD/MM/AAAA.'), {
+        {campo(outro ? t('Carta do motorista válida até') : t('Carta válida até'), validadeCarta, (v) => setValidadeCarta(mascaraData(v)), erros.validadeCarta, t('Data futura, DD/MM/AAAA.'), {
           placeholder: t('DD/MM/AAAA'),
           keyboardType: 'number-pad',
         })}

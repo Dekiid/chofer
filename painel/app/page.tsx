@@ -23,7 +23,7 @@ export type Inscricao = {
   estado: 'pendente' | 'aprovada' | 'rejeitada';
   por_km_mzn: number;
   enviada_em: string;
-  dados: { nome: string; marca: string; modelo: string; ano: string; matricula: string; tipo: string; lugares: number; documento: string; cartaConducao: string; validades?: Record<string, string> };
+  dados: { nome: string; marca: string; modelo: string; ano: string; matricula: string; tipo: string; lugares: number; documento: string; cartaConducao: string; validades?: Record<string, string>; motorista?: { nome: string; telefone: string } };
 };
 export type Avaliacao = { id: string; tipo: 'motorista' | 'cliente'; telefone: string; estrelas: number; elogios: string[]; comentario: string; em: string };
 export type PedidoAjuda = {
@@ -326,7 +326,7 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
     if (error) alert(`Não foi possível guardar: ${error.message}`);
     recarregar();
   }
-  const notas = (tel: string) => d.avaliacoes.filter((a) => a.tipo === 'motorista' && a.telefone === tel);
+  const notas = (i: Inscricao) => d.avaliacoes.filter((a) => a.tipo === 'motorista' && a.telefone === (i.dados.motorista?.telefone ?? i.telefone));
   return (
     <>
       <h1>Motoristas e carros</h1>
@@ -345,12 +345,18 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
           </thead>
           <tbody>
             {lista.map((i) => {
-              const n = notas(i.telefone);
+              const n = notas(i);
               return (
                 <tr key={i.id}>
                   <td>
-                    {i.dados.nome}
+                    {i.dados.motorista ? `Dono: ${i.dados.nome}` : i.dados.nome}
                     <div className="sec">{i.telefone}</div>
+                    {i.dados.motorista && (
+                      <div>
+                        Conduz: {i.dados.motorista.nome}
+                        <div className="sec">{i.dados.motorista.telefone}</div>
+                      </div>
+                    )}
                     <div className="sec">Enviada {dataHora(i.enviada_em)}</div>
                   </td>
                   <td>
@@ -451,7 +457,10 @@ function Avaliacoes({ d }: { d: Dados }) {
   const porPessoa = Object.entries(
     lista.reduce<Record<string, Avaliacao[]>>((acc, a) => ({ ...acc, [a.telefone]: [...(acc[a.telefone] ?? []), a] }), {}),
   ).sort((a, b) => (media(a[1]) ?? 0) - (media(b[1]) ?? 0));
-  const nomeMotorista = (tel: string) => d.inscricoes.find((i) => i.telefone === tel)?.dados.nome ?? tel;
+  const nomeMotorista = (tel: string) => {
+    const i = d.inscricoes.find((x) => (x.dados.motorista?.telefone ?? x.telefone) === tel);
+    return i ? (i.dados.motorista?.nome ?? i.dados.nome) : tel;
+  };
   return (
     <>
       <div className="linha" style={{ justifyContent: 'space-between' }}>

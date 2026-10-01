@@ -37,6 +37,8 @@ export type ViagemFeita = {
   paragens: Lugar[];
   destino: Lugar;
   viatura: string;
+  /** Id do carro, para o resumo do dono. */
+  viaturaId?: string;
   motorista: Motorista;
   km: number;
   minutos: number;

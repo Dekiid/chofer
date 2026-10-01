@@ -281,11 +281,12 @@ export const MOTORISTA_ABERTO_EM_TESTES = true;
 /** Números que já são motoristas, mesmo depois de fechar o modo de testes (pedido do Flavio). */
 export const MOTORISTAS_DE_TESTE = ['+258841234567'];
 
-/** Pode usar o modo motorista: a conta de demonstração, ou quem tem uma inscrição de motorista aprovada com o mesmo número. */
-export function podeConduzir(perfil: Perfil | null, inscricoes: { telefone: string; estado: string }[]): boolean {
+/** Pode usar o modo motorista: a conta de demonstração, ou quem conduz um carro com inscrição aprovada (dono ou motorista indicado). */
+export function podeConduzir(perfil: Perfil | null, inscricoes: { telefone: string; estado: string; motorista?: { telefone: string } }[]): boolean {
   if (!perfil) return false;
   if (MOTORISTA_ABERTO_EM_TESTES || perfil.motoristaDemo || MOTORISTAS_DE_TESTE.includes(perfil.telefone)) return true;
-  return inscricoes.some((i) => i.estado === 'aprovada' && i.telefone === perfil.telefone);
+  // Quem conduz o carro aprovado: o dono, ou o motorista que o dono indicou.
+  return inscricoes.some((i) => i.estado === 'aprovada' && (i.motorista?.telefone ?? i.telefone) === perfil.telefone);
 }
 
 export function useSessao(): Sessao {

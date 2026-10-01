@@ -50,6 +50,7 @@ export function usePedirAgora(): () => Promise<string | null> {
       paragens: pedido.paragens,
       destino,
       viatura: nomeViatura(viatura),
+      viaturaId: viatura.id,
       motorista: viatura.motorista ?? MOTORISTA_EXEMPLO,
       km: rota.km,
       minutos: rota.minutos,

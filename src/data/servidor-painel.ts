@@ -43,3 +43,10 @@ export async function lerRespostasAjuda(
 ): Promise<{ id: string; estado: 'aberto' | 'resolvido'; resposta: string | null; reembolso_mzn: number | null; respondido_em: string | null }[]> {
   return ((await chamar('respostas_ajuda', { p_telefone: telefone })) as never[] | null) ?? [];
 }
+
+/** Viagens dos carros deste dono, guardadas no servidor pelos telemóveis dos clientes. */
+export async function lerViagensDosCarros(
+  telefone: string,
+): Promise<{ id: string; viatura_id: string; estado: string; total_mzn: number; dados: { precoMzn?: number; descontoMzn?: number; gorjetaMzn?: number; km?: number }; atualizada_em: string }[]> {
+  return ((await chamar('viagens_dos_carros', { p_telefone: telefone })) as never[] | null) ?? [];
+}

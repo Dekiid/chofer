@@ -60,7 +60,15 @@ export type DadosInscricao = {
   fotos: Record<FotoPedida, string>;
   /** Data de fim de cada documento. */
   validades?: Partial<Record<Documento, Date>>;
+  /**
+   * Quem conduz o carro, quando não é o dono. O nome, o telefone e o BI de cima são do dono;
+   * a carta de condução é de quem conduz.
+   */
+  motorista?: { nome: string; telefone: string };
 };
+
+/** Número de quem conduz este carro: o motorista indicado pelo dono, ou o próprio dono. */
+export const telefoneCondutor = (i: Pick<DadosInscricao, 'telefone' | 'motorista'>) => i.motorista?.telefone ?? i.telefone;
 
 export type Inscricao = DadosInscricao & {
   id: string;
@@ -132,7 +140,8 @@ export function InscricoesProvider({ children }: { children: ReactNode }) {
 }
 
 function paraViatura(i: Inscricao): Viatura {
-  const motorista: Motorista = { nome: i.nome, telefone: i.telefone, matricula: i.matricula };
+  // O cliente vê e liga a quem conduz, não ao dono.
+  const motorista: Motorista = { nome: i.motorista?.nome ?? i.nome, telefone: telefoneCondutor(i), matricula: i.matricula };
   return {
     id: i.id,
     marca: i.marca,

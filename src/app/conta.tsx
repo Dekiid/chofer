@@ -16,6 +16,7 @@ import { t } from '@/i18n';
 import { useIdioma } from '@/i18n/idioma';
 import { LOCAIS, useConta } from '@/state/conta';
 import { useAvaliacoes } from '@/state/avaliacoes';
+import { useInscricoes } from '@/state/inscricoes';
 import { useMotoristaAprovado } from '@/state/permissoes';
 import { MOTORISTA_ABERTO_EM_TESTES, useSessao } from '@/state/sessao';
 import { Text } from '@/components/texto';
@@ -27,6 +28,7 @@ export default function Conta() {
   const conta = useConta();
   const sessao = useSessao();
   const motorista = useMotoristaAprovado();
+  const meusCarros = useInscricoes().inscricoes.filter((i) => i.telefone === sessao.perfil?.telefone).length;
   const { marcarAvisosLidos } = conta;
   const { idioma, setIdioma } = useIdioma();
   const agora = new Date();
@@ -120,6 +122,16 @@ export default function Conta() {
             <Text style={s.nome}>{t('Conduzir com a Chauffeur')}</Text>
             <Text style={s.secundario}>
               {motorista.inscricao === 'rejeitada' ? t('A tua inscrição não foi aprovada. Podes enviar outra.') : t('Inscreve o teu carro. Depois de aprovado, abres aqui o modo motorista.')}
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Donos de carros (que conduzem ou não): resumo de cada carro. */}
+        {meusCarros > 0 && (
+          <Pressable onPress={() => router.push('/frota')} style={s.entrada}>
+            <Text style={s.nome}>{t('Os meus carros')}</Text>
+            <Text style={s.secundario}>
+              {meusCarros === 1 ? t('{n} carro · ganhos, motoristas e documentos', { n: meusCarros }) : t('{n} carros · ganhos, motoristas e documentos', { n: meusCarros })}
             </Text>
           </Pressable>
         )}
