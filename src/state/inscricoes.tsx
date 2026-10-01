@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 import type { PrecoCasamento, Viatura } from '@/data/categorias';
+import { useGuardado } from '@/data/guardar';
 import type { Motorista } from '@/data/motorista';
 
 /** Fotos que pedimos a cada motorista; a de frente é a que aparece na app. */
@@ -12,6 +13,29 @@ export const FOTOS_PEDIDAS = [
 ] as const;
 
 export type FotoPedida = (typeof FOTOS_PEDIDAS)[number]['id'];
+
+/** Documentos com validade que cada motorista tem de manter em dia. */
+export const DOCUMENTOS = [
+  { id: 'carta', nome: 'Carta de condução' },
+  { id: 'seguro', nome: 'Seguro do carro' },
+  { id: 'inspecao', nome: 'Inspeção do carro' },
+] as const;
+export type Documento = (typeof DOCUMENTOS)[number]['id'];
+
+/** Dias antes do fim da validade em que o motorista começa a ser avisado. */
+export const AVISO_VALIDADE_DIAS = 30;
+
+export type EstadoDocumento = { documento: Documento; nome: string; validade: Date | null; dias: number | null; estado: 'ok' | 'a_expirar' | 'expirado' | 'em_falta' };
+
+/** Como está cada documento, a contar de hoje. */
+export function estadoDocumentos(validades: Partial<Record<Documento, Date>> | undefined, hoje = new Date()): EstadoDocumento[] {
+  return DOCUMENTOS.map((d) => {
+    const validade = validades?.[d.id] ? new Date(validades[d.id]!) : null;
+    if (!validade) return { documento: d.id, nome: d.nome, validade, dias: null, estado: 'em_falta' };
+    const dias = Math.ceil((validade.getTime() - hoje.getTime()) / 86_400_000);
+    return { documento: d.id, nome: d.nome, validade, dias, estado: dias < 0 ? 'expirado' : dias <= AVISO_VALIDADE_DIAS ? 'a_expirar' : 'ok' };
+  });
+}
 
 export type EstadoInscricao = 'pendente' | 'aprovada' | 'rejeitada';
 
@@ -32,6 +56,8 @@ export type DadosInscricao = {
   casamento?: PrecoCasamento;
   /** URI local de cada foto. */
   fotos: Record<FotoPedida, string>;
+  /** Data de fim de cada documento. */
+  validades?: Partial<Record<Documento, Date>>;
 };
 
 export type Inscricao = DadosInscricao & {
@@ -46,16 +72,18 @@ type Inscricoes = {
   /** Aprova com o preço proposto, ou com outro se o ajustarmos. */
   aprovar: (id: string, porKmMzn: number) => void;
   rejeitar: (id: string) => void;
+  /** O motorista renova um documento. */
+  renovarDocumento: (id: string, documento: Documento, validade: Date) => void;
   /** Carros aprovados, prontos para aparecer na lista de escolha. */
   viaturasAprovadas: Viatura[];
 };
 
 const InscricoesContext = createContext<Inscricoes | null>(null);
 
-// Protótipo: as inscrições ficam só na memória do telemóvel. No produto final vão para o Supabase
+// Protótipo: as inscrições ficam guardadas neste telemóvel. No produto final vão para o Supabase
 // e a aprovação passa para o painel de gestão.
 export function InscricoesProvider({ children }: { children: ReactNode }) {
-  const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
+  const [inscricoes, setInscricoes] = useGuardado<Inscricao[]>('chauffeur.inscricoes', []);
 
   const valor = useMemo<Inscricoes>(() => {
     const mudarEstado = (id: string, estado: EstadoInscricao, porKmMzn?: number) =>
@@ -67,9 +95,11 @@ export function InscricoesProvider({ children }: { children: ReactNode }) {
         setInscricoes((atual) => [{ ...dados, id: `insc-${Date.now()}`, estado: 'pendente', enviadaEm: new Date() }, ...atual]),
       aprovar: (id, porKmMzn) => mudarEstado(id, 'aprovada', porKmMzn),
       rejeitar: (id) => mudarEstado(id, 'rejeitada'),
+      renovarDocumento: (id, documento, validade) =>
+        setInscricoes((atual) => atual.map((i) => (i.id === id ? { ...i, validades: { ...i.validades, [documento]: validade } } : i))),
       viaturasAprovadas: inscricoes.filter((i) => i.estado === 'aprovada').map(paraViatura),
     };
-  }, [inscricoes]);
+  }, [inscricoes, setInscricoes]);
 
   return <InscricoesContext.Provider value={valor}>{children}</InscricoesContext.Provider>;
 }

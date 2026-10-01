@@ -15,6 +15,7 @@ import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
 import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
+import { avisarMotoristaPorPush } from '@/data/push';
 import { publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta } from '@/state/conta';
@@ -190,7 +191,10 @@ export default function Pagamento() {
     });
     // Viagem marcada: vai já para a agenda do motorista do carro, com um aviso.
     // Os pedidos para agora saem do ecrã da viagem.
-    if (TEMPO_REAL_ATIVO && agendada) publicar({ tipo: 'pedido', pedido: paraMotorista });
+    if (TEMPO_REAL_ATIVO && agendada) {
+      publicar({ tipo: 'pedido', pedido: paraMotorista });
+      avisarMotoristaPorPush(paraMotorista.viaturaId, 'Nova reserva', `${paraMotorista.origem.nome} → ${paraMotorista.destino.nome}. Já está paga e na tua agenda.`, { id: paraMotorista.id });
+    }
     conta.setPromo(null);
     conta.avisar(
       'Pagamento confirmado',

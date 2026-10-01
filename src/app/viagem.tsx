@@ -16,6 +16,7 @@ import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { calcularRota, pontoNaRota, restoDaRota, restoDesde, type Rota } from '@/data/rotas';
 import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
+import { avisarMotoristaPorPush } from '@/data/push';
 import { ouvir, publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
 import type { Motorista } from '@/data/motorista';
@@ -119,6 +120,8 @@ export default function Viagem() {
         pagaNoFim: viagemConta?.porPagar,
       },
     });
+    // Com a app do motorista fechada, o aviso chega por push (precisa da versão de desenvolvimento).
+    avisarMotoristaPorPush(v.id, 'Novo pedido para agora', `${origem.nome} → ${destino.nome}. Tens 1 minuto para aceitar.`, { id: idPedido });
     const t = setTimeout(() => {
       setMotivoSemResposta('O motorista não respondeu a tempo.');
       setFase((f) => (f === 'procurar' ? 'sem_resposta' : f));

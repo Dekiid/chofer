@@ -9,6 +9,7 @@ import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { COMISSAO, formatarMzn, TIPOS_VIATURA } from '@/data/categorias';
+import { lerData, mascaraData } from '@/data/datas';
 import { normalizarTelefone } from '@/data/motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type FotoPedida } from '@/state/inscricoes';
 import { useSessao } from '@/state/sessao';
@@ -17,6 +18,11 @@ import { Text, TextInput } from '@/components/texto';
 const LUGARES = [4, 5, 7];
 // Distância usada no exemplo de ganhos da nota da comissão.
 const KM_EXEMPLO = 10;
+
+const validadeFutura = (t: string) => {
+  const d = lerData(t);
+  return d != null && d.getTime() > Date.now();
+};
 
 export default function Inscricao() {
   const cores = usePalette();
@@ -40,6 +46,9 @@ export default function Inscricao() {
   const [semDecoracao, setSemDecoracao] = useState('');
   const [comDecoracao, setComDecoracao] = useState('');
   const [fotoDecorada, setFotoDecorada] = useState<string | null>(null);
+  const [validadeCarta, setValidadeCarta] = useState('');
+  const [validadeSeguro, setValidadeSeguro] = useState('');
+  const [validadeInspecao, setValidadeInspecao] = useState('');
   const [fotos, setFotos] = useState<Partial<Record<FotoPedida, string>>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
   const [enviada, setEnviada] = useState(false);
@@ -58,6 +67,9 @@ export default function Inscricao() {
     semDecoracao: casamentos && !(Number(semDecoracao) > 0),
     comDecoracao: casamentos && !(Number(comDecoracao) > 0),
     fotos: FOTOS_PEDIDAS.some((f) => !fotos[f.id]),
+    validadeCarta: !validadeFutura(validadeCarta),
+    validadeSeguro: !validadeFutura(validadeSeguro),
+    validadeInspecao: !validadeFutura(validadeInspecao),
   };
   const valido = !Object.values(erros).some(Boolean);
 
@@ -85,6 +97,7 @@ export default function Inscricao() {
         ? { semDecoracaoMzn: Number(semDecoracao), comDecoracaoMzn: Number(comDecoracao), foto: fotoDecorada ? { uri: fotoDecorada } : undefined }
         : undefined,
       fotos: fotos as Record<FotoPedida, string>,
+      validades: { carta: lerData(validadeCarta)!, seguro: lerData(validadeSeguro)!, inspecao: lerData(validadeInspecao)! },
     });
     setEnviada(true);
   }
@@ -135,6 +148,10 @@ export default function Inscricao() {
         {campo('Número da carta de condução', cartaConducao, setCartaConducao, erros.cartaConducao, 'Escreve o número da carta.', {
           autoCapitalize: 'characters',
         })}
+        {campo('Carta válida até', validadeCarta, (t) => setValidadeCarta(mascaraData(t)), erros.validadeCarta, 'Data futura, DD/MM/AAAA.', {
+          placeholder: 'DD/MM/AAAA',
+          keyboardType: 'number-pad',
+        })}
 
         <Text style={s.secao}>O carro</Text>
         <View style={s.linha}>
@@ -145,6 +162,20 @@ export default function Inscricao() {
           <View style={{ flex: 1 }}>{campo('Ano', ano, setAno, erros.ano, 'Ex.: 2021.', { placeholder: '2021', keyboardType: 'number-pad', maxLength: 4 })}</View>
           <View style={{ flex: 1 }}>
             {campo('Matrícula', matricula, setMatricula, erros.matricula, 'Obrigatório.', { placeholder: 'AFK 123 MC', autoCapitalize: 'characters' })}
+          </View>
+        </View>
+        <View style={s.linha}>
+          <View style={{ flex: 1 }}>
+            {campo('Seguro válido até', validadeSeguro, (t) => setValidadeSeguro(mascaraData(t)), erros.validadeSeguro, 'Data futura.', {
+              placeholder: 'DD/MM/AAAA',
+              keyboardType: 'number-pad',
+            })}
+          </View>
+          <View style={{ flex: 1 }}>
+            {campo('Inspeção válida até', validadeInspecao, (t) => setValidadeInspecao(mascaraData(t)), erros.validadeInspecao, 'Data futura.', {
+              placeholder: 'DD/MM/AAAA',
+              keyboardType: 'number-pad',
+            })}
           </View>
         </View>
 

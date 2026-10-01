@@ -6,15 +6,19 @@ import type { Ponto } from '@/components/mapa-tipos';
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { COMISSAO, nomeViatura, type Viatura } from '@/data/categorias';
+import { useGuardado } from '@/data/guardar';
 import { LOCALIZACAO_PADRAO, LUGARES } from '@/data/lugares';
+import { comecarLocalizacaoFundo, pararLocalizacaoFundo } from '@/data/localizacao-fundo';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import { calcularRota, calcularRotaPor, pontoNaRota, rotaEstimadaPor, type Rota } from '@/data/rotas';
 import { gerarCodigoRecolha } from '@/data/seguranca';
+import { registarPushMotorista } from '@/data/push';
 import { pararPedido, tocarPedido } from '@/data/som-pedido';
 import { ouvir, publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, distanciaKm } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
+import { useSessao } from '@/state/sessao';
 
 export type FaseMotorista = 'a_recolha' | 'chegou' | 'em_viagem' | 'concluida';
 export type ViagemMotorista = { pedido: PedidoMotorista; fase: FaseMotorista; rota: Rota | null };
@@ -46,7 +50,7 @@ type ModoMotorista = {
   viagem: ViagemMotorista | null;
   /** Reservas do carro, por data. Já estão pagas e a agenda garante que o carro está livre, por isso ficam confirmadas logo. */
   agendadas: PedidoMotorista[];
-  /** Viagens concluídas hoje, para a lista de pedidos feitos. */
+  /** Viagens concluídas, guardadas neste telemóvel, para os pedidos feitos e os ganhos. */
   feitas: { pedido: PedidoMotorista; concluidaEm: string }[];
   simularReserva: () => void;
   ganhosHoje: number;
@@ -89,9 +93,15 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   const agendadas = [...recebidas, ...doServidor.filter((p) => !recebidas.some((x) => x.id === p.id))]
     .filter((p) => !comecadas.includes(p.id))
     .sort(porData);
-  const [feitas, setFeitas] = useState<{ pedido: PedidoMotorista; concluidaEm: string }[]>([]);
-  const [ganhosHoje, setGanhosHoje] = useState(0);
-  const [viagensHoje, setViagensHoje] = useState(0);
+  // As viagens feitas ficam guardadas neste telemóvel, por motorista, para o ecrã de ganhos.
+  const { perfil } = useSessao();
+  const [feitas, setFeitas] = useGuardado<{ pedido: PedidoMotorista; concluidaEm: string }[]>(
+    perfil?.telefone ? `chauffeur.motorista.${perfil.telefone}.feitas` : null,
+    [],
+  );
+  const deHoje = feitas.filter((f) => new Date(f.concluidaEm).toDateString() === new Date().toDateString());
+  const ganhosHoje = deHoje.reduce((t, f) => t + ganhoMotorista(f.pedido), 0);
+  const viagensHoje = deHoje.length;
 
   // Os eventos chegam fora do ciclo do React; estas referências têm sempre o estado atual.
   const atual = useRef({ online, viaturaId, pedidoNovo, viagem, posicao, eu, simular });
@@ -129,6 +139,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
           if (a.pedidoNovo?.id === e.id) setPedidoNovo(null);
           if (a.viagem?.pedido.id === e.id) {
             setViagem(null);
+            pararLocalizacaoFundo();
             Vibration.vibrate();
             avisarNoTelemovel('Viagem cancelada', 'O cliente cancelou a viagem.');
           }
@@ -204,6 +215,8 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   // Sem servidor, o primeiro pedido simulado chega pouco depois de ficar online.
   const iniciarViagem = useCallback(async (pedido: PedidoMotorista) => {
     setViagem({ pedido, fase: 'a_recolha', rota: null });
+    // Com a app em segundo plano, a posição continua a ir para o cliente (precisa da versão de desenvolvimento).
+    if (!atual.current.simular) comecarLocalizacaoFundo(pedido.id);
     const rota = await calcularRota(atual.current.posicao, pedido.origem);
     setViagem((v) => (v?.pedido.id === pedido.id && v.fase === 'a_recolha' ? { ...v, rota } : v));
   }, []);
@@ -271,6 +284,8 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       online,
       setOnline: (v) => {
         setOnline(v);
+        // Para receber pedidos com a app fechada.
+        if (v && viatura && perfil?.telefone) registarPushMotorista(viatura.id, perfil.telefone);
         if (!v) setPedidoNovo(null);
       },
       posicao,
@@ -325,20 +340,20 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
         if (!viagem) return;
         publicar({ tipo: 'estado', id: viagem.pedido.id, estado: 'concluida' });
         if (simular) setPosicao(viagem.pedido.destino);
-        setGanhosHoje((g) => g + ganhoMotorista(viagem.pedido));
-        setViagensHoje((n) => n + 1);
+        pararLocalizacaoFundo();
         setFeitas((l) => [{ pedido: viagem.pedido, concluidaEm: new Date().toISOString() }, ...l]);
         setViagem({ ...viagem, fase: 'concluida', rota: null });
       },
       cancelarViagem: () => {
         if (!viagem) return;
         publicar({ tipo: 'cancelado', id: viagem.pedido.id, por: 'motorista' });
+        pararLocalizacaoFundo();
         setViagem(null);
       },
       fecharResumo: () => setViagem(null),
       simularPedido,
     }),
-    [viatura, eu, online, posicao, simular, pedidoNovo, expiraEm, viagem, agendadas, feitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva],
+    [viatura, perfil, eu, online, posicao, simular, pedidoNovo, expiraEm, viagem, agendadas, feitas, setFeitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

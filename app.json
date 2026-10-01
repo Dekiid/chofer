@@ -42,7 +42,16 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O Chauffeur usa a tua localização para indicar onde o motorista te deve buscar."
+          "locationAlwaysAndWhenInUsePermission": "O Chauffeur usa a tua localização durante as viagens, mesmo com a app em segundo plano, para o cliente ver onde está o carro.",
+          "locationWhenInUsePermission": "O Chauffeur usa a tua localização para indicar onde o motorista te deve buscar.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#22C55E"
         }
       ],
       [

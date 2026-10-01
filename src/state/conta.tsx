@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
+import { useGuardado } from '@/data/guardar';
 import { ouvir, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { LUGARES, type Lugar } from '@/data/lugares';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import type { Promo } from '@/data/promocoes';
 import type { Pagamento } from '@/state/pedido';
+import { useSessao } from '@/state/sessao';
 
 export type TipoLocal = 'casa' | 'trabalho' | 'aeroporto';
 export const LOCAIS: { tipo: TipoLocal; nome: string }[] = [
@@ -115,10 +117,17 @@ function viagensExemplo(): ViagemFeita[] {
   ];
 }
 
-// Protótipo: tudo em memória. No produto final a conta, as viagens e o chat vivem no Supabase.
+// Protótipo: as viagens e os locais ficam guardados neste telemóvel, por conta. O chat fica em memória.
+// No produto final a conta, as viagens e o chat vivem no Supabase.
 export function ContaProvider({ children }: { children: ReactNode }) {
-  const [locais, setLocais] = useState<Record<TipoLocal, Lugar | null>>({ casa: null, trabalho: null, aeroporto: LUGARES.find((l) => l.id === 'aeroporto') ?? null });
-  const [viagens, setViagens] = useState<ViagemFeita[]>(viagensExemplo);
+  const { perfil } = useSessao();
+  const chave = perfil?.telefone ? `chauffeur.dados.${perfil.telefone}` : null;
+  const [locais, setLocais] = useGuardado<Record<TipoLocal, Lugar | null>>(chave && `${chave}.locais`, () => ({
+    casa: null,
+    trabalho: null,
+    aeroporto: LUGARES.find((l) => l.id === 'aeroporto') ?? null,
+  }));
+  const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo);
   const [viagemAtualId, setViagemAtualId] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
@@ -165,7 +174,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       if (e.tipo === 'estado' && e.estado === 'chegou') avisar('O teu chauffeur chegou', `Diz-lhe o código ${v.codigoRecolha}.`);
       if (e.tipo === 'estado' && e.estado === 'concluida') setViagens((l) => l.map((x) => (x.id === v.id ? { ...x, estado: 'concluida' } : x)));
     });
-  }, [avisar]);
+  }, [avisar, setViagens]);
 
   const enviarMensagem = useCallback((texto: string) => {
     const limpo = texto.trim();
@@ -214,7 +223,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       creditoMzn: 0,
       amigosConvidados: 0,
     };
-  }, [locais, viagens, viagemAtualId, mensagens, avisos, avisoTopo, avisosNoTelemovel, promo, avisar, enviarMensagem, marcarChatLido]);
+  }, [locais, setLocais, viagens, setViagens, viagemAtualId, mensagens, avisos, avisoTopo, avisosNoTelemovel, promo, avisar, enviarMensagem, marcarChatLido]);
 
   return <ContaContext.Provider value={valor}>{children}</ContaContext.Provider>;
 }

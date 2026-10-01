@@ -16,11 +16,11 @@ import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
+import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
 import { ganhoMotorista, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import { PercursoViagem } from '@/components/percurso-viagem';
-import { useInscricoes } from '@/state/inscricoes';
 import { useSessao } from '@/state/sessao';
 
 /** App do motorista, como a da Uber: ficar online, receber e aceitar pedidos, ir buscar, confirmar o código, levar e terminar. */
@@ -51,12 +51,14 @@ export default function MotoristaEcra() {
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <BotaoVoltar onPress={() => router.back()} />
         {m.viatura && (
-          <Vidro style={s.ganhos}>
-            <Text style={s.ganhosValor}>{formatarMzn(m.ganhosHoje)}</Text>
-            <Text style={s.ganhosTexto}>
-              Hoje · {m.viagensHoje} {m.viagensHoje === 1 ? 'viagem' : 'viagens'}
-            </Text>
-          </Vidro>
+          <Pressable onPress={() => router.push('/ganhos')} accessibilityLabel="Ver ganhos">
+            <Vidro style={s.ganhos}>
+              <Text style={s.ganhosValor}>{formatarMzn(m.ganhosHoje)}</Text>
+              <Text style={s.ganhosTexto}>
+                Hoje · {m.viagensHoje} {m.viagensHoje === 1 ? 'viagem' : 'viagens'} ›
+              </Text>
+            </Vidro>
+          </Pressable>
         )}
         <View style={{ width: 44 }} />
       </SafeAreaView>
@@ -118,6 +120,13 @@ function EscolherCarro({ s }: { s: S }) {
 function Disponivel({ s }: { s: S }) {
   const cores = usePalette();
   const m = useModoMotorista();
+  const { inscricoes } = useInscricoes();
+  // Documentos do carro inscrito (os carros de exemplo da conta demo não têm).
+  const inscricao = inscricoes.find((i) => i.id === m.viatura?.id);
+  const documentos = inscricao ? estadoDocumentos(inscricao.validades) : [];
+  const expirados = documentos.filter((d) => d.estado === 'expirado' || d.estado === 'em_falta');
+  const aExpirar = documentos.filter((d) => d.estado === 'a_expirar');
+  const bloqueado = expirados.length > 0;
   return (
     <>
       <View style={s.estado}>
@@ -145,6 +154,33 @@ function Disponivel({ s }: { s: S }) {
         <Text style={s.seta}>›</Text>
       </Pressable>
 
+      {inscricao && (
+        <Pressable
+          onPress={() => router.push({ pathname: '/documentos', params: { id: inscricao.id } })}
+          style={[s.caixa, s.linhaReserva, (bloqueado || aExpirar.length > 0) && { borderWidth: 1.5, borderColor: bloqueado ? '#DC2626' : '#F59E0B' }]}
+          accessibilityLabel="Documentos">
+          <View style={{ flex: 1 }}>
+            <Text style={s.nomePequeno}>Documentos</Text>
+            <Text style={s.secundarioPequeno}>
+              {bloqueado
+                ? `${expirados.map((d) => d.nome).join(', ')}: ${expirados.some((d) => d.estado === 'em_falta') ? 'falta a validade' : 'expirado'}. Atualiza para ficares online.`
+                : aExpirar.length > 0
+                  ? aExpirar.map((d) => `${d.nome} expira em ${d.dias} ${d.dias === 1 ? 'dia' : 'dias'}`).join(' · ')
+                  : 'Carta, seguro e inspeção em dia.'}
+            </Text>
+          </View>
+          <Text style={s.seta}>›</Text>
+        </Pressable>
+      )}
+
+      <Pressable onPress={() => router.push('/ganhos')} style={[s.caixa, s.linhaReserva]} accessibilityLabel="Ganhos">
+        <View style={{ flex: 1 }}>
+          <Text style={s.nomePequeno}>Ganhos</Text>
+          <Text style={s.secundarioPequeno}>Por dia e por semana, e quando recebes.</Text>
+        </View>
+        <Text style={s.seta}>›</Text>
+      </Pressable>
+
       <View style={s.linhaDefinicao}>
         <View style={{ flex: 1 }}>
           <Text style={s.nomePequeno}>Simular a condução</Text>
@@ -164,7 +200,12 @@ function Disponivel({ s }: { s: S }) {
       )}
 
       <View style={{ gap: Spacing.two }}>
-        <BotaoPrincipal texto={m.online ? 'Ficar offline' : 'Ficar online'} escuro={m.online} onPress={() => m.setOnline(!m.online)} />
+        <BotaoPrincipal
+          texto={m.online ? 'Ficar offline' : bloqueado ? 'Atualiza os documentos' : 'Ficar online'}
+          escuro={m.online}
+          desativado={!m.online && bloqueado}
+          onPress={() => m.setOnline(!m.online)}
+        />
         {!m.online && <BotaoSecundario texto="Mudar de carro" onPress={() => m.escolherViatura(null)} />}
       </View>
     </>

@@ -9,6 +9,8 @@ import { AvisoTopo } from '@/components/aviso-topo';
 import { BemVindo } from '@/components/bem-vindo';
 import { Logo } from '@/components/logo';
 import { Text } from '@/components/texto';
+// Define a tarefa da localização em segundo plano logo ao abrir a app, como o TaskManager exige.
+import '@/data/localizacao-fundo';
 
 import { AgendaProvider } from '@/state/agenda';
 import { ContaProvider } from '@/state/conta';
@@ -98,6 +100,8 @@ function Navegacao() {
           {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}
           <Stack.Screen name="motorista" options={{ gestureEnabled: false }} />
           <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="ganhos" />
+          <Stack.Screen name="documentos" />
         </Stack.Protected>
       </Stack.Protected>
       <Stack.Protected guard={!sessao.completo}>
