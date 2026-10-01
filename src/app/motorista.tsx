@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import { LayoutAnimation, Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
@@ -96,6 +95,14 @@ export default function MotoristaEcra() {
   );
 }
 
+// Mola da caixa do modo motorista: abre e fecha devagar, sem saltar.
+const SUAVE = {
+  duration: 380,
+  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+  update: { type: LayoutAnimation.Types.spring, springDamping: 0.82 },
+  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+};
+
 type S = ReturnType<typeof estilos>;
 
 /** Mola da caixa do motorista: rápida a arrancar e sem ressalto no fim. */
@@ -172,7 +179,8 @@ function Disponivel({ s }: { s: S }) {
   const nota = useAvaliacoes().mediaMotorista(m.eu.telefone);
   // A caixa baixa com o dedo e fica só com os botões (ficar online, mudar de carro, pausa…); sobe para ver tudo.
   // Como no ecrã de confirmar a viagem: a caixa aberta e a fechada são duas vistas diferentes, cada uma com o seu gesto
-  // (a aberta só ouve o puxar para baixo, a fechada só o puxar para cima). A troca entre as duas é animada.
+  // (a aberta só ouve o puxar para baixo, a fechada só o puxar para cima). A troca é animada pelo próprio sistema
+  // (LayoutAnimation): a caixa cresce e encolhe com uma mola suave e o texto aparece e desaparece aos poucos, sem mexer nos gestos.
   const [recolhido, setRecolhido] = useState(false);
   const listaNoTopo = useRef(true);
   const [puxarParaBaixo] = useState(() =>
@@ -180,7 +188,10 @@ function Disponivel({ s }: { s: S }) {
       // Com a lista do meio a meio, puxar para baixo rola a lista; no topo, fecha a caixa.
       onMoveShouldSetPanResponderCapture: (_, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5 && listaNoTopo.current,
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 20 || g.vy > 0.3) setRecolhido(true);
+        if (g.dy > 20 || g.vy > 0.3) {
+          LayoutAnimation.configureNext(SUAVE);
+          setRecolhido(true);
+        }
       },
     }),
   );
@@ -190,6 +201,7 @@ function Disponivel({ s }: { s: S }) {
       onPanResponderRelease: (_, g) => {
         if (g.dy < -20 || g.vy < -0.3) {
           listaNoTopo.current = true;
+          LayoutAnimation.configureNext(SUAVE);
           setRecolhido(false);
         }
       },
@@ -230,15 +242,15 @@ function Disponivel({ s }: { s: S }) {
   );
   if (recolhido) {
     return (
-      <Animated.View key="fechada" entering={FadeIn.duration(220)} layout={LinearTransition.springify().damping(22)} {...puxarParaCima.panHandlers}>
+      <View key="fechada" {...puxarParaCima.panHandlers}>
         <Alca />
         {estado}
         {botoes}
-      </Animated.View>
+      </View>
     );
   }
   return (
-    <Animated.View key="aberta" entering={FadeIn.duration(220)} layout={LinearTransition.springify().damping(22)} {...puxarParaBaixo.panHandlers}>
+    <View key="aberta" {...puxarParaBaixo.panHandlers}>
       <Alca />
       {estado}
       <Text style={s.secundario}>
@@ -324,7 +336,7 @@ function Disponivel({ s }: { s: S }) {
       )}
       </ScrollView>
       {botoes}
-    </Animated.View>
+    </View>
   );
 }
 
