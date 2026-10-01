@@ -92,8 +92,6 @@ function Navegacao() {
   if (sessao.estado === 'a_carregar') return <Abertura />;
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Link de partilha: abre sem conta, para a família seguir a viagem no browser. */}
-      <Stack.Screen name="seguir/[id]" />
       <Stack.Protected guard={sessao.completo}>
         <Stack.Screen name="index" />
         <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
@@ -130,6 +128,8 @@ function Navegacao() {
       </Stack.Protected>
       {/* Os termos abrem-se do registo e da conta. */}
       <Stack.Screen name="legal" options={{ animation: 'slide_from_bottom' }} />
+      {/* Link de partilha: abre sem conta, para a família seguir a viagem no browser. Fica no fim: o primeiro ecrã livre é para onde vai quem não tem conta. */}
+      <Stack.Screen name="seguir/[id]" />
     </Stack>
   );
 }
