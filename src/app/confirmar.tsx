@@ -5,13 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EscolhaHorario } from '@/components/escolha-horario';
 import { Mapa } from '@/components/mapa';
+import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoVoltar, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { formatarDia, formatarHora, minutosOcupado, reservaQueOcupa, somarMin } from '@/data/agenda';
+import { conflito, formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { lugarNoPonto } from '@/data/moradas';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
+import { useTempoConducao } from '@/hooks/use-tempo-conducao';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
@@ -21,7 +23,19 @@ export default function Confirmar() {
   const s = estilos(cores);
   const pedido = usePedido();
   const { origem, destino, paragens, viatura, quando, setQuando, rota, rotaACarregar } = pedido;
-  const { reservas } = useAgenda();
+  const { reservas, estado: estadoAgenda } = useAgenda();
+  // Tempo de condução entre as outras reservas do carro e esta viagem: do fim de cada uma até esta recolha,
+  // e do destino desta até à recolha seguinte. É a folga que o carro precisa entre reservas.
+  const agoraMs = Date.now();
+  const pares: [Ponto, Ponto][] = destino
+    ? reservas
+        .filter((r) => r.viaturaId === viatura.id && r.fim.getTime() > agoraMs)
+        .flatMap((r) => [
+          ...(r.pontoFim ? [[r.pontoFim, origem] as [Ponto, Ponto]] : []),
+          ...(r.pontoInicio ? [[destino, r.pontoInicio] as [Ponto, Ponto]] : []),
+        ])
+    : [];
+  const conducao = useTempoConducao(pares);
   // Ao tocar no mapa o painel encolhe, para se ver bem o caminho e acertar os pontos.
   const [aberto, setAberto] = useState(true);
   const encolher = () => aberto && setAberto(false);
@@ -51,13 +65,14 @@ export default function Confirmar() {
   // Km e tempo pelas estradas (Google), ou a estimativa enquanto a rota não chega.
   const { km, minutos: duracao } = rota;
   const agora = new Date();
-  const livreAgora = !reservaQueOcupa(reservas, viatura.id, agora, somarMin(agora, minutosOcupado(duracao, viatura.chegadaMin)));
+  const livreAgora = !conflito(reservas, viatura.id, { inicio: agora, fim: somarMin(agora, minutosOcupado(duracao, viatura.chegadaMin)), pontoFim: destino }, conducao);
+  const locais = { pontoInicio: origem, pontoFim: destino };
   const imediato = quando?.tipo === 'imediato';
   // Uma hora escolhida pode ter sido ocupada entretanto; nesse caso deixa de valer.
   const quandoValido =
     quando?.tipo === 'imediato'
       ? livreAgora
-      : quando?.tipo === 'agendado' && !reservaQueOcupa(reservas, viatura.id, quando.inicio, somarMin(quando.inicio, minutosOcupado(duracao)));
+      : quando?.tipo === 'agendado' && !conflito(reservas, viatura.id, { inicio: quando.inicio, fim: somarMin(quando.inicio, duracao), ...locais }, conducao);
   const preco = calcularPreco(viatura, km, imediato);
 
   return (
@@ -126,7 +141,9 @@ export default function Confirmar() {
             <Text style={s.pergunta}>Quando?</Text>
             <EscolhaHorario
               viaturaId={viatura.id}
-              ocupadoMin={minutosOcupado(duracao)}
+              duracaoMin={duracao}
+              locais={locais}
+              conducao={conducao}
               reservas={reservas}
               quando={quando}
               onMudar={setQuando}
@@ -180,6 +197,7 @@ export default function Confirmar() {
 
 function estilos(c: Palette) {
   return StyleSheet.create({
+    avisoAgenda: { color: '#D93025', fontSize: 12, marginTop: Spacing.one },
     ecra: { flex: 1, backgroundColor: c.background },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
     linha: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },

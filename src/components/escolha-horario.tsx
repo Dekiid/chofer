@@ -12,13 +12,18 @@ import {
   TAXA_IMEDIATO,
   type Quando,
   type Reserva,
+  type TempoConducao,
 } from '@/data/agenda';
+import type { Ponto } from '@/components/mapa-tipos';
 import { Text } from '@/components/texto';
 
 type Props = {
   viaturaId: string;
-  /** Minutos que a viagem ocupa o carro, margem incluída. */
-  ocupadoMin: number;
+  /** Minutos da viagem, da recolha ao destino. */
+  duracaoMin: number;
+  /** Onde a viagem começa e acaba, para contar o tempo de condução desde e até às outras reservas. */
+  locais: { pontoInicio?: Ponto; pontoFim?: Ponto };
+  conducao: TempoConducao;
   reservas: Reserva[];
   quando: Quando | null;
   onMudar: (q: Quando | null) => void;
@@ -27,14 +32,14 @@ type Props = {
 };
 
 /** Escolher entre agendar (o normal) e pedir já, com a agenda do carro. */
-export function EscolhaHorario({ viaturaId, ocupadoMin, reservas, quando, onMudar, livreAgora }: Props) {
+export function EscolhaHorario({ viaturaId, duracaoMin, locais, conducao, reservas, quando, onMudar, livreAgora }: Props) {
   const c = usePalette();
   const s = estilos(c);
   const agora = new Date();
   const dias = diasAgendaveis(agora);
   const [diaEscolhido, setDiaEscolhido] = useState(quando?.tipo === 'agendado' ? quando.inicio : dias[0]);
   const imediato = quando?.tipo === 'imediato';
-  const horarios = horariosParaAgendar(diaEscolhido, viaturaId, ocupadoMin, reservas, agora);
+  const horarios = horariosParaAgendar(diaEscolhido, viaturaId, duracaoMin, reservas, agora, locais, conducao);
   const semLivres = !horarios.some((h) => h.livre);
 
   return (
@@ -87,7 +92,7 @@ export function EscolhaHorario({ viaturaId, ocupadoMin, reservas, quando, onMuda
               );
             })}
           </ScrollView>
-          <Text style={s.legenda}>{semLivres ? 'Não há horários livres neste dia. Escolhe outro dia.' : 'Os horários riscados já estão ocupados.'}</Text>
+          <Text style={s.legenda}>{semLivres ? 'Não há horários livres neste dia. Escolhe outro dia.' : 'Os horários riscados não dão: o carro tem outra reserva ou não chega a tempo da anterior.'}</Text>
         </>
       )}
     </View>

@@ -1,10 +1,17 @@
 /** Acréscimo sobre o preço quando a viagem é pedida para já, sem agendamento. */
 export const TAXA_IMEDIATO = 0.25;
 
+import type { Ponto } from '@/components/mapa-tipos';
+
+import type { PedidoMotorista } from './tempo-real';
+import { distanciaKm, duracaoMin } from './viagem';
+
 /** Intervalo entre horários que o cliente pode escolher. */
 export const INTERVALO_MIN = 30;
-/** Tempo livre depois de cada viagem, para o motorista voltar e preparar o carro. */
+/** Folga entre duas reservas quando não se sabe onde acaba uma ou começa a outra (aluguer, bloqueio do dono). */
 export const MARGEM_MIN = 30;
+/** Além do tempo de condução até à recolha seguinte: para o motorista preparar o carro e chegar com folga. */
+export const PREPARACAO_MIN = 10;
 /** Antecedência mínima de um agendamento. */
 export const ANTECEDENCIA_MIN = 60;
 /** Dias à frente que se podem agendar. */
@@ -18,12 +25,29 @@ export type TipoReserva = 'agendada' | 'imediata' | 'bloqueio';
 export type Reserva = {
   id: string;
   viaturaId: string;
+  /** Hora da recolha. */
   inicio: Date;
+  /** Hora a que a viagem acaba (sem a folga, que depende de onde é a reserva seguinte). */
   fim: Date;
   tipo: TipoReserva;
   /** Destino da viagem, para o motorista saber para onde vai. */
   destino?: string;
+  /** Onde o carro tem de estar à hora de início (local de recolha). */
+  pontoInicio?: Ponto;
+  /** Onde o carro fica no fim (destino). */
+  pontoFim?: Ponto;
+  /** O pedido completo, para a app do motorista mostrar a reserva mesmo depois de fechada e aberta. */
+  pedido?: PedidoMotorista;
 };
+
+/** Minutos de condução entre dois pontos. */
+export type TempoConducao = (de: Ponto, para: Ponto) => number;
+
+/** Estimativa em linha reta com o fator de estrada, enquanto o Mapbox não responde. */
+export const conducaoEstimada: TempoConducao = (de, para) => duracaoMin(distanciaKm(de, para));
+
+/** Uma viagem que se quer marcar: quando começa e acaba, e onde. */
+export type Candidata = { inicio: Date; fim: Date; pontoInicio?: Ponto; pontoFim?: Ponto };
 
 /** Quando o cliente quer a viagem: numa hora marcada ou já. */
 export type Quando = { tipo: 'agendado'; inicio: Date } | { tipo: 'imediato' };
@@ -40,17 +64,42 @@ export function mesmoDia(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function sobrepoe(inicio: Date, fim: Date, r: Reserva): boolean {
-  return inicio < r.fim && r.inicio < fim;
+/**
+ * Folga entre o fim de uma reserva e o início da seguinte: o tempo de condução de onde uma acaba
+ * até onde a outra começa, mais a preparação. Sem os dois pontos, fica a margem fixa.
+ */
+export function folgaMin(fimDe: Ponto | undefined, inicioDa: Ponto | undefined, conducao: TempoConducao = conducaoEstimada): number {
+  if (!fimDe || !inicioDa) return MARGEM_MIN;
+  return conducao(fimDe, inicioDa) + PREPARACAO_MIN;
 }
 
-/** Minutos que o carro fica ocupado com uma viagem: ida, viagem e margem. */
+/**
+ * A reserva do carro que impede esta viagem, se houver. Exemplo: reserva às 11:00 que acaba às 12:30 na Matola;
+ * uma viagem às 12:00 não cabe, e uma às 13:00 no Aeroporto só cabe se der para conduzir da Matola até lá.
+ */
+export function conflito(reservas: Reserva[], viaturaId: string, c: Candidata, conducao: TempoConducao = conducaoEstimada): Reserva | undefined {
+  return reservas.find((r) => {
+    if (r.viaturaId !== viaturaId) return false;
+    // O bloqueio do dono é só o intervalo marcado; as viagens têm a folga para chegar à seguinte.
+    const depoisDeR = r.tipo === 'bloqueio' ? 0 : folgaMin(r.pontoFim, c.pontoInicio, conducao);
+    const antesDeR = folgaMin(c.pontoFim, r.pontoInicio, conducao);
+    return c.inicio < somarMin(r.fim, depoisDeR) && r.inicio < somarMin(c.fim, antesDeR);
+  });
+}
+
+/** Minutos desde a recolha (ou desde o pedido, se é para já) até ao fim da viagem. */
 export function minutosOcupado(duracaoViagemMin: number, chegadaMin = 0): number {
-  return chegadaMin + duracaoViagemMin + MARGEM_MIN;
+  return chegadaMin + duracaoViagemMin;
 }
 
+/** A reserva que está mesmo nesse intervalo, sem folgas (para o calendário do dono). */
+export function reservaNoIntervalo(reservas: Reserva[], viaturaId: string, inicio: Date, fim: Date): Reserva | undefined {
+  return reservas.find((r) => r.viaturaId === viaturaId && inicio < r.fim && r.inicio < fim);
+}
+
+/** Sobreposição sem saber os locais (aluguer, calendário do dono): usa a margem fixa. */
 export function reservaQueOcupa(reservas: Reserva[], viaturaId: string, inicio: Date, fim: Date): Reserva | undefined {
-  return reservas.find((r) => r.viaturaId === viaturaId && sobrepoe(inicio, fim, r));
+  return conflito(reservas, viaturaId, { inicio, fim });
 }
 
 /** Próximos dias em que se pode agendar, a começar hoje. */
@@ -68,12 +117,20 @@ export function horariosDoDia(dia: Date): Date[] {
   return lista;
 }
 
-/** Horários de um dia para uma viagem com esta duração, marcando os que já não estão livres. */
-export function horariosParaAgendar(dia: Date, viaturaId: string, ocupadoMin: number, reservas: Reserva[], agora: Date) {
+/** Horários de um dia para uma viagem com esta duração e estes locais, marcando os que já não estão livres. */
+export function horariosParaAgendar(
+  dia: Date,
+  viaturaId: string,
+  duracaoMin: number,
+  reservas: Reserva[],
+  agora: Date,
+  locais: { pontoInicio?: Ponto; pontoFim?: Ponto } = {},
+  conducao: TempoConducao = conducaoEstimada,
+) {
   const limite = somarMin(agora, ANTECEDENCIA_MIN);
   return horariosDoDia(dia).map((inicio) => ({
     inicio,
-    livre: inicio >= limite && !reservaQueOcupa(reservas, viaturaId, inicio, somarMin(inicio, ocupadoMin)),
+    livre: inicio >= limite && !conflito(reservas, viaturaId, { inicio, fim: somarMin(inicio, duracaoMin), ...locais }, conducao),
   }));
 }
 

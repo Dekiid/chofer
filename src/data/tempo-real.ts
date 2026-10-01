@@ -1,4 +1,4 @@
-import { createClient, type RealtimeChannel } from '@supabase/supabase-js';
+import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { useSyncExternalStore } from 'react';
 
 import type { Ponto } from '@/components/mapa-tipos';
@@ -84,12 +84,21 @@ export function useLigacao(): EstadoLigacao {
 // Eventos enviados antes de o canal estar ligado; saem mal a ligação abre.
 const emEspera: EventoViagem[] = [];
 
+let cliente: SupabaseClient | null = null;
+
+/** O cliente do Supabase, partilhado pelo tempo real e pela agenda. Sem as chaves no .env.local, é null. */
+export function supabase(): SupabaseClient | null {
+  if (!TEMPO_REAL_ATIVO) return null;
+  cliente ??= createClient(URL_SUPABASE!, CHAVE_SUPABASE!, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  return cliente;
+}
+
 // Protótipo: um só canal para todas as viagens. No produto final cada viagem tem o seu canal privado, com regras de acesso.
 function ligar(): RealtimeChannel | null {
-  if (!TEMPO_REAL_ATIVO) return null;
+  const sb = supabase();
+  if (!sb) return null;
   if (canal) return canal;
-  const supabase = createClient(URL_SUPABASE!, CHAVE_SUPABASE!, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-  canal = supabase.channel('chauffeur-viagens', { config: { broadcast: { self: false } } });
+  canal = sb.channel('chauffeur-viagens', { config: { broadcast: { self: false } } });
   canal.on('broadcast', { event: 'viagem' }, ({ payload }) => {
     for (const o of ouvintes) o(payload as EventoViagem);
   });

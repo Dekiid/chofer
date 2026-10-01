@@ -76,6 +76,65 @@ async function rotaMapbox(a: Ponto, b: Ponto, token: string): Promise<Rota> {
   return { km: r.distance / 1000, minutos: Math.max(1, Math.round(r.duration / 60)), pontos: descodificarPolyline(r.geometry), fonte: 'mapbox' };
 }
 
+// Tempos de condução entre reservas (fim de uma até à recolha da seguinte), para a agenda saber a folga certa.
+const temposMin = new Map<string, number>();
+const temposPedidos = new Set<string>();
+let versaoTempos = 0;
+const ouvintesTempos = new Set<() => void>();
+const chaveTempo = (a: Ponto, b: Ponto) => [a.latitude, a.longitude, b.latitude, b.longitude].map((n) => n.toFixed(4)).join(',');
+
+/** Minutos de condução já obtidos do Mapbox; senão, a estimativa em linha reta. */
+export function tempoConducao(a: Ponto, b: Ponto): number {
+  return temposMin.get(chaveTempo(a, b)) ?? rotaEstimada(a, b).minutos;
+}
+
+export function versaoTemposConducao(): number {
+  return versaoTempos;
+}
+
+export function ouvirTemposConducao(o: () => void): () => void {
+  ouvintesTempos.add(o);
+  return () => {
+    ouvintesTempos.delete(o);
+  };
+}
+
+// A Matrix API aceita até 25 coordenadas por pedido.
+const MAX_COORDENADAS = 25;
+
+/** Pede ao Mapbox (Matrix API) os tempos de condução destes pares que ainda não se conhecem. */
+export async function carregarTemposConducao(pares: [Ponto, Ponto][]): Promise<void> {
+  if (!TOKEN_MAPBOX) return;
+  const novos = pares.filter(([a, b]) => !temposPedidos.has(chaveTempo(a, b)));
+  if (novos.length === 0) return;
+  for (const [a, b] of novos) temposPedidos.add(chaveTempo(a, b));
+  // Cada par usa 2 coordenadas; os pedidos vão em grupos.
+  const grupo = Math.floor(MAX_COORDENADAS / 2);
+  for (let i = 0; i < novos.length; i += grupo) {
+    const fatia = novos.slice(i, i + grupo);
+    try {
+      const pontos = fatia.flat();
+      const coords = pontos.map((p) => `${p.longitude.toFixed(6)},${p.latitude.toFixed(6)}`).join(';');
+      const sources = fatia.map((_, j) => j * 2).join(';');
+      const destinations = fatia.map((_, j) => j * 2 + 1).join(';');
+      const url = `https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${coords}?sources=${sources}&destinations=${destinations}&annotations=duration&access_token=${encodeURIComponent(TOKEN_MAPBOX)}`;
+      const resposta = await fetch(url);
+      if (!resposta.ok) throw new Error(`Mapbox ${resposta.status}`);
+      const dados = (await resposta.json()) as { code: string; durations?: (number | null)[][] };
+      if (dados.code !== 'Ok' || !dados.durations) throw new Error(`Mapbox sem tempos (${dados.code})`);
+      fatia.forEach(([a, b], j) => {
+        const segundos = dados.durations![j]?.[j];
+        if (segundos != null) temposMin.set(chaveTempo(a, b), Math.max(1, Math.round(segundos / 60)));
+      });
+    } catch (e) {
+      // Fica a estimativa para estes pares.
+      console.warn('Não foi possível obter os tempos de condução; fica a estimativa.', e);
+    }
+  }
+  versaoTempos++;
+  for (const o of ouvintesTempos) o();
+}
+
 // Routes API do Google (não está em uso; fica para comparação).
 async function rotaGoogle(a: Ponto, b: Ponto, chave: string): Promise<Rota> {
   const resposta = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {

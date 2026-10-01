@@ -59,7 +59,8 @@ type Conta = {
 
   viagens: ViagemFeita[];
   viagemAtual: ViagemFeita | null;
-  registarViagem: (v: Omit<ViagemFeita, 'id' | 'criadaEm'>) => string;
+  /** Guarda a viagem paga; o id pode vir de fora, para ser o mesmo da reserva na agenda. */
+  registarViagem: (v: Omit<ViagemFeita, 'id' | 'criadaEm'> & { id?: string }) => string;
   atualizarViagem: (id: string, mudancas: Partial<ViagemFeita>) => void;
   /** Média que os motoristas deram ao cliente. */
   avaliacaoCliente: number;
@@ -182,8 +183,8 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       guardarLocal: (tipo, l) => setLocais((atual) => ({ ...atual, [tipo]: l })),
       viagens,
       viagemAtual,
-      registarViagem: (v) => {
-        const id = `v-${Date.now()}`;
+      registarViagem: ({ id: idDado, ...v }) => {
+        const id = idDado ?? `v-${Date.now()}`;
         setViagens((atual) => [{ ...v, id, criadaEm: new Date() }, ...atual]);
         setViagemAtualId(id);
         // Chat novo para cada viagem.

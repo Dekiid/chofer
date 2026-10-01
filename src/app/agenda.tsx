@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { diasAgendaveis, formatarDia, formatarHora, horariosDoDia, INTERVALO_MIN, mesmoDia, reservaQueOcupa, somarMin } from '@/data/agenda';
+import { diasAgendaveis, formatarDia, formatarHora, horariosDoDia, INTERVALO_MIN, mesmoDia, reservaNoIntervalo, somarMin } from '@/data/agenda';
 import { nomeViatura } from '@/data/categorias';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
@@ -51,7 +51,7 @@ export default function Agenda() {
 
       <ScrollView contentContainerStyle={s.lista}>
         {horariosDoDia(dia).map((inicio) => {
-          const r = reservaQueOcupa(reservas, viaturaId, inicio, somarMin(inicio, INTERVALO_MIN));
+          const r = reservaNoIntervalo(reservas, viaturaId, inicio, somarMin(inicio, INTERVALO_MIN));
           const passado = somarMin(inicio, INTERVALO_MIN) <= agora;
           const bloqueio = r?.tipo === 'bloqueio';
           const podeTocar = !passado && (!r || bloqueio);

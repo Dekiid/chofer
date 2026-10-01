@@ -13,6 +13,7 @@ import { gerarCodigoRecolha } from '@/data/seguranca';
 import { pararPedido, tocarPedido } from '@/data/som-pedido';
 import { ouvir, publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, distanciaKm } from '@/data/viagem';
+import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 
 export type FaseMotorista = 'a_recolha' | 'chegou' | 'em_viagem' | 'concluida';
@@ -75,7 +76,19 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   const [pedidoNovo, setPedidoNovo] = useState<PedidoMotorista | null>(null);
   const [expiraEm, setExpiraEm] = useState<number | null>(null);
   const [viagem, setViagem] = useState<ViagemMotorista | null>(null);
-  const [agendadas, setAgendadas] = useState<PedidoMotorista[]>([]);
+  // Reservas que chegaram em direto (ou simuladas).
+  const [recebidas, setAgendadas] = useState<PedidoMotorista[]>([]);
+  // Reservas já começadas, para não voltarem à lista.
+  const [comecadas, setComecadas] = useState<string[]>([]);
+  const { reservas } = useAgenda();
+  // Mais as que estão guardadas na agenda do servidor: aparecem mesmo que a app do motorista estivesse fechada quando o cliente pagou.
+  const limiteAtraso = Date.now() - 60 * 60000;
+  const doServidor = reservas
+    .filter((r) => r.viaturaId === viaturaId && r.pedido?.recolhaEm && new Date(r.pedido.recolhaEm).getTime() > limiteAtraso)
+    .map((r) => r.pedido!);
+  const agendadas = [...recebidas, ...doServidor.filter((p) => !recebidas.some((x) => x.id === p.id))]
+    .filter((p) => !comecadas.includes(p.id))
+    .sort(porData);
   const [feitas, setFeitas] = useState<{ pedido: PedidoMotorista; concluidaEm: string }[]>([]);
   const [ganhosHoje, setGanhosHoje] = useState(0);
   const [viagensHoje, setViagensHoje] = useState(0);
@@ -288,6 +301,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
         const p = agendadas.find((x) => x.id === id);
         if (!p || viagem) return;
         setAgendadas((l) => l.filter((x) => x.id !== id));
+        setComecadas((l) => [...l, id]);
         publicar({ tipo: 'estado', id, estado: 'a_caminho', motorista: eu });
         iniciarViagem(p);
       },

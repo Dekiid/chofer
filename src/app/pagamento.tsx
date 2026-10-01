@@ -1,8 +1,9 @@
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
@@ -12,14 +13,16 @@ import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
 import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
-import { publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
+import { publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta } from '@/state/conta';
-import { useAgenda } from '@/state/agenda';
+import { useAgenda, type ResultadoReserva } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
 
-type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada';
+type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada' | 'falhou';
+
+const ponto = (p: Ponto): Ponto => ({ latitude: p.latitude, longitude: p.longitude });
 
 // Tempo simulado até a operadora confirmar; o pagamento real virá do servidor.
 const TEMPO_CONFIRMACAO = 2500;
@@ -35,6 +38,8 @@ export default function Pagamento() {
   const [codigoAberto, setCodigoAberto] = useState(false);
   const [codigoTexto, setCodigoTexto] = useState('');
   const [erroCodigo, setErroCodigo] = useState('');
+  const [falha, setFalha] = useState('');
+  const montado = useRef(true);
 
   const { destino, viatura, quando, reserva } = pedido;
   // Aluguer e casamento pagam-se à diária; o resto do pagamento é igual ao das viagens.
@@ -63,105 +68,153 @@ export default function Pagamento() {
     Keyboard.dismiss();
   }
 
-  useEffect(() => {
-    if (estado === 'a_processar') {
-      const t = setTimeout(() => {
-        if (reserva?.inicio) {
-          const inicio = reserva.inicio;
-          agenda.reservar({ viaturaId: viatura.id, inicio, fim: fimReserva(inicio, reserva.dias), tipo: 'agendada', destino: `${casamento ? 'Casamento' : 'Aluguer'} · ${textoDias(reserva.dias)}` });
-          conta.registarViagem({
-            tipo: reserva.modo,
-            dias: reserva.dias,
-            decoracao: casamento ? reserva.decoracao : undefined,
-            recolhaEm: inicio,
-            origem: pedido.origem,
-            paragens: [],
-            destino: pedido.origem,
-            viatura: nomeViatura(viatura),
-            motorista: viatura.motorista ?? MOTORISTA_EXEMPLO,
-            km: 0,
-            minutos: 0,
-            precoMzn: preco,
-            taxaImediatoMzn: 0,
-            descontoMzn: desconto,
-            promo: conta.promo?.codigo,
-            gorjetaMzn: 0,
-            pagamento: pedido.pagamento,
-            codigoRecolha: gerarCodigoRecolha(),
-            estado: 'agendada',
-          });
-          conta.setPromo(null);
-          conta.avisar('Reserva confirmada', `${nomeViatura(viatura)}, ${nomeReserva}, ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`);
-          agenda.notificar(casamento ? 'Reserva de casamento' : 'Novo aluguer', `${nomeViatura(viatura)} · ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date())}, ${formatarHora(inicio)} · ${pedido.origem.nome} · pago ${formatarMzn(aPagar)}.`);
-          setEstado('agendada');
-          return;
-        }
-        if (!destino || !quando) return;
-        // Pago: o carro fica ocupado na agenda para não haver sobreposições.
-        const inicio = quando.tipo === 'agendado' ? quando.inicio : new Date();
-        const ocupado = minutosOcupado(duracao, quando.tipo === 'imediato' ? viatura.chegadaMin : 0);
-        agenda.reservar({ viaturaId: viatura.id, inicio, fim: somarMin(inicio, ocupado), tipo: quando.tipo === 'imediato' ? 'imediata' : 'agendada', destino: destino.nome });
-        // Fica no histórico do cliente, com o recibo.
-        const codigoRecolha = gerarCodigoRecolha();
-        const idViagem = conta.registarViagem({
-          recolhaEm: inicio,
-          origem: pedido.origem,
-          paragens: pedido.paragens,
-          destino,
-          viatura: nomeViatura(viatura),
-          motorista: viatura.motorista ?? MOTORISTA_EXEMPLO,
-          km,
-          minutos: duracao,
-          precoMzn: preco,
-          taxaImediatoMzn: quando.tipo === 'imediato' ? taxaImediato(viatura, km) : 0,
-          descontoMzn: desconto,
-          promo: conta.promo?.codigo,
-          gorjetaMzn: 0,
-          pagamento: pedido.pagamento,
-          codigoRecolha,
-          estado: quando.tipo === 'imediato' ? 'em_curso' : 'agendada',
-        });
-        // Viagem marcada: o pedido vai já para o motorista do carro, que a aceita para a agenda dele.
-        // Os pedidos para agora saem do ecrã da viagem.
-        if (TEMPO_REAL_ATIVO && quando.tipo === 'agendado') {
-          publicar({
-            tipo: 'pedido',
-            pedido: {
-              id: idViagem,
-              viaturaId: viatura.id,
-              viaturaNome: nomeViatura(viatura),
-              origem: pedido.origem,
-              paragens: pedido.paragens,
-              destino,
-              km,
-              minutos: duracao,
-              precoMzn: aPagar,
-              recolhaEm: inicio.toISOString(),
-              codigoRecolha,
-              pagamento: PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '',
-              criadoEm: new Date().toISOString(),
-            },
-          });
-        }
-        conta.setPromo(null);
-        conta.avisar(
-          'Pagamento confirmado',
-          quando.tipo === 'imediato'
-            ? `${formatarMzn(aPagar)} por ${PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome}. A chamar o teu ${nomeViatura(viatura)}.`
-            : `Viagem para ${destino.nome} marcada para ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`,
-        );
-        if (quando.tipo === 'imediato') {
-          agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(aPagar)} com taxa de pedido imediato.`);
-        }
-        setEstado(quando.tipo === 'imediato' ? 'pago' : 'agendada');
-      }, TEMPO_CONFIRMACAO);
-      return () => clearTimeout(t);
+  // Primeiro guarda o horário na agenda do carro: o servidor recusa se outro cliente o apanhou entretanto.
+  // Só depois vem a cobrança, que no protótipo é simulada.
+  async function processar() {
+    setEstado('a_processar');
+    const idViagem = `v-${Date.now()}`;
+    const codigoRecolha = gerarCodigoRecolha();
+    const nomePagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '';
+
+    if (reserva?.inicio) {
+      const inicio = reserva.inicio;
+      const resultado = await agenda.reservar({
+        id: idViagem,
+        viaturaId: viatura.id,
+        inicio,
+        fim: fimReserva(inicio, reserva.dias),
+        tipo: 'agendada',
+        destino: `${casamento ? 'Casamento' : 'Aluguer'} · ${textoDias(reserva.dias)}`,
+        pontoInicio: ponto(pedido.origem),
+        pontoFim: ponto(pedido.origem),
+      });
+      if (!(await continuar(resultado))) return;
+      conta.registarViagem({
+        id: idViagem,
+        tipo: reserva.modo,
+        dias: reserva.dias,
+        decoracao: casamento ? reserva.decoracao : undefined,
+        recolhaEm: inicio,
+        origem: pedido.origem,
+        paragens: [],
+        destino: pedido.origem,
+        viatura: nomeViatura(viatura),
+        motorista: viatura.motorista ?? MOTORISTA_EXEMPLO,
+        km: 0,
+        minutos: 0,
+        precoMzn: preco,
+        taxaImediatoMzn: 0,
+        descontoMzn: desconto,
+        promo: conta.promo?.codigo,
+        gorjetaMzn: 0,
+        pagamento: pedido.pagamento,
+        codigoRecolha,
+        estado: 'agendada',
+      });
+      conta.setPromo(null);
+      conta.avisar('Reserva confirmada', `${nomeViatura(viatura)}, ${nomeReserva}, ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`);
+      agenda.notificar(casamento ? 'Reserva de casamento' : 'Novo aluguer', `${nomeViatura(viatura)} · ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date())}, ${formatarHora(inicio)} · ${pedido.origem.nome} · pago ${formatarMzn(aPagar)}.`);
+      setEstado('agendada');
+      return;
     }
+
+    if (!destino || !quando) return;
+    const agendada = quando.tipo === 'agendado';
+    const inicio = agendada ? quando.inicio : new Date();
+    // O pedido que o motorista recebe. Nas reservas também fica guardado na agenda, para o motorista o ver mesmo que a app dele estivesse fechada.
+    const paraMotorista: PedidoMotorista = {
+      id: idViagem,
+      viaturaId: viatura.id,
+      viaturaNome: nomeViatura(viatura),
+      origem: pedido.origem,
+      paragens: pedido.paragens,
+      destino,
+      km,
+      minutos: duracao,
+      precoMzn: aPagar,
+      recolhaEm: inicio.toISOString(),
+      codigoRecolha,
+      pagamento: nomePagamento,
+      criadoEm: new Date().toISOString(),
+    };
+    // O carro fica ocupado desde a recolha (ou desde agora, nos pedidos imediatos) até ao fim da viagem.
+    const resultado = await agenda.reservar({
+      id: idViagem,
+      viaturaId: viatura.id,
+      inicio,
+      fim: somarMin(inicio, minutosOcupado(duracao, agendada ? 0 : viatura.chegadaMin)),
+      tipo: agendada ? 'agendada' : 'imediata',
+      destino: destino.nome,
+      pontoInicio: ponto(pedido.origem),
+      pontoFim: ponto(destino),
+      pedido: agendada ? paraMotorista : undefined,
+    });
+    if (!(await continuar(resultado))) return;
+    // Fica no histórico do cliente, com o recibo.
+    conta.registarViagem({
+      id: idViagem,
+      recolhaEm: inicio,
+      origem: pedido.origem,
+      paragens: pedido.paragens,
+      destino,
+      viatura: nomeViatura(viatura),
+      motorista: viatura.motorista ?? MOTORISTA_EXEMPLO,
+      km,
+      minutos: duracao,
+      precoMzn: preco,
+      taxaImediatoMzn: agendada ? 0 : taxaImediato(viatura, km),
+      descontoMzn: desconto,
+      promo: conta.promo?.codigo,
+      gorjetaMzn: 0,
+      pagamento: pedido.pagamento,
+      codigoRecolha,
+      estado: agendada ? 'agendada' : 'em_curso',
+    });
+    // Viagem marcada: vai já para a agenda do motorista do carro, com um aviso.
+    // Os pedidos para agora saem do ecrã da viagem.
+    if (TEMPO_REAL_ATIVO && agendada) publicar({ tipo: 'pedido', pedido: paraMotorista });
+    conta.setPromo(null);
+    conta.avisar(
+      'Pagamento confirmado',
+      agendada
+        ? `Viagem para ${destino.nome} marcada para ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`
+        : `${formatarMzn(aPagar)} por ${nomePagamento}. A chamar o teu ${nomeViatura(viatura)}.`,
+    );
+    if (!agendada) {
+      agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(aPagar)} com taxa de pedido imediato.`);
+    }
+    setEstado(agendada ? 'agendada' : 'pago');
+  }
+
+  /** Depois de guardar na agenda: se falhou, mostra porquê; se correu bem, espera pela confirmação do pagamento. */
+  async function continuar(resultado: ResultadoReserva): Promise<boolean> {
+    if (!montado.current) return false;
+    if (!resultado.ok) {
+      setFalha(
+        resultado.motivo === 'ocupado'
+          ? 'Outro cliente acabou de reservar este carro para uma hora que choca com a tua. Escolhe outra hora. Não foi cobrado nada.'
+          : `Não foi possível guardar a reserva (${resultado.detalhe ?? 'sem ligação'}). Não foi cobrado nada.`,
+      );
+      setEstado('falhou');
+      return false;
+    }
+    await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO));
+    return montado.current;
+  }
+
+  useEffect(() => {
+    montado.current = true;
+    return () => {
+      montado.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (estado === 'pago') {
       const t = setTimeout(() => router.replace('/viagem'), 1200);
       return () => clearTimeout(t);
     }
-  }, [estado, agenda, destino, quando, reserva, casamento, nomeReserva, viatura, duracao, preco, aPagar, desconto, km, conta, pedido.origem, pedido.paragens, pedido.pagamento]);
+  }, [estado]);
 
   if (estado === 'agendada' && reserva?.inicio) {
     return (
@@ -201,6 +254,25 @@ export default function Pagamento() {
             onPress={() => {
               pedido.limpar();
               router.dismissTo('/');
+            }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (estado === 'falhou') {
+    return (
+      <SafeAreaView style={[s.ecra, s.centro]}>
+        <Text style={s.titulo}>Esse horário já não está livre</Text>
+        <Text style={s.secundarioCentro}>{falha}</Text>
+        <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
+          <BotaoPrincipal
+            texto="Escolher outra hora"
+            onPress={() => {
+              if (reserva) pedido.setReserva({ ...reserva, inicio: null });
+              else pedido.setQuando(null);
+              router.back();
             }}
           />
         </View>
@@ -330,7 +402,7 @@ export default function Pagamento() {
             texto={`Pagar ${formatarMzn(aPagar)}`}
             onPress={() => {
               Keyboard.dismiss();
-              setEstado('a_processar');
+              processar();
             }}
             desativado={!telefoneValido}
           />

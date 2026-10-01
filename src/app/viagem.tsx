@@ -17,6 +17,7 @@ import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
 import { ouvir, publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
 import type { Motorista } from '@/data/motorista';
+import { useAgenda } from '@/state/agenda';
 import { ELOGIOS, useConta } from '@/state/conta';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
@@ -39,6 +40,7 @@ export default function Viagem() {
   const s = estilos(cores);
   const pedido = usePedido();
   const conta = useConta();
+  const agenda = useAgenda();
   const { origem, destino } = pedido;
   const viagemConta = conta.viagemAtual;
 
@@ -186,7 +188,11 @@ export default function Viagem() {
 
   function cancelar() {
     if (TEMPO_REAL_ATIVO) publicar({ tipo: 'cancelado', id: idPedido, por: 'cliente' });
-    if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'cancelada' });
+    if (viagemConta) {
+      atualizarViagem(viagemConta.id, { estado: 'cancelada' });
+      // O carro volta a ficar livre na agenda.
+      agenda.libertar(viagemConta.id);
+    }
     sair();
   }
 
