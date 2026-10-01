@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
-import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
@@ -99,7 +99,6 @@ export default function MotoristaEcra() {
 type S = ReturnType<typeof estilos>;
 
 /** Mola da caixa do motorista: rápida a arrancar e sem ressalto no fim. */
-const MOLA = { damping: 26, stiffness: 190, mass: 0.9 };
 
 /** Na recolha: quanto tempo falta de espera; depois disso, o motorista pode marcar falta de comparência. */
 function Espera({ chegouEm, minutos, s }: { chegouEm?: number; minutos: number; s: S }) {
@@ -172,63 +171,76 @@ function Disponivel({ s }: { s: S }) {
   const m = useModoMotorista();
   const nota = useAvaliacoes().mediaMotorista(m.eu.telefone);
   // A caixa baixa com o dedo e fica só com os botões (ficar online, mudar de carro, pausa…); sobe para ver tudo.
-  // Segue o dedo enquanto se arrasta e no fim assenta com uma mola suave.
+  // Como no ecrã de confirmar a viagem: a caixa aberta e a fechada são duas vistas diferentes, cada uma com o seu gesto
+  // (a aberta só ouve o puxar para baixo, a fechada só o puxar para cima). A troca entre as duas é animada.
   const [recolhido, setRecolhido] = useState(false);
-  const progresso = useSharedValue(0); // 0 aberta, 1 recolhida
-  const altura = useSharedValue(0);
-  function assentar(recolher: boolean) {
-    setRecolhido(recolher);
-    progresso.value = withSpring(recolher ? 1 : 0, MOLA);
-  }
-  // Basta um gesto curto para cima ou para baixo: a caixa abre ou fecha sozinha até ao fim, com uma mola suave.
-  // Funciona em qualquer zona da caixa (como no ecrã de confirmar a viagem). Com a caixa aberta, puxar para baixo
-  // só a fecha quando a lista do meio está no topo; senão, a lista rola.
   const listaNoTopo = useRef(true);
-  const recolhidoRef = useRef(recolhido);
-  useEffect(() => {
-    recolhidoRef.current = recolhido;
-  }, [recolhido]);
-  const [arrastar] = useState(() =>
+  const [puxarParaBaixo] = useState(() =>
     PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, g) => {
-        if (Math.abs(g.dy) < 10 || Math.abs(g.dy) < Math.abs(g.dx) * 1.5) return false;
-        return recolhidoRef.current ? g.dy < 0 : g.dy > 0 && listaNoTopo.current;
-      },
-      onPanResponderTerminationRequest: () => false,
+      // Com a lista do meio a meio, puxar para baixo rola a lista; no topo, fecha a caixa.
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5 && listaNoTopo.current,
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 20 || g.vy > 0.3) assentar(true);
-        else if (g.dy < -20 || g.vy < -0.3) assentar(false);
+        if (g.dy > 20 || g.vy > 0.3) setRecolhido(true);
       },
     }),
   );
-  const estiloRecolher = useAnimatedStyle(() =>
-    altura.value === 0
-      ? {}
-      : {
-          height: altura.value * (1 - progresso.value),
-          opacity: interpolate(progresso.value, [0, 0.7], [1, 0], Extrapolation.CLAMP),
-          transform: [{ translateY: progresso.value * 12 }],
-        },
+  const [puxarParaCima] = useState(() =>
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy < -10 && -g.dy > Math.abs(g.dx) * 1.5,
+      onPanResponderRelease: (_, g) => {
+        if (g.dy < -20 || g.vy < -0.3) {
+          listaNoTopo.current = true;
+          setRecolhido(false);
+        }
+      },
+    }),
   );
   function terminarTurno() {
     const resumo = m.terminarTurno();
     if (resumo) router.push({ pathname: '/turno', params: { inicio: resumo.inicio } });
   }
+  const estado = (
+        <View style={s.estado}>
+          <View style={[s.pontoEstado, { backgroundColor: m.online ? (m.emPausa ? '#F59E0B' : cores.go) : cores.textSecondary }]} />
+          <Text style={[s.titulo, { flex: 1 }]}>{!m.online ? t('Estás offline') : m.emPausa ? t('Estás em pausa') : t('Estás online')}</Text>
+        </View>
+  );
+  const botoes = (
+      <View style={{ gap: Spacing.two }}>
+        {!m.online ? (
+          <>
+            <BotaoPrincipal
+              texto={m.turno ? t('Continuar o turno') : t('Ficar online')}
+              onPress={() => m.setOnline(true)}
+            />
+            {m.turno ? <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} /> : <BotaoSecundario texto={t('Mudar de carro')} onPress={() => m.escolherViatura(null)} />}
+          </>
+        ) : m.emPausa ? (
+          <>
+            <BotaoPrincipal texto={t('Voltar ao trabalho')} onPress={m.retomar} />
+            <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} />
+          </>
+        ) : (
+          <>
+            <BotaoSecundario texto={t('Fazer uma pausa')} onPress={m.pausar} />
+            <BotaoPrincipal texto={t('Terminar o turno')} escuro onPress={terminarTurno} />
+          </>
+        )}
+      </View>
+  );
+  if (recolhido) {
+    return (
+      <Animated.View key="fechada" entering={FadeIn.duration(220)} layout={LinearTransition.springify().damping(22)} {...puxarParaCima.panHandlers}>
+        <Alca />
+        {estado}
+        {botoes}
+      </Animated.View>
+    );
+  }
   return (
-    <View {...arrastar.panHandlers}>
-      <View>
+    <Animated.View key="aberta" entering={FadeIn.duration(220)} layout={LinearTransition.springify().damping(22)} {...puxarParaBaixo.panHandlers}>
       <Alca />
-      <View style={s.estado}>
-        <View style={[s.pontoEstado, { backgroundColor: m.online ? (m.emPausa ? '#F59E0B' : cores.go) : cores.textSecondary }]} />
-        <Text style={[s.titulo, { flex: 1 }]}>{!m.online ? t('Estás offline') : m.emPausa ? t('Estás em pausa') : t('Estás online')}</Text>
-      </View>
-      </View>
-      <Animated.View style={[{ overflow: 'hidden' }, estiloRecolher]} pointerEvents={recolhido ? 'none' : 'auto'}>
-      <View
-        onLayout={(e) => {
-          altura.value = e.nativeEvent.layout.height;
-        }}>
-      <View>
+      {estado}
       <Text style={s.secundario}>
         {!m.online
           ? t('Fica online para receber pedidos.')
@@ -237,7 +249,6 @@ function Disponivel({ s }: { s: S }) {
             : t('À procura de pedidos para o teu carro…')}{' '}
         {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
-      </View>
       <ScrollView style={{ maxHeight: 320, marginBottom: Spacing.three }} contentContainerStyle={{ paddingBottom: Spacing.two }} showsVerticalScrollIndicator={false} scrollEventThrottle={32} onScroll={(e) => (listaNoTopo.current = e.nativeEvent.contentOffset.y <= 2)}>
       <ResumoTurnoAtual s={s} />
       {TEMPO_REAL_ATIVO && <EstadoServidor />}
@@ -312,31 +323,8 @@ function Disponivel({ s }: { s: S }) {
         </Text>
       )}
       </ScrollView>
-      </View>
-      </Animated.View>
-
-      <View style={{ gap: Spacing.two }}>
-        {!m.online ? (
-          <>
-            <BotaoPrincipal
-              texto={m.turno ? t('Continuar o turno') : t('Ficar online')}
-              onPress={() => m.setOnline(true)}
-            />
-            {m.turno ? <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} /> : <BotaoSecundario texto={t('Mudar de carro')} onPress={() => m.escolherViatura(null)} />}
-          </>
-        ) : m.emPausa ? (
-          <>
-            <BotaoPrincipal texto={t('Voltar ao trabalho')} onPress={m.retomar} />
-            <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} />
-          </>
-        ) : (
-          <>
-            <BotaoSecundario texto={t('Fazer uma pausa')} onPress={m.pausar} />
-            <BotaoPrincipal texto={t('Terminar o turno')} escuro onPress={terminarTurno} />
-          </>
-        )}
-      </View>
-    </View>
+      {botoes}
+    </Animated.View>
   );
 }
 
