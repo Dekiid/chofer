@@ -8,7 +8,7 @@ import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
-import { COMISSAO, formatarMzn } from '@/data/categorias';
+import { formatarMzn } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
 import { ganhoMotorista, useModoMotorista } from '@/state/modo-motorista';
 import { t } from '@/i18n';
@@ -42,7 +42,6 @@ export default function Ganhos() {
     const t = new Date(f.concluidaEm).getTime();
     return t >= inicio.getTime() && t < fim.getTime();
   });
-  const bruto = daSemana.reduce((t, f) => t + f.pedido.precoMzn, 0);
   const liquido = daSemana.reduce((t, f) => t + ganhoMotorista(f.pedido), 0);
   const porDia = LETRAS.map((_, i) =>
     daSemana.filter((f) => Math.floor((new Date(f.concluidaEm).getTime() - inicio.getTime()) / DIA) === i).reduce((t, f) => t + ganhoMotorista(f.pedido), 0),
@@ -75,8 +74,7 @@ export default function Ganhos() {
           </View>
           <Text style={s.total}>{formatarMzn(liquido)}</Text>
           <Text style={s.secundario}>
-            {daSemana.length === 1 ? t('{n} viagem', { n: daSemana.length }) : t('{n} viagens', { n: daSemana.length })} ·{' '}
-            {t('clientes pagaram {bruto} · comissão {pct}% {comissao}', { bruto: formatarMzn(bruto), pct: Math.round(COMISSAO * 100), comissao: formatarMzn(bruto - liquido) })}
+            {daSemana.length === 1 ? t('{n} viagem', { n: daSemana.length }) : t('{n} viagens', { n: daSemana.length })}
           </Text>
           <View style={s.barras}>
             {porDia.map((v, i) => {
@@ -100,7 +98,7 @@ export default function Ganhos() {
             <Text style={s.valor}>{formatarMzn(porReceber)}</Text>
           </View>
           <Text style={s.secundario}>
-            {t('Recebes na segunda-feira, {data}, por M-Pesa, já sem a comissão.', { data: `${proximaSegunda.getDate()}/${proximaSegunda.getMonth() + 1}` })}
+            {t('Recebes na segunda-feira, {data}, por M-Pesa.', { data: `${proximaSegunda.getDate()}/${proximaSegunda.getMonth() + 1}` })}
           </Text>
           <View style={s.linha}>
             <Text style={s.texto}>{t('Já pago')}</Text>

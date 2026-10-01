@@ -234,16 +234,15 @@ export default function Inscricao() {
           maxLength: 4,
         })}
         <View style={s.nota}>
-          <Text style={s.notaTitulo}>{t('O Chauffeur fica com {pct}% do valor total de cada viagem.', { pct: Math.round(COMISSAO * 100) })}</Text>
+          {/* Só o valor que o dono recebe; a comissão da plataforma só a vê o administrador (Flavio, 2026-10-01). */}
+          <Text style={s.notaTitulo}>{t('O que recebes')}</Text>
           <Text style={s.notaTexto}>
             {Number(preco) > 0
-              ? t('Exemplo: numa viagem de {km} km o cliente paga {total}. Tu recebes {teu} e o Chauffeur fica com {comissao}.', {
+              ? t('Exemplo: numa viagem de {km} km, recebes {teu}. O preço fica sujeito à nossa aprovação.', {
                   km: KM_EXEMPLO,
-                  total: formatarMzn(Number(preco) * KM_EXEMPLO),
                   teu: formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * (1 - COMISSAO))),
-                  comissao: formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * COMISSAO)),
                 })
-              : t('Tu recebes os outros {pct}%. O preço fica sujeito à nossa aprovação.', { pct: Math.round((1 - COMISSAO) * 100) })}
+              : t('Indica o preço por km para veres quanto recebes numa viagem. O preço fica sujeito à nossa aprovação.')}
           </Text>
         </View>
 
@@ -274,7 +273,7 @@ export default function Inscricao() {
                 })}
               </View>
             </View>
-            <Text style={s.ajuda}>{t('Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço. Aplica-se a mesma comissão de {pct}%.', { pct: Math.round(COMISSAO * 100) })}</Text>
+            <Text style={s.ajuda}>{t('Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço.')}</Text>
             <Pressable
               onPress={async () => {
                 const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });

@@ -279,4 +279,11 @@ export const motorista: Record<string, string> = {
   'Carta do motorista válida até': "Driver's licence valid until",
   'A carta acima é a do motorista.': 'The licence above is the driver\'s.',
   'Dono: {nome}': 'Owner: {nome}',
+  // Sem a comissão nos ecrãs do dono e do motorista
+  'O que recebes': 'What you get',
+  'Exemplo: numa viagem de {km} km, recebes {teu}. O preço fica sujeito à nossa aprovação.': 'Example: on a {km} km trip, you get {teu}. The price is subject to our approval.',
+  'Indica o preço por km para veres quanto recebes numa viagem. O preço fica sujeito à nossa aprovação.': 'Enter the price per km to see what you get per trip. The price is subject to our approval.',
+  'Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço.': 'With decoration, you decorate the car (flowers, ribbons, bows) and include that cost in the price.',
+  'Recebes na segunda-feira, {data}, por M-Pesa.': 'You get paid on Monday, {data}, by M-Pesa.',
+  'Pago por {pagamento}. A gorjeta vai toda para o motorista.': 'Paid by {pagamento}. The tip goes entirely to the driver.',
 };

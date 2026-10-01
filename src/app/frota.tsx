@@ -20,7 +20,7 @@ import { useSessao } from '@/state/sessao';
 
 const DIA = 86_400_000;
 
-/** Uma viagem feita por um carro do dono, com o que o carro ganhou (já sem a comissão). */
+/** Uma viagem feita por um carro do dono, com o que o dono recebe. */
 type ViagemCarro = { id: string; viaturaId: string; em: Date; ganhoMzn: number; km: number };
 
 /** Segunda-feira desta semana, às 00:00. */
@@ -96,7 +96,6 @@ export default function Frota() {
             {totalSemana.n === 1 ? t('{n} viagem', { n: totalSemana.n }) : t('{n} viagens', { n: totalSemana.n })} · {t('hoje {valor}', { valor: formatarMzn(totalHoje.mzn) })} ·{' '}
             {aprovados === 1 ? t('{n} carro ativo', { n: aprovados }) : t('{n} carros ativos', { n: aprovados })}
           </Text>
-          <Text style={s.nota}>{t('Valores já sem a comissão de {pct}%. A divisão entre ti e o motorista fica entre vocês.', { pct: Math.round(COMISSAO * 100) })}</Text>
         </View>
 
         {carros.map((c) => (

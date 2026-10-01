@@ -62,7 +62,7 @@ export default function Turno() {
 
         <View style={s.cartao}>
           <Text style={s.subtitulo}>{t('Hoje')}</Text>
-          <Linha s={s} nome={t('Ganhos, já sem a comissão')} valor={formatarMzn(dia.ganhos)} forte />
+          <Linha s={s} nome={t('Ganhos')} valor={formatarMzn(dia.ganhos)} forte />
           <Linha s={s} nome={t('Viagens')} valor={String(dia.viagens)} />
           <Linha s={s} nome={t('A trabalhar')} valor={duracaoTexto(dia.online)} />
           {dia.pausa > 0 && <Linha s={s} nome={t('Pausas')} valor={duracaoTexto(dia.pausa)} />}

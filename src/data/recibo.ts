@@ -3,7 +3,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
 import { formatarDia, formatarHora } from '@/data/agenda';
-import { COMISSAO, formatarMzn } from '@/data/categorias';
+import { formatarMzn } from '@/data/categorias';
 import { totalPago, type ViagemFeita } from '@/state/conta';
 import { PAGAMENTOS } from '@/state/pedido';
 import { t } from '@/i18n';
@@ -52,7 +52,7 @@ function html(v: ViagemFeita): string {
     <div class="cinza">${escapar(formatarDia(v.recolhaEm, agora))}, ${formatarHora(v.recolhaEm)} · ${escapar(v.viatura)} · ${escapar(v.motorista.nome)} (${escapar(v.motorista.matricula)})</div>
     <ul>${percurso}</ul>
     <table>${linhas}<tr class="total"><td>${escapar(t('Total pago'))}</td><td class="v">${formatarMzn(totalPago(v))}</td></tr></table>
-    <p class="cinza">${escapar(t('Pago por {pagamento}. A Chauffeur fica com {percentagem}% do valor da viagem; a gorjeta vai toda para o motorista.', { pagamento: nomePagamento(v), percentagem: Math.round(COMISSAO * 100) }))}</p>
+    <p class="cinza">${escapar(t('Pago por {pagamento}. A gorjeta vai toda para o motorista.', { pagamento: nomePagamento(v) }))}</p>
   </body></html>`;
 }
 
