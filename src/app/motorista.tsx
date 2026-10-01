@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
-import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
@@ -207,9 +207,9 @@ function Disponivel({ s }: { s: S }) {
         if ((g.dy > 20 || g.vy > 0.3) && !aFechar.current) {
           aArrastar.current = false;
           aFechar.current = true;
-          alturaMeio.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) }, (acabou) => {
-            if (acabou) runOnJS(fechada)();
-          });
+          alturaMeio.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
+          // A troca para a caixa fechada é feita aqui, no JavaScript, e não no fim da animação: não fica presa se a animação for interrompida.
+          setTimeout(fechada, 270);
         } else voltar();
       },
       onPanResponderTerminate: voltar,
@@ -223,6 +223,8 @@ function Disponivel({ s }: { s: S }) {
           listaNoTopo.current = true;
           // A vista aberta nasce com o meio a zero e cresce até ao tamanho dele (ver o onLayout em baixo).
           alturaMeio.value = 0;
+          // Já se sabe a altura de antes: a caixa começa logo a abrir, sem esperar pela medição.
+          if (meioNatural.value > 0) alturaMeio.value = withSpring(meioNatural.value, MOLA);
           setRecolhido(false);
         }
       },
@@ -276,8 +278,7 @@ function Disponivel({ s }: { s: S }) {
       {estado}
       <Animated.View style={[{ overflow: 'hidden' }, meio]}>
       <View
-        // No fluxo normal (sem posição absoluta): a altura é a do conteúdo e os toques chegam a tudo o que está dentro.
-        style={{ flexShrink: 0 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
           meioNatural.value = h;
