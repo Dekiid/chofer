@@ -2,6 +2,7 @@
 import { cliente } from '@/i18n/en/cliente';
 import { comum } from '@/i18n/en/comum';
 import { conta } from '@/i18n/en/conta';
+import { extras } from '@/i18n/en/extras';
 import { motorista } from '@/i18n/en/motorista';
 import { viagem } from '@/i18n/en/viagem';
 
@@ -11,4 +12,5 @@ export const en: Record<string, string> = {
   ...conta,
   ...motorista,
   ...viagem,
+  ...extras,
 };

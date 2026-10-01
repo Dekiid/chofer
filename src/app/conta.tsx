@@ -9,11 +9,13 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { pedirAutorizacao } from '@/data/avisos-telemovel';
 import { formatarMzn } from '@/data/categorias';
+import { textoPreferencias } from '@/data/extras-viagem';
 import { CREDITO_CONVITE_MZN, DESCONTO_CONVIDADO, PROMOS } from '@/data/promocoes';
 import { formatarNumero } from '@/data/telefone';
 import { t } from '@/i18n';
 import { useIdioma } from '@/i18n/idioma';
 import { LOCAIS, useConta } from '@/state/conta';
+import { useAvaliacoes } from '@/state/avaliacoes';
 import { useMotoristaAprovado } from '@/state/permissoes';
 import { MOTORISTA_ABERTO_EM_TESTES, useSessao } from '@/state/sessao';
 import { Text } from '@/components/texto';
@@ -28,6 +30,7 @@ export default function Conta() {
   const { marcarAvisosLidos } = conta;
   const { idioma, setIdioma } = useIdioma();
   const agora = new Date();
+  const nota = useAvaliacoes().mediaCliente(sessao.perfil?.telefone);
   const [apagar, setApagar] = useState(false);
   const [erroApagar, setErroApagar] = useState<string | null>(null);
   const feitas = conta.viagens.filter((v) => v.estado === 'concluida').length;
@@ -61,10 +64,11 @@ export default function Conta() {
             <Text style={s.nome}>{sessao.perfil?.nome ? `${sessao.perfil.nome} ${sessao.perfil.apelido ?? ''}`.trim() : t('Cliente Chauffeur')}</Text>
             {sessao.perfil?.telefone ? <Text style={s.secundario}>+258 {formatarNumero(sessao.perfil.telefone)}</Text> : null}
             <Text style={s.secundario}>
-              ★{' '}
-              {feitas === 1
-                ? t('{nota} dada pelos motoristas · {n} viagem', { nota: conta.avaliacaoCliente.toFixed(1).replace('.', ','), n: feitas })
-                : t('{nota} dada pelos motoristas · {n} viagens', { nota: conta.avaliacaoCliente.toFixed(1).replace('.', ','), n: feitas })}
+              {nota
+                ? `★ ${feitas === 1 ? t('{nota} dada pelos motoristas · {n} viagem', { nota: nota.media.toFixed(1).replace('.', ','), n: feitas }) : t('{nota} dada pelos motoristas · {n} viagens', { nota: nota.media.toFixed(1).replace('.', ','), n: feitas })}`
+                : feitas === 1
+                  ? t('Ainda sem avaliações · {n} viagem', { n: feitas })
+                  : t('Ainda sem avaliações · {n} viagens', { n: feitas })}
             </Text>
           </View>
         </View>
@@ -76,6 +80,18 @@ export default function Conta() {
         <Pressable onPress={() => router.push('/ajuda')} style={s.entrada}>
           <Text style={s.nome}>{t('Ajuda')}</Text>
           <Text style={s.secundario}>{t('Objetos perdidos, cobranças, queixas e perguntas frequentes')}</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/seguranca')} style={s.entrada}>
+          <Text style={s.nome}>{t('Contactos de confiança')}</Text>
+          <Text style={s.secundario}>
+            {conta.contactosConfianca.length === 0
+              ? t('Quem recebe a tua viagem partilhada e o SOS')
+              : conta.contactosConfianca.map((c) => c.nome).join(', ')}
+          </Text>
+        </Pressable>
+        <Pressable onPress={() => router.push({ pathname: '/opcoes', params: { so: 'preferencias' } })} style={s.entrada}>
+          <Text style={s.nome}>{t('Preferências da viagem')}</Text>
+          <Text style={s.secundario}>{textoPreferencias(conta.preferencias).join(' · ') || t('Silêncio, temperatura, música e malas')}</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/empresa')} style={s.entrada}>
           <Text style={s.nome}>{t('Conta de empresa')}</Text>

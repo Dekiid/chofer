@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import type { Ponto } from '@/components/mapa-tipos';
+import type { Passageiro, Preferencias } from '@/data/extras-viagem';
 import { t } from '@/i18n';
 
 import type { Lugar } from './lugares';
@@ -53,7 +54,17 @@ export type PedidoMotorista = {
   clienteNome?: string;
   /** Pedido para agora: o cliente paga pela app no fim da viagem. */
   pagaNoFim?: boolean;
+  /** Número do cliente, para o motorista o avaliar no fim. */
+  clienteTelefone?: string;
+  /** Pedido para outra pessoa: quem vai no carro. */
+  passageiro?: Passageiro;
+  preferencias?: Preferencias;
+  /** Recolha no aeroporto: o voo, para o motorista acompanhar atrasos. */
+  voo?: string;
 };
+
+/** O que o motorista diz do cliente no fim da viagem. */
+export type AvaliacaoCliente = { estrelas: number; elogios: string[]; em: string; motorista: string };
 
 export type EstadoViagem = 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
 
@@ -63,6 +74,7 @@ export type EventoViagem =
   | { tipo: 'recusado'; id: string }
   | { tipo: 'posicao'; id: string; posicao: Ponto }
   | { tipo: 'estado'; id: string; estado: EstadoViagem; motorista?: Motorista }
+  | { tipo: 'avaliacao_cliente'; telefone: string; avaliacao: AvaliacaoCliente }
   | { tipo: 'cancelado'; id: string; por: 'cliente' | 'motorista'; motivo?: 'falta' };
 
 type Ouvinte = (e: EventoViagem) => void;

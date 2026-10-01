@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, Share, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Platform, Pressable, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EstadoServidor } from '@/components/estado-servidor';
@@ -17,6 +17,7 @@ import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { calcularRota, pontoNaRota, restoDaRota, restoDesde, type Rota } from '@/data/rotas';
 import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
 import { custoCancelar, custoFalta, type Cancelamento } from '@/data/cancelamento';
+import { devePartilhar, textoPreferencias } from '@/data/extras-viagem';
 import { avisarMotoristaPorPush } from '@/data/push';
 import { ouvir, publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
@@ -124,7 +125,11 @@ export default function Viagem() {
         pagamento: PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '',
         criadoEm: new Date().toISOString(),
         clienteNome: sessao.perfil?.nome,
+        clienteTelefone: sessao.perfil?.telefone,
         pagaNoFim: viagemConta?.porPagar,
+        passageiro: viagemConta?.passageiro ?? pedido.passageiro ?? undefined,
+        preferencias: viagemConta?.preferencias ?? conta.preferencias,
+        voo: viagemConta?.voo ?? pedido.voo ?? undefined,
       },
     });
     // Com a app do motorista fechada, o aviso chega por push (precisa da versão de desenvolvimento).
@@ -184,6 +189,9 @@ export default function Viagem() {
   useEffect(() => {
     if (fase === faseAvisada.current || !destino) return;
     faseAvisada.current = fase;
+    // Partilha automática com os contactos de confiança (sempre, ou só à noite).
+    if (fase === 'a_caminho' && conta.contactosConfianca.length > 0 && devePartilhar(conta.partilhaAuto, new Date()))
+      avisar(t('Viagem partilhada'), t('{nomes} recebem o percurso, o carro e o motorista desta viagem.', { nomes: conta.contactosConfianca.map((c) => c.nome).join(', ') }));
     if (fase === 'a_caminho') avisar(t('{nome} vai a caminho', { nome: primeiroNome }), t('{viatura} · {matricula}. Código de recolha: {codigo}.', { viatura: nomeViatura(viatura), matricula: motorista.matricula, codigo }));
     if (fase === 'chegou') avisar(t('O teu chauffeur chegou'), t('{nome} está à porta num {viatura}. Diz-lhe o código {codigo}.', { nome: primeiroNome, viatura: nomeViatura(viatura), codigo }));
     if (fase === 'em_viagem' && viagemConta) atualizarViagem(viagemConta.id, { estado: 'em_curso' });
@@ -291,6 +299,8 @@ export default function Viagem() {
   }
 
   const comMotorista = fase === 'a_caminho' || fase === 'chegou' || fase === 'em_viagem';
+  const passageiro = viagemConta?.passageiro ?? pedido.passageiro;
+  const prefs = textoPreferencias(viagemConta?.preferencias ?? conta.preferencias);
 
   return (
     <View style={s.ecra}>
@@ -386,6 +396,30 @@ export default function Viagem() {
           </View>
         )}
 
+        {passageiro && (fase === 'a_caminho' || fase === 'chegou') && (
+          <View style={s.extras}>
+            <Text style={[s.secundarioPequeno, { flex: 1 }]}>{t('Vai {nome}. Envia-lhe o código {codigo} e o carro.', { nome: passageiro.nome, codigo })}</Text>
+            <Text
+              style={s.ligacaoExtras}
+              onPress={() =>
+                Linking.openURL(
+                  sms(
+                    [passageiro.telefone],
+                    t('O teu Chauffeur vai a caminho: {viatura}, matrícula {matricula}, motorista {motorista}. Código de recolha: {codigo}.', {
+                      viatura: nomeViatura(viatura),
+                      matricula: motorista.matricula,
+                      motorista: motorista.nome,
+                      codigo,
+                    }),
+                  ),
+                )
+              }>
+              {t('Enviar por SMS')}
+            </Text>
+          </View>
+        )}
+        {comMotorista && prefs.length > 0 && <Text style={[s.secundarioPequeno, { marginBottom: Spacing.one }]}>{prefs.join(' · ')}</Text>}
+
         {(fase === 'a_caminho' || fase === 'chegou' || fase === 'em_viagem') && <NotaPagamento />}
 
         {comMotorista && (
@@ -479,6 +513,21 @@ export default function Viagem() {
                 <Text style={s.numeroSos}>{e.numero}</Text>
               </Pressable>
             ))}
+            {conta.contactosConfianca.length > 0 && (
+              <Pressable
+                onPress={() =>
+                  Linking.openURL(
+                    sms(
+                      conta.contactosConfianca.map((c) => c.telefone),
+                      t('Preciso de ajuda. Estou num {viatura} ({matricula}). A minha localização: {ligacao}', { viatura: nomeViatura(viatura), matricula: motorista.matricula, ligacao: ligacaoMapa(carro ?? origem) }),
+                    ),
+                  )
+                }
+                style={s.linhaSos}>
+                <Text style={s.nome}>{t('Avisar contactos de confiança')}</Text>
+                <Text style={s.secundario}>{conta.contactosConfianca.map((c) => c.nome).join(', ')}</Text>
+              </Pressable>
+            )}
             <Pressable onPress={partilharLocalizacao} style={s.linhaSos}>
               <Text style={s.nome}>{t('Enviar a minha localização')}</Text>
               <Text style={s.secundario}>›</Text>
@@ -492,6 +541,9 @@ export default function Viagem() {
     </View>
   );
 }
+
+/** Abre a app de SMS com a mensagem pronta (no iPhone o separador é diferente). */
+const sms = (numeros: string[], corpo: string) => `sms:${numeros.join(',')}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(corpo)}`;
 
 function Acao({ texto, onPress, s, contador = 0 }: { texto: string; onPress: () => void; s: ReturnType<typeof estilos>; contador?: number }) {
   return (
@@ -522,6 +574,8 @@ function estilos(c: Palette) {
     avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.backgroundSelected, alignItems: 'center', justifyContent: 'center' },
     avatarTexto: { color: c.text, fontSize: 20, fontWeight: '800' },
     matricula: { color: c.text, fontSize: 13, fontWeight: '700', letterSpacing: 0.5, backgroundColor: c.backgroundElement, borderRadius: 6, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, overflow: 'hidden' },
+    extras: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.two },
+    ligacaoExtras: { color: c.text, fontSize: 13, fontWeight: '800', textDecorationLine: 'underline' },
     codigo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, marginBottom: Spacing.three },
     codigoTitulo: { color: c.text, fontSize: 15, fontWeight: '700' },
     codigoNumero: { color: c.text, fontSize: 28, fontWeight: '800', letterSpacing: 4 },

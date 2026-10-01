@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
+import { PREFERENCIAS_PADRAO, type ContactoConfianca, type PartilhaAuto, type Passageiro, type Preferencias } from '@/data/extras-viagem';
 import { useGuardado } from '@/data/guardar';
 import { ouvir, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { LUGARES, type Lugar } from '@/data/lugares';
@@ -54,6 +55,9 @@ export type ViagemFeita = {
   /** Cancelada: o que o cliente pagou ou perdeu, e o que lhe voltou. */
   taxaCancelamentoMzn?: number;
   reembolsoMzn?: number;
+  passageiro?: Passageiro;
+  preferencias?: Preferencias;
+  voo?: string;
   /** Quem cancelou, ou falta de comparência. */
   motivoCancelamento?: 'cliente' | 'motorista' | 'falta';
 };
@@ -75,8 +79,14 @@ type Conta = {
   /** Guarda a viagem paga; o id pode vir de fora, para ser o mesmo da reserva na agenda. */
   registarViagem: (v: Omit<ViagemFeita, 'id' | 'criadaEm'> & { id?: string }) => string;
   atualizarViagem: (id: string, mudancas: Partial<ViagemFeita>) => void;
-  /** Média que os motoristas deram ao cliente. */
-  avaliacaoCliente: number;
+  /** Preferências para todas as viagens (silêncio, temperatura, música, malas). */
+  preferencias: Preferencias;
+  setPreferencias: (p: Preferencias) => void;
+  /** Quem recebe a viagem partilhada, e quando. */
+  contactosConfianca: ContactoConfianca[];
+  setContactosConfianca: (c: ContactoConfianca[]) => void;
+  partilhaAuto: PartilhaAuto;
+  setPartilhaAuto: (r: PartilhaAuto) => void;
 
   mensagens: Mensagem[];
   naoLidasChat: number;
@@ -142,6 +152,9 @@ export function ContaProvider({ children }: { children: ReactNode }) {
     aeroporto: LUGARES.find((l) => l.id === 'aeroporto') ?? null,
   }));
   const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo);
+  const [preferencias, setPreferencias] = useGuardado<Preferencias>(chave && `${chave}.preferencias`, PREFERENCIAS_PADRAO);
+  const [contactosConfianca, setContactosConfianca] = useGuardado<ContactoConfianca[]>(chave && `${chave}.contactos`, []);
+  const [partilhaAuto, setPartilhaAuto] = useGuardado<PartilhaAuto>(chave && `${chave}.partilha`, 'noite');
   const [empresa, setEmpresa] = useGuardado<Empresa | null>(chave && `${chave}.empresa`, null);
   const [viagemAtualId, setViagemAtualId] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
@@ -218,8 +231,12 @@ export function ContaProvider({ children }: { children: ReactNode }) {
         return id;
       },
       atualizarViagem: (id, mudancas) => setViagens((atual) => atual.map((v) => (v.id === id ? { ...v, ...mudancas } : v))),
-      // Simulado: no produto final é a média das estrelas que cada motorista dá no fim da viagem.
-      avaliacaoCliente: 4.9,
+      preferencias,
+      setPreferencias,
+      contactosConfianca,
+      setContactosConfianca,
+      partilhaAuto,
+      setPartilhaAuto,
       mensagens,
       naoLidasChat: mensagens.filter((m) => !m.lida).length,
       enviarMensagem,
@@ -240,7 +257,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       creditoMzn: 0,
       amigosConvidados: 0,
     };
-  }, [locais, setLocais, viagens, setViagens, viagemAtualId, mensagens, avisos, avisoTopo, avisosNoTelemovel, empresa, setEmpresa, promo, avisar, enviarMensagem, marcarChatLido]);
+  }, [locais, setLocais, viagens, setViagens, viagemAtualId, mensagens, avisos, avisoTopo, avisosNoTelemovel, preferencias, setPreferencias, contactosConfianca, setContactosConfianca, partilhaAuto, setPartilhaAuto, empresa, setEmpresa, promo, avisar, enviarMensagem, marcarChatLido]);
 
   return <ContaContext.Provider value={valor}>{children}</ContaContext.Provider>;
 }

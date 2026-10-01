@@ -8,6 +8,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { custoCancelar } from '@/data/cancelamento';
+import { formatarTelefone } from '@/data/motorista';
 import { formatarMzn } from '@/data/categorias';
 import { descricaoReserva, eReserva, linhasRecibo, nomePagamento, numeroRecibo, partilharRecibo } from '@/data/recibo';
 import { textoDias } from '@/data/reserva';
@@ -50,6 +51,8 @@ export default function Recibo() {
           {formatarDia(v.recolhaEm, new Date())}, {formatarHora(v.recolhaEm)} · {t('pago por {pagamento}', { pagamento: nomePagamento(v) })}
         </Text>
 
+        {v.passageiro && <Text style={s.secundario}>{t('Viagem para {nome} · {telefone}', { nome: v.passageiro.nome, telefone: formatarTelefone(v.passageiro.telefone) })}</Text>}
+        {v.voo && <Text style={s.secundario}>{t('Voo {voo}', { voo: v.voo })}</Text>}
         <View style={s.caixa}>
           {percurso.map((l, i) => (
             <View key={`${l.id}-${i}`} style={s.paragem}>

@@ -14,6 +14,7 @@ import '@/data/localizacao-fundo';
 
 import { IdiomaProvider } from '@/i18n/idioma';
 import { AgendaProvider } from '@/state/agenda';
+import { AvaliacoesProvider } from '@/state/avaliacoes';
 import { ContaProvider } from '@/state/conta';
 import { InscricoesProvider } from '@/state/inscricoes';
 import { ModoMotoristaProvider } from '@/state/modo-motorista';
@@ -46,6 +47,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <IdiomaProvider>
       <SessaoProvider>
+        <AvaliacoesProvider>
         <AgendaProvider>
           <InscricoesProvider>
             <PedidoProvider>
@@ -62,6 +64,7 @@ export default function RootLayout() {
             </PedidoProvider>
           </InscricoesProvider>
         </AgendaProvider>
+        </AvaliacoesProvider>
       </SessaoProvider>
       </IdiomaProvider>
     </ThemeProvider>
@@ -104,6 +107,8 @@ function Navegacao() {
         <Stack.Screen name="ajuda" />
         <Stack.Screen name="suporte" />
         <Stack.Screen name="empresa" />
+        <Stack.Screen name="opcoes" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="seguranca" />
         {/* Só para motoristas aprovados (ou a conta de demonstração). */}
         <Stack.Protected guard={motorista.pode}>
           {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}

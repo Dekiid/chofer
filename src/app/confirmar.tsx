@@ -12,12 +12,14 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { conflito, formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
+import { eAeroporto, textoPreferencias } from '@/data/extras-viagem';
 import { nomeLugar } from '@/data/lugares';
 import { lugarNoPonto } from '@/data/moradas';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { usePedirAgora } from '@/hooks/use-pedir-agora';
 import { useTempoConducao } from '@/hooks/use-tempo-conducao';
 import { useAgenda } from '@/state/agenda';
+import { useConta } from '@/state/conta';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
 import { t } from '@/i18n';
@@ -26,6 +28,7 @@ export default function Confirmar() {
   const cores = usePalette();
   const s = estilos(cores);
   const pedido = usePedido();
+  const conta = useConta();
   const { origem, destino, paragens, viatura, quando, setQuando, rota, rotaACarregar } = pedido;
   const { reservas, estado: estadoAgenda } = useAgenda();
   // Tempo de condução entre as outras reservas do carro e esta viagem: do fim de cada uma até esta recolha,
@@ -145,6 +148,20 @@ export default function Confirmar() {
               <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
             </Pressable>
 
+            <Pressable onPress={() => router.push('/opcoes')} style={s.opcoes} accessibilityLabel={t('Opções da viagem')}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.opcoesTitulo}>
+                  {pedido.passageiro ? t('Para {nome}', { nome: pedido.passageiro.nome }) : t('Para mim')}
+                  {pedido.voo ? ` · ${t('Voo {voo}', { voo: pedido.voo })}` : ''}
+                </Text>
+                <Text style={s.opcoesTexto} numberOfLines={1}>
+                  {textoPreferencias(conta.preferencias).join(' · ') ||
+                    (eAeroporto(origem) && !pedido.voo ? t('Junta o número do voo e as tuas preferências') : t('Preferências: silêncio, temperatura, música, malas'))}
+                </Text>
+              </View>
+              <Text style={s.opcoesMudar}>{t('Mudar')}</Text>
+            </Pressable>
+
             <Text style={s.pergunta}>{t('Quando?')}</Text>
             <EscolhaHorario
               viaturaId={viatura.id}
@@ -223,6 +240,10 @@ export default function Confirmar() {
 
 function estilos(c: Palette) {
   return StyleSheet.create({
+    opcoes: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, marginTop: Spacing.two },
+    opcoesTitulo: { color: c.text, fontSize: 15, fontWeight: '700' },
+    opcoesTexto: { color: c.textSecondary, fontSize: 13, marginTop: 2 },
+    opcoesMudar: { color: c.text, fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
     quandoPaga: { color: c.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: Spacing.two },
     avisoAgenda: { color: '#D93025', fontSize: 12, marginTop: Spacing.one },
     ecra: { flex: 1, backgroundColor: c.background },

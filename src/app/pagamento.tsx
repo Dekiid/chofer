@@ -117,6 +117,7 @@ export default function Pagamento() {
       if (!(await continuar(resultado))) return;
       conta.registarViagem({
         id: idViagem,
+        passageiro: pedido.passageiro ?? undefined,
         tipo: reserva.modo,
         dias: reserva.dias,
         decoracao: casamento ? reserva.decoracao : undefined,
@@ -169,6 +170,10 @@ export default function Pagamento() {
       pagamento: nomePagamento,
       criadoEm: new Date().toISOString(),
       clienteNome: sessao.perfil?.nome,
+      clienteTelefone: sessao.perfil?.telefone,
+      passageiro: pedido.passageiro ?? undefined,
+      preferencias: conta.preferencias,
+      voo: pedido.voo ?? undefined,
     };
     // O carro fica ocupado desde a recolha (ou desde agora, nos pedidos imediatos) até ao fim da viagem.
     const resultado = await agenda.reservar({
@@ -186,6 +191,9 @@ export default function Pagamento() {
     // Fica no histórico do cliente, com o recibo.
     conta.registarViagem({
       id: idViagem,
+      passageiro: pedido.passageiro ?? undefined,
+      preferencias: conta.preferencias,
+      voo: pedido.voo ?? undefined,
       recolhaEm: inicio,
       origem: pedido.origem,
       paragens: pedido.paragens,

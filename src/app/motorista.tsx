@@ -14,10 +14,12 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { ESPERA_MIN } from '@/data/cancelamento';
+import { ELOGIOS_CLIENTE, ESPERA_AEROPORTO_MIN, ligacaoVoo, textoPreferencias } from '@/data/extras-viagem';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
 import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
+import { useAvaliacoes } from '@/state/avaliacoes';
 import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
 import { ganhoMotorista, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { usePedido } from '@/state/pedido';
@@ -84,7 +86,7 @@ export default function MotoristaEcra() {
 type S = ReturnType<typeof estilos>;
 
 /** Na recolha: quanto tempo falta de espera; depois disso, o motorista pode marcar falta de comparência. */
-function Espera({ chegouEm, s }: { chegouEm?: number; s: S }) {
+function Espera({ chegouEm, minutos, s }: { chegouEm?: number; minutos: number; s: S }) {
   const m = useModoMotorista();
   const [agora, setAgora] = useState(Date.now());
   useEffect(() => {
@@ -92,7 +94,7 @@ function Espera({ chegouEm, s }: { chegouEm?: number; s: S }) {
     return () => clearInterval(t);
   }, []);
   if (!chegouEm) return null;
-  const falta = chegouEm + ESPERA_MIN * 60000 - agora;
+  const falta = chegouEm + minutos * 60000 - agora;
   if (falta > 0) {
     const min = Math.floor(falta / 60000);
     const seg = Math.floor((falta % 60000) / 1000);
@@ -243,6 +245,38 @@ function Disponivel({ s }: { s: S }) {
   );
 }
 
+/** O que o cliente pediu além do percurso: outra pessoa no carro, o voo e as preferências. */
+function ExtrasPedido({ pedido, ligar, s }: { pedido: PedidoMotorista; ligar?: boolean; s: S }) {
+  const cores = usePalette();
+  const prefs = textoPreferencias(pedido.preferencias);
+  if (!pedido.passageiro && !pedido.voo && prefs.length === 0) return null;
+  return (
+    <View style={[s.caixa, { gap: Spacing.one }]}>
+      {pedido.passageiro && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+          <Text style={[s.secundarioPequeno, { flex: 1, color: cores.text }]}>
+            {t('Vai {nome} · pedido por {cliente}', { nome: pedido.passageiro.nome, cliente: pedido.clienteNome ?? t('o cliente') })}
+          </Text>
+          {ligar && (
+            <Text style={s.ligacao} onPress={() => Linking.openURL(`tel:${pedido.passageiro!.telefone}`)}>
+              {t('Ligar')}
+            </Text>
+          )}
+        </View>
+      )}
+      {pedido.voo && (
+        <Text style={[s.secundarioPequeno, { color: cores.text }]}>
+          {t('Voo {voo} · espera {min} min grátis depois de aterrar', { voo: pedido.voo, min: ESPERA_AEROPORTO_MIN })}{'  '}
+          <Text style={s.ligacao} onPress={() => Linking.openURL(ligacaoVoo(pedido.voo!))}>
+            {t('Ver voo')}
+          </Text>
+        </Text>
+      )}
+      {prefs.length > 0 && <Text style={s.secundarioPequeno}>{prefs.join(' · ')}</Text>}
+    </View>
+  );
+}
+
 function PedidoNovo({ pedido, s }: { pedido: PedidoMotorista; s: S }) {
   const cores = usePalette();
   const m = useModoMotorista();
@@ -269,6 +303,7 @@ function PedidoNovo({ pedido, s }: { pedido: PedidoMotorista; s: S }) {
         })}
       </Text>
       <NotaPagamento paraMotorista />
+      <ExtrasPedido pedido={pedido} s={s} />
 
       <View style={s.caixa}>
         <Linha ponto={<View style={s.pontoRecolha} />} titulo={nomeLugar(pedido.origem)} texto={t('{min} min · {km} de ti', { min: duracaoMin(kmRecolha), km: formatarKm(kmRecolha) })} s={s} />
@@ -294,6 +329,8 @@ function ViagemEmCurso({ s }: { s: S }) {
   const [codigo, setCodigo] = useState('');
   const [erro, setErro] = useState(false);
   const [estrelas, setEstrelas] = useState(0);
+  const [elogios, setElogios] = useState<string[]>([]);
+  const avaliacoes = useAvaliacoes();
 
   const alvo: Ponto = fase === 'a_recolha' || fase === 'chegou' ? pedido.origem : pedido.destino;
   const km = viagem.rota ? viagem.rota.km : distanciaKm(m.posicao, alvo) * 1.3;
@@ -322,7 +359,27 @@ function ViagemEmCurso({ s }: { s: S }) {
             </Pressable>
           ))}
         </View>
-        <BotaoPrincipal texto={t('Continuar')} onPress={m.fecharResumo} desativado={estrelas === 0} />
+        {estrelas > 0 && (
+          <View style={s.elogios}>
+            {ELOGIOS_CLIENTE.map((e) => {
+              const ativo = elogios.includes(e);
+              return (
+                <Pressable key={e} onPress={() => setElogios((l) => (ativo ? l.filter((x) => x !== e) : [...l, e]))} style={[s.elogio, ativo && { backgroundColor: cores.primary }]}>
+                  <Text style={[s.secundarioPequeno, { color: ativo ? cores.onPrimary : cores.text, fontWeight: '700' }]}>{t(e)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+        <BotaoPrincipal
+          texto={t('Continuar')}
+          onPress={() => {
+            // A nota fica no perfil do cliente, e a média aparece na conta dele.
+            if (pedido.clienteTelefone) avaliacoes.avaliarCliente(pedido.clienteTelefone, { estrelas, elogios, em: new Date().toISOString(), motorista: m.eu.nome });
+            m.fecharResumo();
+          }}
+          desativado={estrelas === 0}
+        />
       </>
     );
   }
@@ -348,7 +405,7 @@ function ViagemEmCurso({ s }: { s: S }) {
             accessibilityLabel={t('Código de recolha')}
           />
           {erro && <Text style={s.erro}>{t('Código errado. Confirma com o cliente.')}</Text>}
-          <Espera chegouEm={viagem.chegouEm} s={s} />
+          <Espera chegouEm={viagem.chegouEm} minutos={pedido.voo ? ESPERA_AEROPORTO_MIN : ESPERA_MIN} s={s} />
           {!TEMPO_REAL_ATIVO && <Text style={s.secundarioPequeno}>{t('Demonstração: o código do cliente é {codigo}.', { codigo: pedido.codigoRecolha })}</Text>}
         </>
       )}
@@ -362,7 +419,8 @@ function ViagemEmCurso({ s }: { s: S }) {
         detalheRecolha={fase === 'a_recolha' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : fase === 'chegou' ? t('Chegaste') : undefined}
         detalheDestino={fase === 'em_viagem' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : formatarKm(pedido.km)}
       />
-      {pedido.clienteNome ? <Text style={s.secundarioPequeno}>{t('Cliente: {nome}', { nome: pedido.clienteNome })}</Text> : null}
+      {pedido.clienteNome && !pedido.passageiro ? <Text style={s.secundarioPequeno}>{t('Cliente: {nome}', { nome: pedido.clienteNome })}</Text> : null}
+      <ExtrasPedido pedido={pedido} ligar={fase !== 'em_viagem'} s={s} />
 
       <View style={[s.botoes, { marginTop: Spacing.three }]}>
         {fase !== 'chegou' && (
@@ -415,6 +473,8 @@ function estilos(c: Palette) {
     nomePequeno: { color: c.text, fontSize: 15, fontWeight: '700' },
     secundario: { color: c.textSecondary, fontSize: 14 },
     secundarioPequeno: { color: c.textSecondary, fontSize: 12, marginTop: 1 },
+    elogios: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
+    elogio: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: c.backgroundElement },
     ligacao: { color: c.text, fontWeight: '800', textDecorationLine: 'underline' },
     etiqueta: { color: c.text, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: Spacing.two },
     valorGrande: { color: c.text, fontSize: 34, fontWeight: '800', letterSpacing: -0.5 },

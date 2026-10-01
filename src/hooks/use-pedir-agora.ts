@@ -42,6 +42,9 @@ export function usePedirAgora(): () => Promise<string | null> {
     const preco = calcularPreco(viatura, rota.km, true);
     conta.registarViagem({
       id,
+      passageiro: pedido.passageiro ?? undefined,
+      preferencias: conta.preferencias,
+      voo: pedido.voo ?? undefined,
       recolhaEm: inicio,
       origem: pedido.origem,
       paragens: pedido.paragens,

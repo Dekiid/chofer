@@ -5,6 +5,7 @@ import { VIATURAS, type Viatura } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO, type Lugar } from '@/data/lugares';
 import type { ReservaDias } from '@/data/reserva';
 import { calcularRotaPor, rotaEstimadaPor, type Rota } from '@/data/rotas';
+import type { Passageiro } from '@/data/extras-viagem';
 import { useInscricoes } from '@/state/inscricoes';
 
 export type Pagamento = 'mpesa' | 'emola' | 'empresa';
@@ -47,6 +48,12 @@ type Pedido = {
   setViaturaId: (id: string) => void;
   setPagamento: (p: Pagamento) => void;
   setQuando: (q: Quando | null) => void;
+  /** Pedido para outra pessoa; null quando é para quem pede. */
+  passageiro: Passageiro | null;
+  setPassageiro: (p: Passageiro | null) => void;
+  /** Número do voo, nas recolhas no aeroporto. */
+  voo: string | null;
+  setVoo: (v: string | null) => void;
   limpar: () => void;
 };
 
@@ -66,6 +73,8 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
   const [viaturaId, setViaturaId] = useState(VIATURAS[0].id);
   const [pagamento, setPagamento] = useState<Pagamento>('mpesa');
   const [quando, setQuando] = useState<Quando | null>(null);
+  const [passageiro, setPassageiro] = useState<Passageiro | null>(null);
+  const [voo, setVoo] = useState<string | null>(null);
   const [reserva, setReserva] = useState<ReservaDias | null>(null);
   const { viaturasAprovadas } = useInscricoes();
   const [rotaGoogle, setRotaGoogle] = useState<{ chave: string; rota: Rota } | null>(null);
@@ -127,14 +136,20 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
       },
       setPagamento,
       setQuando,
+      passageiro,
+      setPassageiro,
+      voo,
+      setVoo,
       limpar: () => {
         setDestino(null);
+        setPassageiro(null);
+        setVoo(null);
         setParagens([]);
         setReserva(null);
         setQuando(null);
       },
     };
-  }, [origem, localAtual, destino, paragens, viaturaId, pagamento, quando, reserva, rota, rotaACarregar, viaturasAprovadas, setLocalAtual]);
+  }, [origem, localAtual, destino, paragens, viaturaId, pagamento, quando, passageiro, voo, reserva, rota, rotaACarregar, viaturasAprovadas, setLocalAtual]);
 
   return <PedidoContext.Provider value={valor}>{children}</PedidoContext.Provider>;
 }
