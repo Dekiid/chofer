@@ -180,7 +180,7 @@ export default function Pagamento() {
       conta.setPromo(null);
       conta.avisar(
         t('Reserva confirmada'),
-        t('{viatura}, {reserva}, {dias} a partir de {dia} às {hora}.', { viatura: nomeViatura(viatura), reserva: nomeReserva, dias: textoDias(reserva.dias), dia: diaNaFrase(inicio), hora: formatarHora(inicio) }),
+        t('{viatura}, {reserva}, {dias} a partir de {dia}.', { viatura: nomeViatura(viatura), reserva: nomeReserva, dias: textoDias(reserva.dias), dia: diaNaFrase(inicio) }),
       );
       agenda.notificar(
         casamento ? t('Reserva de casamento') : t('Novo aluguer'),
@@ -338,9 +338,9 @@ export default function Pagamento() {
         <Text style={s.titulo}>{t('Reserva confirmada')}</Text>
         <Text style={s.secundarioCentro}>
           {casamento
-            ? reserva.decoracao === 'com'
-              ? t('O {viatura} decorado e o motorista vão buscar os noivos {local} {dia} às {hora}, por {dias}.', { viatura: nomeViatura(viatura), local: noLocal, dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), dias: textoDias(reserva.dias) })
-              : t('O {viatura} e o motorista vão buscar os noivos {local} {dia} às {hora}, por {dias}.', { viatura: nomeViatura(viatura), local: noLocal, dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), dias: textoDias(reserva.dias) })
+            ? reserva.dias === 1
+              ? t('O {viatura}{decorado} e o motorista ficam reservados para o casamento {dia}, o dia inteiro. O motorista vai buscar os noivos {local}.', { viatura: nomeViatura(viatura), decorado: reserva.decoracao === 'com' ? t(' decorado') : '', dia: diaNaFrase(reserva.inicio), local: noLocal })
+              : t('O {viatura}{decorado} e o motorista ficam reservados para o casamento de {dia} até {ultimo}, os dias inteiros. O motorista vai buscar os noivos {local}.', { viatura: nomeViatura(viatura), decorado: reserva.decoracao === 'com' ? t(' decorado') : '', dia: diaNaFrase(reserva.inicio), ultimo: diaNaFrase(ultimoDia(reserva.inicio, reserva.dias)), local: noLocal })
             : reserva.dias === 1
               ? t('O {viatura} é teu {dia}, o dia inteiro. Entregamos o carro {local}.', { viatura: nomeViatura(viatura), dia: diaNaFrase(reserva.inicio), local: noLocal })
               : t('O {viatura} é teu de {dia} até {ultimo}, os dias inteiros. Entregamos o carro {local}.', {
@@ -511,7 +511,7 @@ export default function Pagamento() {
               : reserva?.inicio
               ? reserva.modo === 'aluguer'
                 ? t('Aluguer de {dias} a partir de {dia}', { dias: textoDias(reserva.dias), dia: diaNaFrase(reserva.inicio) })
-                : t('{dias} a partir de {dia} às {hora}', { dias: textoDias(reserva.dias), dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio) })
+                : t('Casamento de {dias} a partir de {dia}', { dias: textoDias(reserva.dias), dia: diaNaFrase(reserva.inicio) })
               : quando?.tipo === 'agendado'
               ? t('Recolha {dia} às {hora}', { dia: diaNaFrase(quando.inicio), hora: formatarHora(quando.inicio) })
               : t('Pedido imediato, com taxa extra')}

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { diasAgendaveis, formatarDia, type Reserva, formatarHora, horariosDoDia, INTERVALO_MIN, mesmoDia, reservaNoIntervalo, somarMin } from '@/data/agenda';
+import { diasAgendaveis, formatarDia, type Reserva, formatarHora, horariosDoDia, INTERVALO_MIN, mesmoDia, ocupaODia, reservaDeDias, reservaNoIntervalo, somarMin } from '@/data/agenda';
 import { nomeViatura } from '@/data/categorias';
 import { t } from '@/i18n';
 import { useAgenda } from '@/state/agenda';
@@ -40,6 +40,8 @@ export default function Agenda() {
   const todasReservas = [...reservas, ...diretas];
   const porFazer = todasReservas.filter((r) => r.tipo !== 'bloqueio' && r.fim > agora).sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
   const doCarro = porFazer.filter((r) => r.viaturaId === viaturaId);
+  // Um aluguer ou casamento neste dia ocupa-o todo.
+  const diaInteiro = todasReservas.find((r) => r.viaturaId === viaturaId && reservaDeDias(r) && ocupaODia(r, dia));
   const proximas = doCarro.map((r) => ({ r, etiqueta: etiquetaLembrete(r.inicio.getTime(), agora.getTime()) })).filter((x) => x.etiqueta);
 
   return (
@@ -62,14 +64,16 @@ export default function Agenda() {
           {dias.map((d) => (
             <Pressable key={d.getTime()} onPress={() => setDia(d)} style={[s.chip, mesmoDia(d, dia) && s.chipAtivo]}>
               <Text style={[s.textoChip, mesmoDia(d, dia) && s.textoChipAtivo]}>{formatarDia(d, agora)}</Text>
-              <Contador n={doCarro.filter((r) => mesmoDia(r.inicio, d)).length} s={s} />
+              <Contador n={doCarro.filter((r) => (reservaDeDias(r) ? ocupaODia(r, d) : mesmoDia(r.inicio, d))).length} s={s} />
             </Pressable>
           ))}
         </ScrollView>
         {proximas.map(({ r, etiqueta }) => (
           <Pressable key={r.id} onPress={() => setDia(diasAgendaveis(agora).find((d) => mesmoDia(d, r.inicio)) ?? dia)} style={[s.lembrete, etiqueta!.urgente && s.lembreteUrgente]}>
             <Text style={s.textoLembrete} numberOfLines={2}>
-              {t('Reserva {quando}: {hora}{destino}. Prepara o carro para a cumprir.', { quando: etiqueta!.texto.toLowerCase(), hora: formatarHora(r.inicio), destino: r.destino ? ` · ${r.destino}` : '' })}
+              {reservaDeDias(r)
+                ? t('Reserva {quando}: {destino}, o dia inteiro. Prepara o carro para a cumprir.', { quando: etiqueta!.texto.toLowerCase(), destino: r.destino ?? '' })
+                : t('Reserva {quando}: {hora}{destino}. Prepara o carro para a cumprir.', { quando: etiqueta!.texto.toLowerCase(), hora: formatarHora(r.inicio), destino: r.destino ? ` · ${r.destino}` : '' })}
             </Text>
           </Pressable>
         ))}
@@ -81,7 +85,18 @@ export default function Agenda() {
       </View>
 
       <ScrollView contentContainerStyle={s.lista}>
-        {horariosDoDia(dia).map((inicio) => {
+        {diaInteiro ? (
+          // Aluguer ou casamento: o dia todo fica numa só caixa, sem horários.
+          <View style={s.blocoDia}>
+            <Text style={[s.textoBloco, s.textoOcupado, { fontWeight: '800' }]}>{t('Reservado o dia inteiro')}</Text>
+            <Text style={[s.textoBloco, s.textoOcupado]}>{diaInteiro.destino}</Text>
+            <Text style={[s.textoBloco, s.textoOcupado, { opacity: 0.7 }]}>
+              {mesmoDia(diaInteiro.inicio, somarMin(diaInteiro.fim, -1))
+                ? formatarDia(diaInteiro.inicio, agora)
+                : t('{inicio} a {fim}', { inicio: formatarDia(diaInteiro.inicio, agora), fim: formatarDia(somarMin(diaInteiro.fim, -1), agora) })}
+            </Text>
+          </View>
+        ) : horariosDoDia(dia).map((inicio) => {
           const r = reservaNoIntervalo(todasReservas, viaturaId, inicio, somarMin(inicio, INTERVALO_MIN));
           const passado = somarMin(inicio, INTERVALO_MIN) <= agora;
           const bloqueio = r?.tipo === 'bloqueio';
@@ -138,6 +153,7 @@ function estilos(c: Palette) {
     textoChipAtivo: { color: c.onPrimary },
     ajuda: { color: c.textSecondary, fontSize: 12, marginVertical: Spacing.one },
     lista: { padding: Spacing.three, gap: Spacing.one },
+    blocoDia: { borderRadius: Radius.card, backgroundColor: c.primary, padding: Spacing.four, gap: Spacing.one, minHeight: 160, justifyContent: 'center' },
     linha: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
     hora: { color: c.textSecondary, width: 44, fontVariant: ['tabular-nums'] },
     bloco: { flex: 1, borderRadius: 8, paddingHorizontal: Spacing.three, paddingVertical: 10 },

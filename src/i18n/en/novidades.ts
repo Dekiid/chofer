@@ -205,4 +205,13 @@ export const novidades: Record<string, string> = {
   "O carro não está livre em todos estes dias. Escolhe outro dia ou menos dias.": "The car isn't free on all these days. Choose another day or fewer days.",
   Dias: "Days",
   "Escolhe o primeiro dia": "Choose the first day",
+  "Reserva {quando}: {destino}, o dia inteiro. Prepara o carro para a cumprir.": "Booking {quando}: {destino}, all day. Get the car ready for it.",
+  "Reservado o dia inteiro": "Booked all day",
+  "O {viatura}{decorado} e o motorista ficam reservados para o casamento {dia}, o dia inteiro. O motorista vai buscar os noivos {local}.": "The{decorado} {viatura} and the driver are booked for the wedding {dia}, all day. The driver picks up the couple {local}.",
+  " decorado": " decorated",
+  "O {viatura}{decorado} e o motorista ficam reservados para o casamento de {dia} até {ultimo}, os dias inteiros. O motorista vai buscar os noivos {local}.": "The{decorado} {viatura} and the driver are booked for the wedding from {dia} to {ultimo}, full days. The driver picks up the couple {local}.",
+  "Casamento de {dias} a partir de {dia}": "Wedding for {dias} from {dia}",
+  "Dia do casamento (primeiro dia)": "Wedding day (first day)",
+  "{dia}, o dia inteiro": "{dia}, all day",
+  "{viatura}, {reserva}, {dias} a partir de {dia}.": "{viatura}, {reserva}, {dias} from {dia}.",
 };

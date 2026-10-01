@@ -6,11 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { formatarDia, formatarHora, inicioDoDia, mesmoDia, reservaQueOcupa } from '@/data/agenda';
+import { formatarDia, inicioDoDia, mesmoDia, reservaQueOcupa } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { precoCasamento } from '@/data/casamento';
 import { nomeLugar } from '@/data/lugares';
-import { diaria, diasAluguer, diasLivres, diasReservaveis, fimReserva, horasLivres, MAX_DIAS, textoDias, totalReserva, ultimoDia } from '@/data/reserva';
+import { diaria, diasAluguer, diasLivres, fimReserva, MAX_DIAS, textoDias, totalReserva, ultimoDia } from '@/data/reserva';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
@@ -24,26 +24,24 @@ export default function ReservaEcra() {
   const { reservas } = useAgenda();
   const { reserva, viatura, origem } = pedido;
   const agora = new Date();
-  // O aluguer é por dias inteiros, a partir de amanhã; o casamento continua com a hora da recolha.
-  const aluguer = reserva?.modo === 'aluguer';
-  const dias = aluguer ? diasAluguer(agora) : diasReservaveis(agora);
-  const livreNoDia = (d: Date) =>
-    aluguer ? diasLivres(d, viatura.id, reserva?.dias ?? 1, reservas) : horasLivres(d, viatura.id, reserva?.dias ?? 1, reservas, agora).some((h) => h.livre);
-  // Abre no primeiro dia livre (à noite, hoje já não tem horas).
+  // Aluguer e casamento são por dias inteiros, a partir de amanhã, sem hora (Flavio, 2026-10-01).
+  // Só as viagens com motorista são à hora, com a duração calculada pelo mapa.
+  const dias = diasAluguer(agora);
+  const livreNoDia = (d: Date) => diasLivres(d, viatura.id, reserva?.dias ?? 1, reservas);
+  // Abre no primeiro dia livre.
   const [dia, setDia] = useState(() => reserva?.inicio ?? dias.find(livreNoDia) ?? dias[0]);
-  // No aluguer, o dia escolhido já é a reserva: o carro fica com o cliente desde o início desse dia.
+  // O dia escolhido já é a reserva: o carro fica reservado desde o início desse dia.
   useEffect(() => {
-    if (!aluguer || !reserva) return;
+    if (!reserva) return;
     const inicio = inicioDoDia(dia);
     if (reserva.inicio?.getTime() !== inicio.getTime()) pedido.setReserva({ ...reserva, inicio });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aluguer, dia, reserva?.inicio]);
+  }, [dia, reserva?.inicio]);
 
   if (!reserva) return <Redirect href="/" />;
   const casamento = reserva.modo === 'casamento';
   const mudar = (m: Partial<typeof reserva>) => pedido.setReserva({ ...reserva, ...m });
 
-  const horas = horasLivres(dia, viatura.id, reserva.dias, reservas, agora);
   // A hora escolhida pode deixar de estar livre ao mudar o número de dias.
   const inicioValido = reserva.inicio != null && !reservaQueOcupa(reservas, viatura.id, reserva.inicio, fimReserva(reserva.inicio, reserva.dias)) && reserva.inicio > agora;
   const total = totalReserva(viatura, reserva);
@@ -97,10 +95,10 @@ export default function ReservaEcra() {
           </Pressable>
         </View>
 
-        <Text style={s.pergunta}>{casamento ? t('Dia do casamento') : t('Primeiro dia do aluguer')}</Text>
+        <Text style={s.pergunta}>{casamento ? t('Dia do casamento (primeiro dia)') : t('Primeiro dia do aluguer')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fila} style={{ flexGrow: 0, flexShrink: 0 }}>
           {dias.map((d) => {
-            // Um dia sem nenhuma hora livre (ou, no aluguer, sem os dias todos livres) fica riscado.
+            // Um dia em que o carro não está livre em todos os dias pedidos fica riscado.
             const cheio = !livreNoDia(d);
             const ativo = mesmoDia(d, dia);
             return (
@@ -114,46 +112,22 @@ export default function ReservaEcra() {
           })}
         </ScrollView>
 
-        {aluguer ? (
-          !diasLivres(dia, viatura.id, reserva.dias, reservas) && <Text style={s.aviso}>{t('O carro não está livre em todos estes dias. Escolhe outro dia ou menos dias.')}</Text>
-        ) : (
-        <>
-        <Text style={s.pergunta}>{t('Hora da recolha')}</Text>
-        <View style={s.horas}>
-          {horas.map(({ inicio, livre }) => {
-            const ativo = reserva.inicio?.getTime() === inicio.getTime();
-            return (
-              <Pressable key={inicio.getTime()} disabled={!livre} onPress={() => mudar({ inicio })} style={[s.hora, ativo && s.chipAtivo, !livre && { opacity: 0.4 }]}>
-                <Text style={[s.textoChip, ativo && s.textoChipAtivo, !livre && s.riscado]}>{formatarHora(inicio)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {!horas.some((h) => h.livre) && <Text style={s.aviso}>{t('O carro não está livre neste dia para {dias}. Escolhe outro dia.', { dias: textoDias(reserva.dias) })}</Text>}
-        </>
-        )}
+        {!diasLivres(dia, viatura.id, reserva.dias, reservas) && <Text style={s.aviso}>{t('O carro não está livre em todos estes dias. Escolhe outro dia ou menos dias.')}</Text>}
 
         <View style={s.resumo}>
           <Linha s={s} nome={casamento ? t('Carro com motorista') : t('Carro sem motorista')} valor={nomeViatura(viatura)} />
           {casamento && <Linha s={s} nome={t('Decoração')} valor={reserva.decoracao === 'com' ? t('Com decoração') : t('Sem decoração')} />}
-          {aluguer ? (
-            <Linha
-              s={s}
-              nome={t('Dias')}
-              valor={
-                reserva.inicio && inicioValido
-                  ? reserva.dias === 1
-                    ? formatarDia(reserva.inicio, agora)
-                    : t('{inicio} a {fim}', { inicio: formatarDia(reserva.inicio, agora), fim: formatarDia(ultimoDia(reserva.inicio, reserva.dias), agora) })
-                  : t('Escolhe o primeiro dia')
-              }
-            />
-          ) : (
-            <>
-              <Linha s={s} nome={t('Recolha')} valor={reserva.inicio && inicioValido ? `${formatarDia(reserva.inicio, agora)}, ${formatarHora(reserva.inicio)}` : t('Escolhe o dia e a hora')} />
-              {reserva.inicio && inicioValido && <Linha s={s} nome={t('Fim')} valor={`${formatarDia(fimReserva(reserva.inicio, reserva.dias), agora)}, ${formatarHora(reserva.inicio)}`} />}
-            </>
-          )}
+          <Linha
+            s={s}
+            nome={t('Dias')}
+            valor={
+              reserva.inicio && inicioValido
+                ? reserva.dias === 1
+                  ? t('{dia}, o dia inteiro', { dia: formatarDia(reserva.inicio, agora) })
+                  : t('{inicio} a {fim}', { inicio: formatarDia(reserva.inicio, agora), fim: formatarDia(ultimoDia(reserva.inicio, reserva.dias), agora) })
+                : t('Escolhe o primeiro dia')
+            }
+          />
           <Linha s={s} nome={t('Diária')} valor={`${formatarMzn(diaria(viatura, reserva))} × ${textoDias(reserva.dias)}`} />
           <View style={[s.linhaResumo, s.linhaTotal]}>
             <Text style={s.total}>{t('Total')}</Text>
@@ -206,8 +180,6 @@ function estilos(c: Palette) {
     textoChip: { color: c.text, fontSize: 14, fontWeight: '600' },
     textoChipAtivo: { color: c.onPrimary, fontWeight: '800' },
     riscado: { textDecorationLine: 'line-through' },
-    horas: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-    hora: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: c.backgroundElement, minWidth: 72, alignItems: 'center' },
     aviso: { color: c.textSecondary, fontSize: 13, marginTop: Spacing.two },
     resumo: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: Spacing.one, marginTop: Spacing.four },
     linhaResumo: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },

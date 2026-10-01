@@ -103,6 +103,12 @@ export function reservaQueOcupa(reservas: Reserva[], viaturaId: string, inicio: 
   return conflito(reservas, viaturaId, { inicio, fim });
 }
 
+/** Aluguer e casamento ocupam dias inteiros: na agenda aparecem como uma só caixa por dia, sem horas. */
+export const reservaDeDias = (r: Reserva) => r.tipo !== 'bloqueio' && /^(Aluguer|Casamento) ·/.test(r.destino ?? '');
+
+/** A reserva ocupa alguma parte deste dia. */
+export const ocupaODia = (r: Reserva, dia: Date) => r.inicio < somarMin(inicioDoDia(dia), 24 * 60) && inicioDoDia(dia) < r.fim;
+
 /** Próximos dias em que se pode agendar, a começar hoje. */
 export function diasAgendaveis(agora: Date): Date[] {
   const hoje = inicioDoDia(agora);
