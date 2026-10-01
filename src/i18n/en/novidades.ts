@@ -188,4 +188,6 @@ export const novidades: Record<string, string> = {
   'Reserva amanhã': 'Booking tomorrow',
   'Reserva daqui a 1 hora': 'Booking in 1 hour',
   'Prepara o carro para cumprir a reserva: {reserva}': 'Get the car ready for the booking: {reserva}',
+  'Mostrar mais': 'Show more',
+  'Esconder': 'Hide',
 };

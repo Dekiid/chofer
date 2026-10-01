@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { LayoutAnimation, Linking, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
@@ -166,16 +166,40 @@ function Disponivel({ s }: { s: S }) {
   const cores = usePalette();
   const m = useModoMotorista();
   const nota = useAvaliacoes().mediaMotorista(m.eu.telefone);
+  // A caixa baixa com o dedo e fica só com os botões (ficar online, mudar de carro, pausa…); sobe para ver tudo.
+  const [recolhido, setRecolhido] = useState(false);
+  function mudarRecolhido(v: boolean) {
+    if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setRecolhido(v);
+  }
+  const mudarRef = useRef(mudarRecolhido);
+  useEffect(() => {
+    mudarRef.current = mudarRecolhido;
+  });
+  const arrastar = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 30) mudarRef.current(true);
+        else if (g.dy < -30) mudarRef.current(false);
+      },
+    }),
+  ).current;
   function terminarTurno() {
     const resumo = m.terminarTurno();
     if (resumo) router.push({ pathname: '/turno', params: { inicio: resumo.inicio } });
   }
   return (
     <>
+      <View {...arrastar.panHandlers}>
       <View style={s.estado}>
         <View style={[s.pontoEstado, { backgroundColor: m.online ? (m.emPausa ? '#F59E0B' : cores.go) : cores.textSecondary }]} />
-        <Text style={s.titulo}>{!m.online ? t('Estás offline') : m.emPausa ? t('Estás em pausa') : t('Estás online')}</Text>
+        <Text style={[s.titulo, { flex: 1 }]}>{!m.online ? t('Estás offline') : m.emPausa ? t('Estás em pausa') : t('Estás online')}</Text>
+        <Pressable onPress={() => mudarRecolhido(!recolhido)} hitSlop={12} accessibilityLabel={recolhido ? t('Mostrar mais') : t('Esconder')}>
+          <Text style={s.seta}>{recolhido ? '⌃' : '⌄'}</Text>
+        </Pressable>
       </View>
+      {!recolhido && (
       <Text style={s.secundario}>
         {!m.online
           ? t('Fica online para receber pedidos.')
@@ -184,6 +208,9 @@ function Disponivel({ s }: { s: S }) {
             : t('À procura de pedidos para o teu carro…')}{' '}
         {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
+      )}
+      </View>
+      {!recolhido && (
       <ScrollView style={{ maxHeight: 330 }} contentContainerStyle={{ paddingBottom: Spacing.one }}>
       <ResumoTurnoAtual s={s} />
       {TEMPO_REAL_ATIVO && <EstadoServidor />}
@@ -258,6 +285,7 @@ function Disponivel({ s }: { s: S }) {
         </Text>
       )}
       </ScrollView>
+      )}
 
       <View style={{ gap: Spacing.two }}>
         {!m.online ? (
