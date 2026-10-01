@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EstadoServidor } from '@/components/estado-servidor';
 import { Mapa } from '@/components/mapa';
 import type { Ponto } from '@/components/mapa-tipos';
 import { Text, TextInput } from '@/components/texto';
@@ -105,6 +106,7 @@ function Disponivel({ s }: { s: S }) {
       <Text style={s.secundario}>
         {m.online ? 'À procura de pedidos para o teu carro…' : 'Fica online para receber pedidos.'} {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
+      <EstadoServidor />
 
       {m.agendadas.length > 0 && (
         <View style={s.caixa}>

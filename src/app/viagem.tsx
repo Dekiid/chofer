@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EstadoServidor } from '@/components/estado-servidor';
 import { Mapa } from '@/components/mapa';
 import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoSecundario, Painel } from '@/components/ui';
@@ -270,6 +271,11 @@ export default function Viagem() {
           <Text style={s.titulo}>{titulo[fase]}</Text>
         </View>
 
+        {TEMPO_REAL_ATIVO && (fase === 'procurar' || fase === 'sem_resposta') && (
+          <View style={{ marginTop: -Spacing.two, marginBottom: Spacing.two }}>
+            <EstadoServidor />
+          </View>
+        )}
         {fase === 'sem_resposta' ? (
           <Text style={[s.secundario, { marginBottom: Spacing.three }]}>{motivoSemResposta} Podes tentar outra vez ou cancelar o pedido.</Text>
         ) : fase === 'procurar' ? (

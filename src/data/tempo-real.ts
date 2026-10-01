@@ -1,4 +1,5 @@
 import { createClient, type RealtimeChannel } from '@supabase/supabase-js';
+import { useSyncExternalStore } from 'react';
 
 import type { Ponto } from '@/components/mapa-tipos';
 
@@ -49,6 +50,25 @@ type Ouvinte = (e: EventoViagem) => void;
 const ouvintes = new Set<Ouvinte>();
 let canal: RealtimeChannel | null = null;
 let ligado = false;
+
+/** Estado da ligação ao servidor, para mostrar no ecrã e perceber porque é que um pedido não chega. */
+export type EstadoLigacao = { estado: 'demonstracao' | 'a_ligar' | 'ligado' | 'erro'; detalhe?: string };
+let estadoLigacao: EstadoLigacao = { estado: TEMPO_REAL_ATIVO ? 'a_ligar' : 'demonstracao' };
+const ouvintesLigacao = new Set<() => void>();
+function mudarLigacao(e: EstadoLigacao) {
+  estadoLigacao = e;
+  for (const o of ouvintesLigacao) o();
+}
+export function useLigacao(): EstadoLigacao {
+  return useSyncExternalStore(
+    (o) => {
+      ligar();
+      ouvintesLigacao.add(o);
+      return () => ouvintesLigacao.delete(o);
+    },
+    () => estadoLigacao,
+  );
+}
 // Eventos enviados antes de o canal estar ligado; saem mal a ligação abre.
 const emEspera: EventoViagem[] = [];
 
@@ -61,9 +81,17 @@ function ligar(): RealtimeChannel | null {
   canal.on('broadcast', { event: 'viagem' }, ({ payload }) => {
     for (const o of ouvintes) o(payload as EventoViagem);
   });
-  canal.subscribe((estado) => {
+  canal.subscribe((estado, erro) => {
     ligado = estado === 'SUBSCRIBED';
-    if (ligado) for (const e of emEspera.splice(0)) enviar(e);
+    if (ligado) {
+      mudarLigacao({ estado: 'ligado' });
+      for (const e of emEspera.splice(0)) enviar(e);
+    } else {
+      // CHANNEL_ERROR, TIMED_OUT ou CLOSED: o Supabase volta a tentar sozinho.
+      const detalhe = [estado, erro?.message].filter(Boolean).join(': ');
+      console.warn('Tempo real sem ligação', detalhe);
+      mudarLigacao({ estado: 'erro', detalhe });
+    }
   });
   return canal;
 }
@@ -76,7 +104,12 @@ export function publicar(e: EventoViagem) {
 }
 
 function enviar(e: EventoViagem) {
-  canal?.send({ type: 'broadcast', event: 'viagem', payload: e }).catch(() => {});
+  canal
+    ?.send({ type: 'broadcast', event: 'viagem', payload: e })
+    .then((r) => {
+      if (r !== 'ok') mudarLigacao({ estado: 'erro', detalhe: `envio: ${r}` });
+    })
+    .catch((err) => mudarLigacao({ estado: 'erro', detalhe: `envio: ${String(err)}` }));
 }
 
 /** Recebe os eventos do outro lado. Devolve a função para deixar de ouvir. */
