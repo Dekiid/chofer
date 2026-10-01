@@ -113,13 +113,13 @@ function Disponivel({ s }: { s: S }) {
         <View style={{ flex: 1 }}>
           <Text style={s.nomePequeno}>Pedidos e reservas</Text>
           <Text style={s.secundarioPequeno}>
-            {m.pendentes.length} {m.pendentes.length === 1 ? 'pendente' : 'pendentes'} · {m.agendadas.length} {m.agendadas.length === 1 ? 'aceite' : 'aceites'}
+            {m.agendadas.length} {m.agendadas.length === 1 ? 'reserva agendada' : 'reservas agendadas'}
             {m.agendadas[0]?.recolhaEm ? ` · próxima ${formatarDia(new Date(m.agendadas[0].recolhaEm), new Date()).toLowerCase()}, ${formatarHora(new Date(m.agendadas[0].recolhaEm))}` : ''}
           </Text>
         </View>
-        {m.pendentes.length > 0 && (
+        {m.agendadas.length > 0 && (
           <View style={s.contador}>
-            <Text style={s.contadorTexto}>{m.pendentes.length}</Text>
+            <Text style={s.contadorTexto}>{m.agendadas.length}</Text>
           </View>
         )}
         <Text style={s.seta}>›</Text>

@@ -43,14 +43,10 @@ type ModoMotorista = {
   pedidoNovo: PedidoMotorista | null;
   expiraEm: number | null;
   viagem: ViagemMotorista | null;
-  /** Reservas novas à espera de resposta do motorista (não expiram ao fim de 1 minuto). */
-  pendentes: PedidoMotorista[];
-  /** Reservas aceites, por data. */
+  /** Reservas do carro, por data. Já estão pagas e a agenda garante que o carro está livre, por isso ficam confirmadas logo. */
   agendadas: PedidoMotorista[];
   /** Viagens concluídas hoje, para a lista de pedidos feitos. */
   feitas: { pedido: PedidoMotorista; concluidaEm: string }[];
-  aceitarReserva: (id: string) => void;
-  recusarReserva: (id: string) => void;
   simularReserva: () => void;
   ganhosHoje: number;
   viagensHoje: number;
@@ -80,7 +76,6 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   const [expiraEm, setExpiraEm] = useState<number | null>(null);
   const [viagem, setViagem] = useState<ViagemMotorista | null>(null);
   const [agendadas, setAgendadas] = useState<PedidoMotorista[]>([]);
-  const [pendentes, setPendentes] = useState<PedidoMotorista[]>([]);
   const [feitas, setFeitas] = useState<{ pedido: PedidoMotorista; concluidaEm: string }[]>([]);
   const [ganhosHoje, setGanhosHoje] = useState(0);
   const [viagensHoje, setViagensHoje] = useState(0);
@@ -98,12 +93,12 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
     avisarNoTelemovel('Novo pedido', `${p.origem.nome} → ${p.destino.nome} · recebes ${ganhoMotorista(p)} MT`);
   }, []);
 
-  // Reserva nova: vai para os pendentes, com um toque curto (não repete) e um aviso.
+  // Reserva nova: fica logo na agenda do motorista (o cliente já pagou e o carro estava livre), com um toque curto e um aviso.
   const receberReserva = useCallback((p: PedidoMotorista) => {
-    setPendentes((l) => (l.some((x) => x.id === p.id) ? l : [...l, p].sort(porData)));
+    setAgendadas((l) => (l.some((x) => x.id === p.id) ? l : [...l, p].sort(porData)));
     tocarPedido(false);
     Vibration.vibrate([0, 300, 150, 300]);
-    avisarNoTelemovel('Nova reserva', `${p.recolhaEm ? `${formatarDia(new Date(p.recolhaEm), new Date())}, ${formatarHora(new Date(p.recolhaEm))} · ` : ''}${p.origem.nome} → ${p.destino.nome}`);
+    avisarNoTelemovel('Nova reserva confirmada', `${p.recolhaEm ? `${formatarDia(new Date(p.recolhaEm), new Date())}, ${formatarHora(new Date(p.recolhaEm))} · ` : ''}${p.origem.nome} → ${p.destino.nome}`);
   }, []);
 
   // Pedidos e cancelamentos dos clientes.
@@ -113,7 +108,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
         const a = atual.current;
         if (e.tipo === 'pedido') {
           if (e.pedido.viaturaId !== a.viaturaId) return;
-          // Reservas chegam mesmo offline; pedidos para agora só com o motorista online e livre.
+          // Reservas chegam mesmo offline e ficam confirmadas; pedidos para agora só com o motorista online e livre.
           if (e.pedido.recolhaEm) receberReserva(e.pedido);
           else if (a.online && !a.viagem && !a.pedidoNovo) receber(e.pedido);
         }
@@ -125,7 +120,6 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
             avisarNoTelemovel('Viagem cancelada', 'O cliente cancelou a viagem.');
           }
           setAgendadas((l) => l.filter((p) => p.id !== e.id));
-          setPendentes((l) => l.filter((p) => p.id !== e.id));
         }
       }),
     [receber, receberReserva],
@@ -272,20 +266,8 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       pedidoNovo,
       expiraEm,
       viagem,
-      pendentes,
       agendadas,
       feitas,
-      aceitarReserva: (id) => {
-        const p = pendentes.find((x) => x.id === id);
-        if (!p) return;
-        publicar({ tipo: 'aceite', id, motorista: eu, posicao, agendada: true });
-        setPendentes((l) => l.filter((x) => x.id !== id));
-        setAgendadas((l) => [...l, p].sort(porData));
-      },
-      recusarReserva: (id) => {
-        publicar({ tipo: 'recusado', id });
-        setPendentes((l) => l.filter((x) => x.id !== id));
-      },
       simularReserva,
       ganhosHoje,
       viagensHoje,
@@ -342,7 +324,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       fecharResumo: () => setViagem(null),
       simularPedido,
     }),
-    [viatura, eu, online, posicao, simular, pedidoNovo, expiraEm, viagem, pendentes, agendadas, feitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva],
+    [viatura, eu, online, posicao, simular, pedidoNovo, expiraEm, viagem, agendadas, feitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

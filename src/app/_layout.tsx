@@ -57,6 +57,9 @@ export default function RootLayout() {
                   <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
                   <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
                   <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
+                  {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}
+                  <Stack.Screen name="motorista" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
                 </Stack>
                 <AvisoTopo />
               </ContaProvider>

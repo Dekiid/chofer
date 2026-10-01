@@ -3,7 +3,6 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BotaoDeslizar } from '@/components/botao-deslizar';
 import { Text } from '@/components/texto';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -13,18 +12,17 @@ import { formatarMzn } from '@/data/categorias';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { ganhoMotorista, useModoMotorista } from '@/state/modo-motorista';
 
-type Separador = 'pendentes' | 'aceites' | 'feitas';
+type Separador = 'agendadas' | 'feitas';
 
-/** Todos os pedidos do motorista: reservas por responder, reservas aceites e viagens feitas. */
+/** Todos os pedidos do motorista: reservas agendadas (já pagas e confirmadas) e viagens feitas. */
 export default function PedidosMotorista() {
   const cores = usePalette();
   const s = estilos(cores);
   const m = useModoMotorista();
-  const [separador, setSeparador] = useState<Separador>(m.pendentes.length > 0 || m.agendadas.length === 0 ? 'pendentes' : 'aceites');
+  const [separador, setSeparador] = useState<Separador>('agendadas');
 
   const separadores: { id: Separador; nome: string; n: number }[] = [
-    { id: 'pendentes', nome: 'Pendentes', n: m.pendentes.length },
-    { id: 'aceites', nome: 'Aceites', n: m.agendadas.length },
+    { id: 'agendadas', nome: 'Agendadas', n: m.agendadas.length },
     { id: 'feitas', nome: 'Feitas', n: m.feitas.length },
   ];
 
@@ -49,28 +47,9 @@ export default function PedidosMotorista() {
       </View>
 
       <ScrollView contentContainerStyle={s.conteudo}>
-        {separador === 'pendentes' && (
+        {separador === 'agendadas' && (
           <>
-            {m.pendentes.length === 0 && <Text style={s.vazio}>Sem reservas por responder. As novas chegam aqui, com um aviso.</Text>}
-            {m.pendentes.map((p) => (
-              <Cartao key={p.id} pedido={p} s={s}>
-                <View style={s.deslizar}>
-                  <BotaoDeslizar texto="Desliza para aceitar" onConfirmar={() => m.aceitarReserva(p.id)} />
-                  <BotaoDeslizar texto="Desliza para recusar" tipo="secundario" onConfirmar={() => m.recusarReserva(p.id)} />
-                </View>
-              </Cartao>
-            ))}
-            {!TEMPO_REAL_ATIVO && m.viatura && (
-              <Text style={s.ligacao} onPress={m.simularReserva}>
-                Simular uma reserva (demonstração)
-              </Text>
-            )}
-          </>
-        )}
-
-        {separador === 'aceites' && (
-          <>
-            {m.agendadas.length === 0 && <Text style={s.vazio}>Ainda não aceitaste nenhuma reserva.</Text>}
+            {m.agendadas.length === 0 && <Text style={s.vazio}>Sem reservas. Quando um cliente marca e paga uma viagem no teu carro, ela aparece aqui, com um aviso.</Text>}
             {m.agendadas.map((p) => (
               <Cartao key={p.id} pedido={p} s={s}>
                 <Pressable
@@ -84,6 +63,11 @@ export default function PedidosMotorista() {
                 </Pressable>
               </Cartao>
             ))}
+            {!TEMPO_REAL_ATIVO && m.viatura && (
+              <Text style={s.ligacao} onPress={m.simularReserva}>
+                Simular uma reserva (demonstração)
+              </Text>
+            )}
           </>
         )}
 
@@ -159,7 +143,6 @@ function estilos(c: Palette) {
     pontoDestino: { width: 9, height: 9, backgroundColor: c.text },
     pontoParagem: { width: 9, height: 9, borderWidth: 2, borderColor: c.text },
     detalhe: { color: c.textSecondary, fontSize: 13 },
-    deslizar: { gap: Spacing.two, marginTop: Spacing.one },
     botao: { flex: 1, borderRadius: Radius.pill, paddingVertical: Spacing.two + 4, alignItems: 'center', marginTop: Spacing.one },
     textoBotaoVerde: { color: '#000000', fontSize: 15, fontWeight: '800' },
   });
