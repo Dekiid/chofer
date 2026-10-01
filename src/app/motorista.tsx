@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { LayoutAnimation, Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
@@ -95,13 +96,8 @@ export default function MotoristaEcra() {
   );
 }
 
-// Mola da caixa do modo motorista: abre e fecha devagar, sem saltar.
-const SUAVE = {
-  duration: 380,
-  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-  update: { type: LayoutAnimation.Types.spring, springDamping: 0.82 },
-  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-};
+// Mola da caixa do modo motorista: sobe e desce a deslizar, sem saltar.
+const MOLA = { damping: 24, stiffness: 200, mass: 0.9 };
 
 type S = ReturnType<typeof estilos>;
 
@@ -179,29 +175,54 @@ function Disponivel({ s }: { s: S }) {
   const nota = useAvaliacoes().mediaMotorista(m.eu.telefone);
   // A caixa baixa com o dedo e fica só com os botões (ficar online, mudar de carro, pausa…); sobe para ver tudo.
   // Como no ecrã de confirmar a viagem: a caixa aberta e a fechada são duas vistas diferentes, cada uma com o seu gesto
-  // (a aberta só ouve o puxar para baixo, a fechada só o puxar para cima). A troca é animada pelo próprio sistema
-  // (LayoutAnimation): a caixa cresce e encolhe com uma mola suave e o texto aparece e desaparece aos poucos, sem mexer nos gestos.
+  // (a aberta só ouve o puxar para baixo, a fechada só o puxar para cima). O meio da caixa aberta desliza:
+  // segue o dedo a descer, encolhe até zero e só então passa para a vista fechada; ao abrir, cresce de zero com uma mola.
   const [recolhido, setRecolhido] = useState(false);
   const listaNoTopo = useRef(true);
-  const [puxarParaBaixo] = useState(() =>
-    PanResponder.create({
+  const alturaMeio = useSharedValue(0);
+  const meioNatural = useSharedValue(0);
+  const aArrastar = useRef(false);
+  const aFechar = useRef(false);
+  const meio = useAnimatedStyle(() => ({
+    height: alturaMeio.value,
+    opacity: meioNatural.value > 0 ? interpolate(alturaMeio.value, [0, meioNatural.value * 0.6], [0, 1], 'clamp') : 1,
+  }));
+  const [puxarParaBaixo] = useState(() => {
+    const fechada = () => {
+      aFechar.current = false;
+      setRecolhido(true);
+    };
+    const voltar = () => {
+      aArrastar.current = false;
+      if (!aFechar.current) alturaMeio.value = withSpring(meioNatural.value, MOLA);
+    };
+    return PanResponder.create({
       // Com a lista do meio a meio, puxar para baixo rola a lista; no topo, fecha a caixa.
-      onMoveShouldSetPanResponderCapture: (_, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5 && listaNoTopo.current,
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 20 || g.vy > 0.3) {
-          LayoutAnimation.configureNext(SUAVE);
-          setRecolhido(true);
-        }
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5 && listaNoTopo.current && !aFechar.current,
+      onPanResponderGrant: () => (aArrastar.current = true),
+      onPanResponderMove: (_, g) => {
+        if (!aFechar.current) alturaMeio.value = Math.max(0, meioNatural.value - Math.max(0, g.dy));
       },
-    }),
-  );
+      onPanResponderRelease: (_, g) => {
+        if ((g.dy > 20 || g.vy > 0.3) && !aFechar.current) {
+          aArrastar.current = false;
+          aFechar.current = true;
+          alturaMeio.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) }, (acabou) => {
+            if (acabou) runOnJS(fechada)();
+          });
+        } else voltar();
+      },
+      onPanResponderTerminate: voltar,
+    });
+  });
   const [puxarParaCima] = useState(() =>
     PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_, g) => g.dy < -10 && -g.dy > Math.abs(g.dx) * 1.5,
       onPanResponderRelease: (_, g) => {
         if (g.dy < -20 || g.vy < -0.3) {
           listaNoTopo.current = true;
-          LayoutAnimation.configureNext(SUAVE);
+          // A vista aberta nasce com o meio a zero e cresce até ao tamanho dele (ver o onLayout em baixo).
+          alturaMeio.value = 0;
           setRecolhido(false);
         }
       },
@@ -253,6 +274,14 @@ function Disponivel({ s }: { s: S }) {
     <View key="aberta" {...puxarParaBaixo.panHandlers}>
       <Alca />
       {estado}
+      <Animated.View style={[{ overflow: 'hidden' }, meio]}>
+      <View
+        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          meioNatural.value = h;
+          if (!aArrastar.current && !aFechar.current) alturaMeio.value = withSpring(h, MOLA);
+        }}>
       <Text style={s.secundario}>
         {!m.online
           ? t('Fica online para receber pedidos.')
@@ -335,6 +364,8 @@ function Disponivel({ s }: { s: S }) {
         </Text>
       )}
       </ScrollView>
+      </View>
+      </Animated.View>
       {botoes}
     </View>
   );
