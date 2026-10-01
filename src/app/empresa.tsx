@@ -10,8 +10,10 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
+import { t } from '@/i18n';
 import { totalPago, useConta } from '@/state/conta';
 
+// Traduzidos ao desenhar, com t().
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 /**
@@ -44,37 +46,37 @@ export default function Empresa() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Conta de empresa</Text>
+        <Text style={s.titulo}>{t('Conta de empresa')}</Text>
       </View>
       <FecharTeclado style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled">
           {editar ? (
             <>
               <Text style={s.secundario}>
-                Com a conta de empresa, escolhes «Fatura da empresa» no pagamento. As viagens do mês juntam-se numa fatura com o NUIT da empresa, enviada por email no fim do mês.
+                {t('Com a conta de empresa, escolhes «Fatura da empresa» no pagamento. As viagens do mês juntam-se numa fatura com o NUIT da empresa, enviada por email no fim do mês.')}
               </Text>
-              <Text style={s.rotulo}>Nome da empresa</Text>
-              <TextInput value={nome} onChangeText={setNome} placeholder="Ex.: Macuácua & Filhos, Lda" placeholderTextColor={cores.textSecondary} style={s.campo} />
+              <Text style={s.rotulo}>{t('Nome da empresa')}</Text>
+              <TextInput value={nome} onChangeText={setNome} placeholder={t('Ex.: Macuácua & Filhos, Lda')} placeholderTextColor={cores.textSecondary} style={s.campo} />
               <Text style={s.rotulo}>NUIT</Text>
               <TextInput
                 value={nuit}
                 onChangeText={(t) => setNuit(t.replace(/\D/g, '').slice(0, 9))}
                 keyboardType="number-pad"
-                placeholder="9 dígitos"
+                placeholder={t('9 dígitos')}
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
-              <Text style={s.rotulo}>Email para as faturas</Text>
+              <Text style={s.rotulo}>{t('Email para as faturas')}</Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                placeholder="contabilidade@empresa.co.mz"
+                placeholder={t('contabilidade@empresa.co.mz')}
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
-              <BotaoPrincipal texto="Guardar" desativado={!valido} onPress={guardar} />
+              <BotaoPrincipal texto={t('Guardar')} desativado={!valido} onPress={guardar} />
             </>
           ) : (
             conta.empresa && (
@@ -86,11 +88,11 @@ export default function Empresa() {
                   </Text>
                   <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two }}>
                     <View style={{ flex: 1 }}>
-                      <BotaoSecundario texto="Mudar" onPress={() => setEditar(true)} />
+                      <BotaoSecundario texto={t('Mudar')} onPress={() => setEditar(true)} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <BotaoSecundario
-                        texto="Tirar"
+                        texto={t('Tirar')}
                         onPress={() => {
                           conta.setEmpresa(null);
                           setNome('');
@@ -103,11 +105,16 @@ export default function Empresa() {
                   </View>
                 </View>
 
-                <Text style={s.secao}>Fatura de {MESES[agora.getMonth()]}</Text>
+                <Text style={s.secao}>{t('Fatura de {mes}', { mes: t(MESES[agora.getMonth()]) })}</Text>
                 <View style={s.cartao}>
                   <Text style={s.total}>{formatarMzn(total)}</Text>
                   <Text style={s.secundario}>
-                    {doMes.length} {doMes.length === 1 ? 'viagem' : 'viagens'} · enviada a {conta.empresa.emailFaturas} a {fimDoMes.getDate()} de {MESES[fimDoMes.getMonth()]}
+                    {t(doMes.length === 1 ? '{n} viagem · enviada a {email} a {dia} de {mes}' : '{n} viagens · enviada a {email} a {dia} de {mes}', {
+                      n: doMes.length,
+                      email: conta.empresa.emailFaturas,
+                      dia: fimDoMes.getDate(),
+                      mes: t(MESES[fimDoMes.getMonth()]),
+                    })}
                   </Text>
                   {doMes.map((v) => (
                     <View key={v.id} style={s.linha}>
@@ -117,7 +124,7 @@ export default function Empresa() {
                       <Text style={s.valor}>{formatarMzn(totalPago(v))}</Text>
                     </View>
                   ))}
-                  <Text style={s.nota}>Em testes: a fatura é simulada e não é enviada.</Text>
+                  <Text style={s.nota}>{t('Em testes: a fatura é simulada e não é enviada.')}</Text>
                 </View>
               </>
             )

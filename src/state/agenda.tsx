@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Ponto } from '@/components/mapa-tipos';
 import { INTERVALO_MIN, PREPARACAO_MIN, reservasExemplo, somarMin, type Reserva, type TipoReserva } from '@/data/agenda';
 import { supabase, type PedidoMotorista } from '@/data/tempo-real';
+import { t } from '@/i18n';
 
 export type Notificacao = {
   id: string;
@@ -105,7 +106,7 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
         console.warn('Agenda sem servidor', error);
         setEstado({
           onde: 'local',
-          aviso: semTabela(error) ? 'falta criar a tabela de reservas no Supabase' : `sem ligação ao servidor (${error.message})`,
+          aviso: semTabela(error) ? t('falta criar a tabela de reservas no Supabase') : t('sem ligação ao servidor ({erro})', { erro: error.message }),
         });
         return;
       }

@@ -6,6 +6,7 @@ import { estilosPasso, PassoRegisto } from '@/components/passo-registo';
 import { Text, TextInput } from '@/components/texto';
 import { BotaoPrincipal } from '@/components/ui';
 import { usePalette } from '@/constants/use-palette';
+import { t } from '@/i18n';
 import { useSessao } from '@/state/sessao';
 
 export default function Nome() {
@@ -27,13 +28,13 @@ export default function Nome() {
 
   return (
     <PassoRegisto
-      titulo="Como te chamas?"
-      descricao="O motorista vê o teu nome quando te vai buscar."
-      rodape={<BotaoPrincipal texto="Seguinte" escuro onPress={seguinte} desativado={!valido} />}>
+      titulo={t('Como te chamas?')}
+      descricao={t('O motorista vê o teu nome quando te vai buscar.')}
+      rodape={<BotaoPrincipal texto={t('Seguinte')} escuro onPress={seguinte} desativado={!valido} />}>
       <TextInput
         value={nome}
         onChangeText={setNome}
-        placeholder="Nome"
+        placeholder={t('Nome')}
         placeholderTextColor={c.textSecondary}
         autoFocus
         autoCapitalize="words"
@@ -48,7 +49,7 @@ export default function Nome() {
         ref={campoApelido}
         value={apelido}
         onChangeText={setApelido}
-        placeholder="Apelido"
+        placeholder={t('Apelido')}
         placeholderTextColor={c.textSecondary}
         autoCapitalize="words"
         textContentType="familyName"

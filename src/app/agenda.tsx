@@ -8,6 +8,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { diasAgendaveis, formatarDia, formatarHora, horariosDoDia, INTERVALO_MIN, mesmoDia, reservaNoIntervalo, somarMin } from '@/data/agenda';
 import { nomeViatura } from '@/data/categorias';
+import { t } from '@/i18n';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
@@ -28,7 +29,7 @@ export default function Agenda() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Agenda das viaturas</Text>
+        <Text style={s.titulo}>{t('Agenda das viaturas')}</Text>
       </View>
 
       <View style={s.filtros}>
@@ -46,7 +47,7 @@ export default function Agenda() {
             </Pressable>
           ))}
         </ScrollView>
-        <Text style={s.ajuda}>Toca num horário livre para o bloquear, ou num bloqueado para o libertar.</Text>
+        <Text style={s.ajuda}>{t('Toca num horário livre para o bloquear, ou num bloqueado para o libertar.')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={s.lista}>
@@ -65,10 +66,10 @@ export default function Agenda() {
               <View style={[s.bloco, r ? (bloqueio ? s.bloqueado : s.ocupado) : s.livre]}>
                 <Text style={[s.textoBloco, r && !bloqueio && s.textoOcupado]} numberOfLines={1}>
                   {!r
-                    ? 'Livre'
+                    ? t('Livre')
                     : bloqueio
-                      ? 'Indisponível'
-                      : `${r.tipo === 'imediata' ? 'Pedido imediato' : 'Agendada'}${r.destino ? ` · ${r.destino}` : ''}`}
+                      ? t('Indisponível')
+                      : `${r.tipo === 'imediata' ? t('Pedido imediato') : t('Agendada')}${r.destino ? ` · ${r.destino}` : ''}`}
                 </Text>
               </View>
             </Pressable>

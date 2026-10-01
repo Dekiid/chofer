@@ -8,6 +8,7 @@ import { BotaoPrincipal } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarNumero, NUMERO_VALIDO } from '@/data/telefone';
+import { t } from '@/i18n';
 import { CODIGO_TESTE, MOTORISTA_DEMO, useSessao } from '@/state/sessao';
 
 export default function Telefone() {
@@ -30,7 +31,7 @@ export default function Telefone() {
     setAEnviar(false);
     if (falhou) {
       setErro(falhou);
-      setSemSmsNoServidor(falhou.startsWith('O envio de SMS ainda não está ligado'));
+      setSemSmsNoServidor(falhou === t('O envio de SMS ainda não está ligado no Supabase.'));
       return;
     }
     router.push({ pathname: '/registo/codigo', params: { telefone } });
@@ -38,14 +39,14 @@ export default function Telefone() {
 
   return (
     <PassoRegisto
-      titulo="Qual é o teu número de telemóvel?"
-      descricao="Enviamos um código por SMS para confirmar."
+      titulo={t('Qual é o teu número de telemóvel?')}
+      descricao={t('Enviamos um código por SMS para confirmar.')}
       onVoltar={() => router.back()}
       rodape={
         aEnviar ? (
           <ActivityIndicator color={c.text} style={{ paddingVertical: Spacing.three }} />
         ) : (
-          <BotaoPrincipal texto="Continuar" escuro onPress={continuar} desativado={!valido} />
+          <BotaoPrincipal texto={t('Continuar')} escuro onPress={continuar} desativado={!valido} />
         )
       }>
       <View style={[s.campo, s.campoAtivo, estilos.linha]}>
@@ -65,11 +66,11 @@ export default function Telefone() {
           placeholder="84 123 4567"
           placeholderTextColor={c.textSecondary}
           onSubmitEditing={() => valido && continuar()}
-          accessibilityLabel="Número de telemóvel"
+          accessibilityLabel={t('Número de telemóvel')}
           style={[estilos.numero, { color: c.text }]}
         />
       </View>
-      {digitos.length === 9 && !valido ? <Text style={s.erro}>O número tem de começar por 82, 83, 84, 85, 86 ou 87.</Text> : null}
+      {digitos.length === 9 && !valido ? <Text style={s.erro}>{t('O número tem de começar por 82, 83, 84, 85, 86 ou 87.')}</Text> : null}
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
       {semSmsNoServidor && (
         <Text
@@ -79,17 +80,17 @@ export default function Telefone() {
             setErro('');
             setSemSmsNoServidor(false);
           }}>
-          Continuar sem SMS (teste)
+          {t('Continuar sem SMS (teste)')}
         </Text>
       )}
       {sessao.semSms && !demo && (
         <View style={[estilos.teste, { backgroundColor: c.backgroundElement }]}>
           <Text style={{ color: c.text, fontSize: 13, lineHeight: 19 }}>
-            Modo de teste, sem SMS: o código é sempre {CODIGO_TESTE} e a conta fica só neste telemóvel.
+            {t('Modo de teste, sem SMS: o código é sempre {codigo} e a conta fica só neste telemóvel.', { codigo: CODIGO_TESTE })}
           </Text>
         </View>
       )}
-      <Text style={s.nota}>Ao continuar, aceitas receber chamadas e SMS do Chauffeur, incluindo mensagens automáticas, para este número.</Text>
+      <Text style={s.nota}>{t('Ao continuar, aceitas receber chamadas e SMS do Chauffeur, incluindo mensagens automáticas, para este número.')}</Text>
     </PassoRegisto>
   );
 }

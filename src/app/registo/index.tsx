@@ -8,6 +8,7 @@ import { Logo } from '@/components/logo';
 import { Text } from '@/components/texto';
 import { BotaoPrincipal } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { t } from '@/i18n';
 import { proximoPasso, useSessao } from '@/state/sessao';
 
 const CARRO = require('../../../assets/carros/mercedes-classe-s.webp');
@@ -26,15 +27,15 @@ export default function BoasVindas() {
       <View style={s.corpo}>
         <Logo altura={36} variante="negativo" />
         <Image source={CARRO} style={s.carro} contentFit="contain" accessibilityLabel="Mercedes-Benz Classe S" />
-        <Text style={s.titulo}>Viaturas premium, com motorista, à tua porta.</Text>
-        <Text style={s.texto}>Escolhe o carro, marca a hora e paga antes. Em Maputo e Matola.</Text>
+        <Text style={s.titulo}>{t('Viaturas premium, com motorista, à tua porta.')}</Text>
+        <Text style={s.texto}>{t('Escolhe o carro, marca a hora e paga antes. Em Maputo e Matola.')}</Text>
       </View>
       <View style={s.rodape}>
-        <BotaoPrincipal texto="Começar" onPress={() => router.push('/registo/telefone')} />
+        <BotaoPrincipal texto={t('Começar')} onPress={() => router.push('/registo/telefone')} />
         <Text style={s.entrar}>
-          Já tens conta?{' '}
+          {t('Já tens conta?')}{' '}
           <Text style={s.entrarLigacao} onPress={() => router.push('/registo/telefone')}>
-            Entrar
+            {t('Entrar')}
           </Text>
         </Text>
       </View>

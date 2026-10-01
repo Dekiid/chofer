@@ -11,6 +11,8 @@ import { pedirAutorizacao } from '@/data/avisos-telemovel';
 import { formatarMzn } from '@/data/categorias';
 import { CREDITO_CONVITE_MZN, DESCONTO_CONVIDADO, PROMOS } from '@/data/promocoes';
 import { formatarNumero } from '@/data/telefone';
+import { t } from '@/i18n';
+import { useIdioma } from '@/i18n/idioma';
 import { LOCAIS, useConta } from '@/state/conta';
 import { useMotoristaAprovado } from '@/state/permissoes';
 import { MOTORISTA_ABERTO_EM_TESTES, useSessao } from '@/state/sessao';
@@ -24,6 +26,7 @@ export default function Conta() {
   const sessao = useSessao();
   const motorista = useMotoristaAprovado();
   const { marcarAvisosLidos } = conta;
+  const { idioma, setIdioma } = useIdioma();
   const agora = new Date();
   const [apagar, setApagar] = useState(false);
   const [erroApagar, setErroApagar] = useState<string | null>(null);
@@ -35,7 +38,10 @@ export default function Conta() {
   async function convidar() {
     try {
       await Share.share({
-        message: `Experimenta a Chauffeur, carros premium com motorista em Maputo e Matola. Usa o meu código ${conta.codigoConvite} e ganhas ${formatarMzn(DESCONTO_CONVIDADO.valorMzn ?? 0)} na primeira viagem.`,
+        message: t('Experimenta a Chauffeur, carros premium com motorista em Maputo e Matola. Usa o meu código {codigo} e ganhas {valor} na primeira viagem.', {
+          codigo: conta.codigoConvite,
+          valor: formatarMzn(DESCONTO_CONVIDADO.valorMzn ?? 0),
+        }),
       });
     } catch {}
   }
@@ -44,7 +50,7 @@ export default function Conta() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>A tua conta</Text>
+        <Text style={s.titulo}>{t('A tua conta')}</Text>
       </View>
       <ScrollView contentContainerStyle={s.conteudo}>
         <View style={s.perfil}>
@@ -52,84 +58,96 @@ export default function Conta() {
             <Text style={s.avatarTexto}>{(sessao.perfil?.nome ?? 'C').charAt(0).toUpperCase()}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.nome}>{sessao.perfil?.nome ? `${sessao.perfil.nome} ${sessao.perfil.apelido ?? ''}`.trim() : 'Cliente Chauffeur'}</Text>
+            <Text style={s.nome}>{sessao.perfil?.nome ? `${sessao.perfil.nome} ${sessao.perfil.apelido ?? ''}`.trim() : t('Cliente Chauffeur')}</Text>
             {sessao.perfil?.telefone ? <Text style={s.secundario}>+258 {formatarNumero(sessao.perfil.telefone)}</Text> : null}
             <Text style={s.secundario}>
-              ★ {conta.avaliacaoCliente.toFixed(1).replace('.', ',')} dada pelos motoristas · {feitas} {feitas === 1 ? 'viagem' : 'viagens'}
+              ★{' '}
+              {feitas === 1
+                ? t('{nota} dada pelos motoristas · {n} viagem', { nota: conta.avaliacaoCliente.toFixed(1).replace('.', ','), n: feitas })
+                : t('{nota} dada pelos motoristas · {n} viagens', { nota: conta.avaliacaoCliente.toFixed(1).replace('.', ','), n: feitas })}
             </Text>
           </View>
         </View>
 
         <Pressable onPress={() => router.push('/viagens')} style={s.entrada}>
-          <Text style={s.nome}>As tuas viagens</Text>
-          <Text style={s.secundario}>Histórico, viagens marcadas e recibos</Text>
+          <Text style={s.nome}>{t('As tuas viagens')}</Text>
+          <Text style={s.secundario}>{t('Histórico, viagens marcadas e recibos')}</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/ajuda')} style={s.entrada}>
-          <Text style={s.nome}>Ajuda</Text>
-          <Text style={s.secundario}>Objetos perdidos, cobranças, queixas e perguntas frequentes</Text>
+          <Text style={s.nome}>{t('Ajuda')}</Text>
+          <Text style={s.secundario}>{t('Objetos perdidos, cobranças, queixas e perguntas frequentes')}</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/empresa')} style={s.entrada}>
-          <Text style={s.nome}>Conta de empresa</Text>
-          <Text style={s.secundario}>{conta.empresa ? `${conta.empresa.nome} · fatura mensal` : 'Viagens de trabalho numa fatura por mês'}</Text>
+          <Text style={s.nome}>{t('Conta de empresa')}</Text>
+          <Text style={s.secundario}>{conta.empresa ? t('{empresa} · fatura mensal', { empresa: conta.empresa.nome }) : t('Viagens de trabalho numa fatura por mês')}</Text>
         </Pressable>
 
         {/* O modo motorista é só para motoristas aprovados; os outros veem como se inscrever. */}
         {motorista.pode ? (
           <Pressable onPress={() => router.push('/motorista')} style={s.entrada}>
-            <Text style={s.nome}>Modo motorista</Text>
+            <Text style={s.nome}>{t('Modo motorista')}</Text>
             <Text style={s.secundario}>
-              {sessao.perfil?.motoristaDemo ? 'Conta de demonstração · ' : MOTORISTA_ABERTO_EM_TESTES ? 'Aberto a todos em testes · ' : ''}Fica online, recebe pedidos e conduz com a Chauffeur
+              {sessao.perfil?.motoristaDemo
+                ? t('Conta de demonstração · Fica online, recebe pedidos e conduz com a Chauffeur')
+                : MOTORISTA_ABERTO_EM_TESTES
+                  ? t('Aberto a todos em testes · Fica online, recebe pedidos e conduz com a Chauffeur')
+                  : t('Fica online, recebe pedidos e conduz com a Chauffeur')}
             </Text>
           </Pressable>
         ) : motorista.inscricao === 'pendente' ? (
           <View style={s.entrada}>
-            <Text style={s.nome}>Inscrição de motorista em análise</Text>
-            <Text style={s.secundario}>O modo motorista abre quando a tua inscrição for aprovada.</Text>
+            <Text style={s.nome}>{t('Inscrição de motorista em análise')}</Text>
+            <Text style={s.secundario}>{t('O modo motorista abre quando a tua inscrição for aprovada.')}</Text>
           </View>
         ) : (
           <Pressable onPress={() => router.push('/inscricao')} style={s.entrada}>
-            <Text style={s.nome}>Conduzir com a Chauffeur</Text>
+            <Text style={s.nome}>{t('Conduzir com a Chauffeur')}</Text>
             <Text style={s.secundario}>
-              {motorista.inscricao === 'rejeitada' ? 'A tua inscrição não foi aprovada. Podes enviar outra.' : 'Inscreve o teu carro. Depois de aprovado, abres aqui o modo motorista.'}
+              {motorista.inscricao === 'rejeitada' ? t('A tua inscrição não foi aprovada. Podes enviar outra.') : t('Inscreve o teu carro. Depois de aprovado, abres aqui o modo motorista.')}
             </Text>
           </Pressable>
         )}
 
-        <Text style={s.secao}>Locais guardados</Text>
+        <Text style={s.secao}>{t('Locais guardados')}</Text>
         <View style={s.caixa}>
           {LOCAIS.map(({ tipo, nome }, i) => {
             const l = conta.locais[tipo];
             return (
               <Pressable key={tipo} onPress={() => router.push({ pathname: '/destino', params: { guardar: tipo } })} style={[s.linha, i > 0 && s.separador]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.nomePequeno}>{nome}</Text>
+                  <Text style={s.nomePequeno}>{t(nome)}</Text>
                   <Text style={s.secundario} numberOfLines={1}>
-                    {l ? l.zona : 'Por guardar'}
+                    {l ? l.zona : t('Por guardar')}
                   </Text>
                 </View>
-                <Text style={s.ligacao}>{l ? 'Mudar' : 'Guardar'}</Text>
+                <Text style={s.ligacao}>{l ? t('Mudar') : t('Guardar')}</Text>
               </Pressable>
             );
           })}
         </View>
 
-        <Text style={s.secao}>Convida amigos</Text>
+        <Text style={s.secao}>{t('Convida amigos')}</Text>
         <View style={s.caixa}>
           <Text style={s.texto}>
-            O teu amigo ganha {formatarMzn(DESCONTO_CONVIDADO.valorMzn ?? 0)} na primeira viagem. Tu ganhas {formatarMzn(CREDITO_CONVITE_MZN)} de crédito quando ele viajar.
+            {t('O teu amigo ganha {valor} na primeira viagem. Tu ganhas {credito} de crédito quando ele viajar.', {
+              valor: formatarMzn(DESCONTO_CONVIDADO.valorMzn ?? 0),
+              credito: formatarMzn(CREDITO_CONVITE_MZN),
+            })}
           </Text>
           <View style={[s.linha, { marginTop: Spacing.two }]}>
             <Text style={s.codigo}>{conta.codigoConvite}</Text>
             <Pressable onPress={convidar} style={s.botaoPequeno}>
-              <Text style={s.botaoPequenoTexto}>Partilhar</Text>
+              <Text style={s.botaoPequenoTexto}>{t('Partilhar')}</Text>
             </Pressable>
           </View>
           <Text style={s.secundario}>
-            {conta.amigosConvidados} amigos convidados · crédito {formatarMzn(conta.creditoMzn)}
+            {conta.amigosConvidados === 1
+              ? t('{n} amigo convidado · crédito {credito}', { n: conta.amigosConvidados, credito: formatarMzn(conta.creditoMzn) })
+              : t('{n} amigos convidados · crédito {credito}', { n: conta.amigosConvidados, credito: formatarMzn(conta.creditoMzn) })}
           </Text>
         </View>
 
-        <Text style={s.secao}>Promoções</Text>
+        <Text style={s.secao}>{t('Promoções')}</Text>
         <View style={s.caixa}>
           {PROMOS.map((p, i) => (
             <View key={p.codigo} style={[s.linha, i > 0 && s.separador]}>
@@ -139,15 +157,15 @@ export default function Conta() {
               </View>
             </View>
           ))}
-          <Text style={[s.secundario, { marginTop: Spacing.two }]}>Escreve o código no pagamento, em «Tens um código promocional?».</Text>
+          <Text style={[s.secundario, { marginTop: Spacing.two }]}>{t('Escreve o código no pagamento, em «Tens um código promocional?».')}</Text>
         </View>
 
-        <Text style={s.secao}>Notificações</Text>
+        <Text style={s.secao}>{t('Notificações')}</Text>
         <View style={s.caixa}>
           <View style={s.linha}>
             <View style={{ flex: 1 }}>
-              <Text style={s.nomePequeno}>Avisos no telemóvel</Text>
-              <Text style={s.secundario}>Motorista a caminho, chegada, pagamento</Text>
+              <Text style={s.nomePequeno}>{t('Avisos no telemóvel')}</Text>
+              <Text style={s.secundario}>{t('Motorista a caminho, chegada, pagamento')}</Text>
             </View>
             <Switch
               value={conta.avisosNoTelemovel}
@@ -159,7 +177,7 @@ export default function Conta() {
             />
           </View>
         </View>
-        {conta.avisos.length === 0 && <Text style={s.secundario}>Ainda não há avisos. Aparecem aqui durante as viagens.</Text>}
+        {conta.avisos.length === 0 && <Text style={s.secundario}>{t('Ainda não há avisos. Aparecem aqui durante as viagens.')}</Text>}
         {conta.avisos.map((a) => (
           <View key={a.id} style={[s.aviso, !a.lido && s.avisoNovo]}>
             <Text style={s.nomePequeno}>
@@ -169,36 +187,51 @@ export default function Conta() {
           </View>
         ))}
 
+        <View style={s.entrada}>
+          <Text style={s.nome}>{t('Idioma')}</Text>
+          <View style={s.segmentos} accessibilityRole="radiogroup">
+            {(['pt', 'en'] as const).map((i) => (
+              <Pressable
+                key={i}
+                onPress={() => setIdioma(i)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: idioma === i }}
+                style={[s.segmento, idioma === i && s.segmentoAtivo]}>
+                <Text style={[s.nomePequeno, idioma === i && { color: cores.onPrimary }]}>{i === 'pt' ? t('Português') : t('English')}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
         <Text style={s.ligacaoLegal} onPress={() => router.push({ pathname: '/legal', params: { doc: 'termos' } })}>
-          Termos de Utilização
+          {t('Termos de Utilização')}
         </Text>
         <Text style={s.ligacaoLegal} onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacidade' } })}>
-          Política de Privacidade
+          {t('Política de Privacidade')}
         </Text>
         <Pressable onPress={sessao.sair} style={s.entrada} accessibilityRole="button">
-          <Text style={[s.nome, { color: '#D93025' }]}>Sair da conta</Text>
-          {sessao.semSms && <Text style={s.secundario}>Conta de teste, sem SMS: fica só neste telemóvel.</Text>}
+          <Text style={[s.nome, { color: '#D93025' }]}>{t('Sair da conta')}</Text>
+          {sessao.semSms && <Text style={s.secundario}>{t('Conta de teste, sem SMS: fica só neste telemóvel.')}</Text>}
         </Pressable>
         {!apagar ? (
           <Text style={[s.ligacaoLegal, { color: cores.textSecondary }]} onPress={() => setApagar(true)}>
-            Apagar a conta
+            {t('Apagar a conta')}
           </Text>
         ) : (
           <View style={[s.entrada, { gap: Spacing.two }]}>
-            <Text style={s.nome}>Apagar a conta?</Text>
+            <Text style={s.nome}>{t('Apagar a conta?')}</Text>
             <Text style={s.secundario}>
-              Apagamos o teu perfil, os locais guardados e o histórico neste telemóvel. Os recibos de viagens pagas ficam guardados o tempo que a lei exige. Não dá para desfazer.
+              {t('Apagamos o teu perfil, os locais guardados e o histórico neste telemóvel. Os recibos de viagens pagas ficam guardados o tempo que a lei exige. Não dá para desfazer.')}
             </Text>
             {erroApagar && <Text style={[s.secundario, { color: '#D93025' }]}>{erroApagar}</Text>}
             <View style={{ flexDirection: 'row', gap: Spacing.two }}>
               <Pressable onPress={() => setApagar(false)} style={[s.botaoPequeno, { flex: 1, backgroundColor: cores.background }]}>
-                <Text style={[s.nomePequeno, { textAlign: 'center' }]}>Cancelar</Text>
+                <Text style={[s.nomePequeno, { textAlign: 'center' }]}>{t('Cancelar')}</Text>
               </Pressable>
               <Pressable
                 onPress={async () => setErroApagar(await sessao.apagarConta())}
                 style={[s.botaoPequeno, { flex: 1, backgroundColor: '#D93025' }]}
-                accessibilityLabel="Apagar para sempre">
-                <Text style={[s.nomePequeno, { textAlign: 'center', color: '#FFFFFF' }]}>Apagar para sempre</Text>
+                accessibilityLabel={t('Apagar para sempre')}>
+                <Text style={[s.nomePequeno, { textAlign: 'center', color: '#FFFFFF' }]}>{t('Apagar para sempre')}</Text>
               </Pressable>
             </View>
           </View>
@@ -233,5 +266,8 @@ function estilos(c: Palette) {
     botaoPequenoTexto: { color: c.onGo, fontWeight: '700' },
     aviso: { borderRadius: Radius.card, padding: Spacing.three, borderWidth: 1, borderColor: c.backgroundSelected },
     avisoNovo: { borderColor: c.accent, borderLeftWidth: 4 },
+    segmentos: { flexDirection: 'row', gap: Spacing.one, backgroundColor: c.background, borderRadius: Radius.pill, padding: 4, marginTop: Spacing.two },
+    segmento: { flex: 1, alignItems: 'center', borderRadius: Radius.pill, paddingVertical: Spacing.two },
+    segmentoAtivo: { backgroundColor: c.primary },
   });
 }

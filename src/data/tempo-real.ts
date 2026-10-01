@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import type { Ponto } from '@/components/mapa-tipos';
+import { t } from '@/i18n';
 
 import type { Lugar } from './lugares';
 import type { Motorista } from './motorista';
@@ -23,10 +24,10 @@ export function problemaConfiguracao(): string | null {
   if (!TEMPO_REAL_ATIVO) return null;
   const url = URL_SUPABASE!.trim();
   const chave = CHAVE_SUPABASE!.trim();
-  if (/["'\s]/.test(URL_SUPABASE!) || /["'\s]/.test(CHAVE_SUPABASE!)) return 'há aspas ou espaços no .env.local';
-  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url)) return 'o endereço deve ser só https://xxxx.supabase.co, sem /rest/v1 nem mais nada';
-  if (chave.startsWith('sb_secret_') || chave.includes('service_role')) return 'essa é a chave secreta; usa a chave anon (ou publishable)';
-  if (!chave.startsWith('eyJ') && !chave.startsWith('sb_publishable_')) return 'a chave não parece a anon (começa por eyJ) nem a publishable (começa por sb_publishable_)';
+  if (/["'\s]/.test(URL_SUPABASE!) || /["'\s]/.test(CHAVE_SUPABASE!)) return t('há aspas ou espaços no .env.local');
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url)) return t('o endereço deve ser só https://xxxx.supabase.co, sem /rest/v1 nem mais nada');
+  if (chave.startsWith('sb_secret_') || chave.includes('service_role')) return t('essa é a chave secreta; usa a chave anon (ou publishable)');
+  if (!chave.startsWith('eyJ') && !chave.startsWith('sb_publishable_')) return t('a chave não parece a anon (começa por eyJ) nem a publishable (começa por sb_publishable_)');
   return null;
 }
 

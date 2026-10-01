@@ -8,6 +8,7 @@ import { BotaoPrincipal } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { VERSAO_TERMOS } from '@/data/textos-legais';
+import { t } from '@/i18n';
 import { useSessao } from '@/state/sessao';
 
 export default function Termos() {
@@ -35,12 +36,12 @@ export default function Termos() {
 
   return (
     <PassoRegisto
-      titulo="Aceita os termos e lê a política de privacidade"
-      descricao="Ao marcar a caixa, confirmas que leste e aceitas os Termos de Utilização e a Política de Privacidade. Tens de ter pelo menos 18 anos."
+      titulo={t('Aceita os termos e lê a política de privacidade')}
+      descricao={t('Ao marcar a caixa, confirmas que leste e aceitas os Termos de Utilização e a Política de Privacidade. Tens de ter pelo menos 18 anos.')}
       onVoltar={() => router.back()}
-      rodape={<BotaoPrincipal texto={aGuardar ? 'A guardar…' : 'Seguinte'} escuro onPress={seguinte} desativado={!aceito || aGuardar} />}>
-      {documento('Termos de Utilização', 'termos')}
-      {documento('Política de Privacidade', 'privacidade')}
+      rodape={<BotaoPrincipal texto={aGuardar ? t('A guardar…') : t('Seguinte')} escuro onPress={seguinte} desativado={!aceito || aGuardar} />}>
+      {documento(t('Termos de Utilização'), 'termos')}
+      {documento(t('Política de Privacidade'), 'privacidade')}
       <Pressable
         onPress={() => setAceito((v) => !v)}
         accessibilityRole="checkbox"
@@ -49,7 +50,7 @@ export default function Termos() {
         <View style={[estilos.caixa, aceito ? { backgroundColor: c.go, borderColor: c.go } : { borderColor: c.textSecondary }]}>
           {aceito && <Text style={estilos.visto}>✓</Text>}
         </View>
-        <Text style={[estilos.textoDocumento, { color: c.text }]}>Li e aceito</Text>
+        <Text style={[estilos.textoDocumento, { color: c.text }]}>{t('Li e aceito')}</Text>
       </Pressable>
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
     </PassoRegisto>

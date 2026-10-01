@@ -11,16 +11,19 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { ESPERA_MIN, HORAS_CANCELAR_GRATIS, MINUTOS_CANCELAR_GRATIS, TAXA_CANCELAMENTO_MZN } from '@/data/cancelamento';
 import { formatarMzn } from '@/data/categorias';
+import { t } from '@/i18n';
 import { useConta, type ViagemFeita } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
 import { TIPOS_AJUDA, useSuporte, type TipoAjuda } from '@/state/suporte';
 
-const PERGUNTAS = [
+// Os textos traduzem-se ao desenhar (t(q.p), t(q.r, q.v)); os valores ficam em v.
+const PERGUNTAS: { p: string; r: string; v?: Record<string, string | number> }[] = [
   {
     p: 'Como cancelo uma viagem?',
-    r: `Na viagem em curso, toca em «Cancelar pedido». Numa viagem marcada, abre-a em As tuas viagens e toca em «Cancelar a reserva». Reservas: grátis até ${HORAS_CANCELAR_GRATIS} horas antes. Pedidos para agora: grátis até ${MINUTOS_CANCELAR_GRATIS} minutos depois de o motorista aceitar, depois ${formatarMzn(TAXA_CANCELAMENTO_MZN)}.`,
+    r: 'Na viagem em curso, toca em «Cancelar pedido». Numa viagem marcada, abre-a em As tuas viagens e toca em «Cancelar a reserva». Reservas: grátis até {horas} horas antes. Pedidos para agora: grátis até {minutos} minutos depois de o motorista aceitar, depois {taxa}.',
+    v: { horas: HORAS_CANCELAR_GRATIS, minutos: MINUTOS_CANCELAR_GRATIS, taxa: formatarMzn(TAXA_CANCELAMENTO_MZN) },
   },
-  { p: 'Quanto tempo espera o motorista?', r: `${ESPERA_MIN} minutos depois de chegar à recolha. Depois disso, pode marcar falta de comparência.` },
+  { p: 'Quanto tempo espera o motorista?', r: '{min} minutos depois de chegar à recolha. Depois disso, pode marcar falta de comparência.', v: { min: ESPERA_MIN } },
   { p: 'Posso pagar em dinheiro?', r: 'Não. Pagas só pela app, por M-Pesa ou e-Mola, ou com a fatura da tua empresa.' },
   { p: 'Quando pago?', r: 'As viagens marcadas, os alugueres e os casamentos pagam-se ao reservar. Os pedidos para agora pagam-se no fim da viagem.' },
   { p: 'Esqueci-me de uma coisa no carro', r: 'Escolhe «Esqueci-me de um objeto no carro» aqui em baixo e a viagem. Podes ligar logo ao motorista, e nós também o contactamos.' },
@@ -65,46 +68,46 @@ export default function Ajuda() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Ajuda</Text>
+        <Text style={s.titulo}>{t('Ajuda')}</Text>
       </View>
       <FecharTeclado style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled">
           {meus.length > 0 && (
             <>
-              <Text style={s.secao}>Os teus pedidos</Text>
+              <Text style={s.secao}>{t('Os teus pedidos')}</Text>
               {meus.map((p) => (
                 <View key={p.id} style={s.cartao}>
                   <View style={s.linha}>
-                    <Text style={s.nome}>{TIPOS_AJUDA.find((t) => t.id === p.tipo)?.nome}</Text>
-                    <Text style={[s.estado, { color: p.estado === 'aberto' ? '#F59E0B' : cores.go }]}>{p.estado === 'aberto' ? 'Em análise' : 'Respondido'}</Text>
+                    <Text style={s.nome}>{t(TIPOS_AJUDA.find((x) => x.id === p.tipo)?.nome ?? 'Outro assunto')}</Text>
+                    <Text style={[s.estado, { color: p.estado === 'aberto' ? '#F59E0B' : cores.go }]}>{p.estado === 'aberto' ? t('Em análise') : t('Respondido')}</Text>
                   </View>
                   {p.viagemResumo && <Text style={s.secundario}>{p.viagemResumo}</Text>}
                   {p.texto ? <Text style={s.texto}>{p.texto}</Text> : null}
                   {p.resposta && <Text style={[s.texto, s.resposta]}>Chauffeur: {p.resposta}</Text>}
-                  {(p.reembolsoMzn ?? 0) > 0 && <Text style={[s.texto, { fontWeight: '700' }]}>Devolvemos {formatarMzn(p.reembolsoMzn!)}.</Text>}
+                  {(p.reembolsoMzn ?? 0) > 0 && <Text style={[s.texto, { fontWeight: '700' }]}>{t('Devolvemos {valor}.', { valor: formatarMzn(p.reembolsoMzn!) })}</Text>}
                 </View>
               ))}
             </>
           )}
 
-          <Text style={s.secao}>Pedir ajuda</Text>
-          {enviado && <Text style={[s.secundario, { color: cores.go }]}>Recebemos o teu pedido. Respondemos aqui e com um aviso.</Text>}
-          {TIPOS_AJUDA.map((t) => (
+          <Text style={s.secao}>{t('Pedir ajuda')}</Text>
+          {enviado && <Text style={[s.secundario, { color: cores.go }]}>{t('Recebemos o teu pedido. Respondemos aqui e com um aviso.')}</Text>}
+          {TIPOS_AJUDA.map((tp) => (
             <Pressable
-              key={t.id}
+              key={tp.id}
               onPress={() => {
-                setTipo(t.id);
+                setTipo(tp.id);
                 setEnviado(false);
               }}
-              style={[s.opcao, tipo === t.id && s.opcaoAtiva]}>
-              <Text style={[s.texto, tipo === t.id && { fontWeight: '800' }]}>{t.nome}</Text>
+              style={[s.opcao, tipo === tp.id && s.opcaoAtiva]}>
+              <Text style={[s.texto, tipo === tp.id && { fontWeight: '800' }]}>{t(tp.nome)}</Text>
             </Pressable>
           ))}
 
           {tipo && (
             <>
-              <Text style={s.rotulo}>Que viagem?</Text>
-              {recentes.length === 0 && <Text style={s.secundario}>Ainda não tens viagens.</Text>}
+              <Text style={s.rotulo}>{t('Que viagem?')}</Text>
+              {recentes.length === 0 && <Text style={s.secundario}>{t('Ainda não tens viagens.')}</Text>}
               {recentes.map((v) => (
                 <Pressable key={v.id} onPress={() => setViagemId(v.id === viagemId ? undefined : v.id)} style={[s.opcao, v.id === viagemId && s.opcaoAtiva]}>
                   <Text style={s.texto} numberOfLines={1}>
@@ -117,28 +120,28 @@ export default function Ajuda() {
               ))}
               {tipo === 'objeto' && viagem?.motorista.telefone && (
                 <Pressable onPress={() => Linking.openURL(`tel:${viagem.motorista.telefone}`)} style={[s.opcao, { alignItems: 'center' }]}>
-                  <Text style={[s.texto, { fontWeight: '800' }]}>Ligar a {viagem.motorista.nome.split(' ')[0]}</Text>
+                  <Text style={[s.texto, { fontWeight: '800' }]}>{t('Ligar a {nome}', { nome: viagem.motorista.nome.split(' ')[0] })}</Text>
                 </Pressable>
               )}
-              {tipo === 'seguranca' && <Text style={s.secundario}>Se estiveres em perigo agora, liga 119 (polícia).</Text>}
-              <Text style={s.rotulo}>Conta-nos o que aconteceu</Text>
+              {tipo === 'seguranca' && <Text style={s.secundario}>{t('Se estiveres em perigo agora, liga 119 (polícia).')}</Text>}
+              <Text style={s.rotulo}>{t('Conta-nos o que aconteceu')}</Text>
               <TextInput
                 value={texto}
                 onChangeText={setTexto}
                 multiline
-                placeholder={tipo === 'objeto' ? 'Que objeto, e onde estava no carro?' : 'Escreve aqui'}
+                placeholder={tipo === 'objeto' ? t('Que objeto, e onde estava no carro?') : t('Escreve aqui')}
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
-              <BotaoPrincipal texto="Enviar" desativado={texto.trim().length < 5} onPress={enviar} />
+              <BotaoPrincipal texto={t('Enviar')} desativado={texto.trim().length < 5} onPress={enviar} />
             </>
           )}
 
-          <Text style={s.secao}>Perguntas frequentes</Text>
+          <Text style={s.secao}>{t('Perguntas frequentes')}</Text>
           {PERGUNTAS.map((q, i) => (
             <Pressable key={q.p} onPress={() => setAberta(aberta === i ? null : i)} style={s.cartao}>
-              <Text style={s.nome}>{q.p}</Text>
-              {aberta === i && <Text style={s.texto}>{q.r}</Text>}
+              <Text style={s.nome}>{t(q.p)}</Text>
+              {aberta === i && <Text style={s.texto}>{t(q.r, q.v)}</Text>}
             </Pressable>
           ))}
         </ScrollView>

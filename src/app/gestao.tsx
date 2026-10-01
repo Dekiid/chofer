@@ -9,6 +9,7 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { useAgenda } from '@/state/agenda';
 import { COMISSAO, formatarMzn } from '@/data/categorias';
+import { t } from '@/i18n';
 import { totalPago, useConta } from '@/state/conta';
 import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
 import { useSuporte } from '@/state/suporte';
@@ -48,16 +49,16 @@ export default function Gestao() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Painel de gestão</Text>
+        <Text style={s.titulo}>{t('Painel de gestão')}</Text>
       </View>
       <ScrollView contentContainerStyle={s.conteudo}>
-        <Text style={s.nota}>Em testes, o painel fica na app e vê os dados deste telemóvel. Antes do lançamento passa para um painel web só da equipa.</Text>
+        <Text style={s.nota}>{t('Em testes, o painel fica na app e vê os dados deste telemóvel. Antes do lançamento passa para um painel web só da equipa.')}</Text>
         <View style={s.numeros}>
           {[
-            { n: String(feitasHoje.length), t: 'viagens hoje' },
-            { n: formatarMzn(receita), t: 'recebido hoje' },
-            { n: formatarMzn(comissao), t: `comissão ${Math.round(COMISSAO * 100)}%` },
-            { n: String(deHoje.length - feitasHoje.length), t: 'canceladas' },
+            { n: String(feitasHoje.length), t: t('viagens hoje') },
+            { n: formatarMzn(receita), t: t('recebido hoje') },
+            { n: formatarMzn(comissao), t: t('comissão {pct}%', { pct: Math.round(COMISSAO * 100) }) },
+            { n: String(deHoje.length - feitasHoje.length), t: t('canceladas') },
           ].map((x) => (
             <View key={x.t} style={s.numero}>
               <Text style={s.numeroValor}>{x.n}</Text>
@@ -66,20 +67,20 @@ export default function Gestao() {
           ))}
         </View>
         <Pressable onPress={() => router.push('/suporte')} style={[s.entrada, ajudaAbertos > 0 && s.naoLida]}>
-          <Text style={s.nome}>Ajuda e queixas{ajudaAbertos > 0 ? ` (${ajudaAbertos})` : ''}</Text>
-          <Text style={s.secundario}>Responder, objetos perdidos e reembolsos</Text>
+          <Text style={s.nome}>{t('Ajuda e queixas')}{ajudaAbertos > 0 ? ` (${ajudaAbertos})` : ''}</Text>
+          <Text style={s.secundario}>{t('Responder, objetos perdidos e reembolsos')}</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/agenda')} style={s.entrada}>
-          <Text style={s.nome}>Agenda das viaturas</Text>
-          <Text style={s.secundario}>Horários livres e ocupados de cada carro</Text>
+          <Text style={s.nome}>{t('Agenda das viaturas')}</Text>
+          <Text style={s.secundario}>{t('Horários livres e ocupados de cada carro')}</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/aprovacoes')} style={s.entrada}>
-          <Text style={s.nome}>Aprovar inscrições{pendentes > 0 ? ` (${pendentes})` : ''}</Text>
-          <Text style={s.secundario}>Motoristas à espera de aprovação</Text>
+          <Text style={s.nome}>{t('Aprovar inscrições')}{pendentes > 0 ? ` (${pendentes})` : ''}</Text>
+          <Text style={s.secundario}>{t('Motoristas à espera de aprovação')}</Text>
         </Pressable>
 
-        <Text style={s.secao}>Motoristas e documentos</Text>
-        {motoristas.length === 0 && <Text style={s.secundario}>Ainda não há motoristas aprovados.</Text>}
+        <Text style={s.secao}>{t('Motoristas e documentos')}</Text>
+        {motoristas.length === 0 && <Text style={s.secundario}>{t('Ainda não há motoristas aprovados.')}</Text>}
         {motoristas.map((i) => {
           const docs = estadoDocumentos(i.validades);
           const mal = docs.filter((d) => d.estado !== 'ok');
@@ -90,15 +91,25 @@ export default function Gestao() {
               </Text>
               <Text style={s.texto}>
                 {mal.length === 0
-                  ? 'Documentos em dia'
-                  : mal.map((d) => (d.estado === 'em_falta' ? `${d.nome}: sem validade` : d.estado === 'expirado' ? `${d.nome}: expirado` : `${d.nome}: expira em ${d.dias} dias`)).join(' · ')}
+                  ? t('Documentos em dia')
+                  : mal
+                      .map((d) =>
+                        d.estado === 'em_falta'
+                          ? t('{doc}: sem validade', { doc: t(d.nome) })
+                          : d.estado === 'expirado'
+                            ? t('{doc}: expirado', { doc: t(d.nome) })
+                            : d.dias === 1
+                              ? t('{doc}: expira em {n} dia', { doc: t(d.nome), n: d.dias })
+                              : t('{doc}: expira em {n} dias', { doc: t(d.nome), n: d.dias ?? 0 }),
+                      )
+                      .join(' · ')}
               </Text>
             </View>
           );
         })}
 
-        <Text style={s.secao}>Avaliações dos motoristas</Text>
-        {porMotorista.size === 0 && <Text style={s.secundario}>Ainda não há avaliações.</Text>}
+        <Text style={s.secao}>{t('Avaliações dos motoristas')}</Text>
+        {porMotorista.size === 0 && <Text style={s.secundario}>{t('Ainda não há avaliações.')}</Text>}
         {[...porMotorista.values()].map((m) => {
           const media = m.estrelas.reduce((a, b) => a + b, 0) / m.estrelas.length;
           return (
@@ -107,16 +118,17 @@ export default function Gestao() {
                 {m.nome} <Text style={s.secundario}>· {m.matricula}</Text>
               </Text>
               <Text style={s.texto}>
-                ★ {media.toFixed(1).replace('.', ',')} em {m.estrelas.length} {m.estrelas.length === 1 ? 'viagem' : 'viagens'}
-                {media < 4 ? ' · abaixo de 4, a rever' : ''}
+                ★{' '}
+                {t(m.estrelas.length === 1 ? '{nota} em {n} viagem' : '{nota} em {n} viagens', { nota: media.toFixed(1).replace('.', ','), n: m.estrelas.length })}
+                {media < 4 ? ` · ${t('abaixo de 4, a rever')}` : ''}
               </Text>
               {m.notas.length > 0 && <Text style={s.secundario}>{[...new Set(m.notas)].slice(0, 6).join(' · ')}</Text>}
             </View>
           );
         })}
 
-        <Text style={s.secao}>Notificações</Text>
-        {notificacoes.length === 0 && <Text style={s.secundario}>Sem notificações. Os pedidos imediatos aparecem aqui.</Text>}
+        <Text style={s.secao}>{t('Notificações')}</Text>
+        {notificacoes.length === 0 && <Text style={s.secundario}>{t('Sem notificações. Os pedidos imediatos aparecem aqui.')}</Text>}
         {notificacoes.map((n) => (
           <View key={n.id} style={[s.notificacao, !n.lida && s.naoLida]}>
             <Text style={s.nome}>

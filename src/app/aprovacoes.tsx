@@ -10,8 +10,12 @@ import { usePalette } from '@/constants/use-palette';
 import { COMISSAO, formatarMzn } from '@/data/categorias';
 import { formatarData } from '@/data/datas';
 import { formatarTelefone } from '@/data/motorista';
-import { estadoDocumentos, FOTOS_PEDIDAS, useInscricoes, type Inscricao } from '@/state/inscricoes';
+import { t } from '@/i18n';
+import { estadoDocumentos, FOTOS_PEDIDAS, useInscricoes, type Documento, type Inscricao } from '@/state/inscricoes';
 import { Text, TextInput } from '@/components/texto';
+
+// Nome curto de cada documento, na linha das validades.
+const NOME_CURTO: Record<Documento, () => string> = { carta: () => t('carta'), seguro: () => t('seguro'), inspecao: () => t('inspeção') };
 
 // Aprovação interna. No protótipo fica na app; no produto final passa para o painel de gestão, só para a equipa.
 export default function Aprovacoes() {
@@ -25,15 +29,15 @@ export default function Aprovacoes() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Aprovar inscrições</Text>
+        <Text style={s.titulo}>{t('Aprovar inscrições')}</Text>
       </View>
       <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        {inscricoes.length === 0 && <Text style={s.secundario}>Ainda não há inscrições.</Text>}
-        {pendentes.length > 0 && <Text style={s.secao}>À espera de aprovação ({pendentes.length})</Text>}
+        {inscricoes.length === 0 && <Text style={s.secundario}>{t('Ainda não há inscrições.')}</Text>}
+        {pendentes.length > 0 && <Text style={s.secao}>{t('À espera de aprovação ({n})', { n: pendentes.length })}</Text>}
         {pendentes.map((i) => (
           <CartaoPendente key={i.id} inscricao={i} />
         ))}
-        {decididas.length > 0 && <Text style={s.secao}>Já decididas</Text>}
+        {decididas.length > 0 && <Text style={s.secao}>{t('Já decididas')}</Text>}
         {decididas.map((i) => (
           <View key={i.id} style={s.resumo}>
             <Image source={{ uri: i.fotos.frente }} style={s.miniatura} contentFit="cover" />
@@ -42,7 +46,7 @@ export default function Aprovacoes() {
                 {i.marca} {i.modelo}
               </Text>
               <Text style={s.secundario}>
-                {i.nome} · {i.estado === 'aprovada' ? `aprovada, ${formatarMzn(i.porKmMzn)}/km` : 'rejeitada'}
+                {i.nome} · {i.estado === 'aprovada' ? t('aprovada, {preco}/km', { preco: formatarMzn(i.porKmMzn) }) : t('rejeitada')}
               </Text>
             </View>
           </View>
@@ -65,7 +69,7 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
         {FOTOS_PEDIDAS.map((f) => (
           <View key={f.id}>
             <Image source={{ uri: i.fotos[f.id] }} style={s.fotoGrande} contentFit="cover" />
-            <Text style={s.legendaFoto}>{f.nome}</Text>
+            <Text style={s.legendaFoto}>{t(f.nome)}</Text>
           </View>
         ))}
       </ScrollView>
@@ -74,15 +78,19 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
         {i.marca} {i.modelo} ({i.ano})
       </Text>
       <Text style={s.secundario}>
-        {i.tipo} · {i.lugares} lugares · {i.matricula}
+        {i.tipo} · {t('{n} lugares', { n: i.lugares })} · {i.matricula}
       </Text>
 
       <View style={s.dados}>
         <Text style={s.texto}>{i.nome}</Text>
-        <Text style={s.secundario}>BI {i.documento} · Carta {i.cartaConducao}</Text>
+        <Text style={s.secundario}>{t('BI {bi} · Carta {carta}', { bi: i.documento, carta: i.cartaConducao })}</Text>
         {i.validades && (
           <Text style={s.secundario}>
-            Validade: {estadoDocumentos(i.validades).map((d) => `${d.nome.split(' ')[0].toLowerCase()} ${d.validade ? formatarData(d.validade) : '—'}`).join(' · ')}
+            {t('Validade: {lista}', {
+              lista: estadoDocumentos(i.validades)
+                .map((d) => `${NOME_CURTO[d.documento]()} ${d.validade ? formatarData(d.validade) : '—'}`)
+                .join(' · '),
+            })}
           </Text>
         )}
         <Pressable onPress={() => Linking.openURL(`tel:${i.telefone}`)}>
@@ -93,24 +101,25 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
       {i.casamento?.foto && <Image source={i.casamento.foto} style={[s.fotoGrande, { marginBottom: Spacing.one }]} contentFit="cover" />}
       {i.casamento && (
         <Text style={[s.secundario, { marginBottom: Spacing.two }]}>
-          Casamentos: {formatarMzn(i.casamento.semDecoracaoMzn)} sem decoração · {formatarMzn(i.casamento.comDecoracaoMzn)} com decoração
+          {t('Casamentos: {sem} sem decoração · {com} com decoração', { sem: formatarMzn(i.casamento.semDecoracaoMzn), com: formatarMzn(i.casamento.comDecoracaoMzn) })}
         </Text>
       )}
-      <Text style={s.rotulo}>Preço por km proposto pelo motorista (MT)</Text>
+      <Text style={s.rotulo}>{t('Preço por km proposto pelo motorista (MT)')}</Text>
       <TextInput value={preco} onChangeText={setPreco} keyboardType="number-pad" style={s.input} />
       <Text style={[s.secundario, { marginTop: Spacing.one }]}>
-        {Number(preco) !== i.porKmMzn ? `Proposta original: ${formatarMzn(i.porKmMzn)}/km. ` : ''}Comissão do Chauffeur: {Math.round(COMISSAO * 100)}% do total.
+        {Number(preco) !== i.porKmMzn ? `${t('Proposta original: {preco}/km.', { preco: formatarMzn(i.porKmMzn) })} ` : ''}
+        {t('Comissão do Chauffeur: {pct}% do total.', { pct: Math.round(COMISSAO * 100) })}
       </Text>
 
       <View style={s.botoes}>
         <Pressable onPress={() => rejeitar(i.id)} style={[s.botao, { backgroundColor: cores.backgroundSelected }]}>
-          <Text style={[s.textoBotao, { color: cores.text }]}>Rejeitar</Text>
+          <Text style={[s.textoBotao, { color: cores.text }]}>{t('Rejeitar')}</Text>
         </Pressable>
         <Pressable
           disabled={!precoValido}
           onPress={() => aprovar(i.id, Number(preco))}
           style={[s.botao, { backgroundColor: cores.primary, opacity: precoValido ? 1 : 0.4 }]}>
-          <Text style={[s.textoBotao, { color: cores.onPrimary }]}>Aprovar</Text>
+          <Text style={[s.textoBotao, { color: cores.onPrimary }]}>{t('Aprovar')}</Text>
         </Pressable>
       </View>
     </View>

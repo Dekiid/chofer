@@ -8,6 +8,7 @@ import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { TEXTOS_LEGAIS, type DocumentoLegal } from '@/data/textos-legais';
+import { idiomaAtual, t } from '@/i18n';
 
 /** Termos de Utilização ou Política de Privacidade, abertos a partir do registo ou da conta. */
 export default function Legal() {
@@ -21,7 +22,11 @@ export default function Legal() {
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
       </View>
-      <ScrollView contentContainerStyle={s.conteudo}>{blocos(texto, s)}</ScrollView>
+      <ScrollView contentContainerStyle={s.conteudo}>
+        {/* Os textos legais só existem em português. */}
+        {idiomaAtual() === 'en' && <Text style={[s.paragrafo, { color: c.textSecondary, fontStyle: 'italic' }]}>{t('Os textos legais estão em português.')}</Text>}
+        {blocos(texto, s)}
+      </ScrollView>
     </SafeAreaView>
   );
 }

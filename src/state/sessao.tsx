@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { supabase } from '@/data/tempo-real';
 import { VERSAO_TERMOS } from '@/data/textos-legais';
+import { t } from '@/i18n';
 
 /** O que o cliente diz no registo. O telefone vem no formato +25884…. */
 export type Perfil = {
@@ -73,11 +74,11 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Explica os erros do Supabase em português. */
 function explicar(e: { code?: string; message?: string; status?: number }): string {
   if (e.code === 'phone_provider_disabled' || /provider.*disabled|Unsupported phone provider/i.test(e.message ?? ''))
-    return 'O envio de SMS ainda não está ligado no Supabase.';
-  if (e.code === 'sms_send_failed') return 'Não foi possível enviar a SMS para este número.';
-  if (e.code === 'over_sms_send_rate_limit' || e.status === 429) return 'Pediste muitos códigos seguidos. Espera um pouco e tenta outra vez.';
-  if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return 'Código errado ou expirado.';
-  return e.message ?? 'Algo correu mal. Tenta outra vez.';
+    return t('O envio de SMS ainda não está ligado no Supabase.');
+  if (e.code === 'sms_send_failed') return t('Não foi possível enviar a SMS para este número.');
+  if (e.code === 'over_sms_send_rate_limit' || e.status === 429) return t('Pediste muitos códigos seguidos. Espera um pouco e tenta outra vez.');
+  if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return t('Código errado ou expirado.');
+  return e.message ?? t('Algo correu mal. Tenta outra vez.');
 }
 
 export function SessaoProvider({ children }: { children: ReactNode }) {
@@ -153,7 +154,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       const sb = supabase();
       if (telefone === MOTORISTA_DEMO.telefone) {
         await esperar(400);
-        if (codigo !== MOTORISTA_DEMO.codigo) return 'Código errado.';
+        if (codigo !== MOTORISTA_DEMO.codigo) return t('Código errado.');
         // Já vem com o registo feito, para entrar logo.
         const p: Perfil = {
           telefone,
@@ -171,7 +172,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       }
       if (semSms || !sb) {
         await esperar(400);
-        if (codigo !== CODIGO_TESTE) return 'Código errado. No modo de teste o código é sempre 123456.';
+        if (codigo !== CODIGO_TESTE) return t('Código errado. No modo de teste o código é sempre {codigo}.', { codigo: CODIGO_TESTE });
         // O mesmo número volta a encontrar a conta que já tinha neste telemóvel.
         let anterior: Perfil | null = null;
         try {
@@ -195,7 +196,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
   const guardarPerfil = useCallback(
     async (mudancas: Partial<Perfil>) => {
-      if (!perfil) return 'Sem conta.';
+      if (!perfil) return t('Sem conta.');
       const novo = { ...perfil, ...mudancas };
       const sb = supabase();
       if (semSms || !sb) {
@@ -233,7 +234,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     if (sb && !semSms) {
       // Precisa de supabase/apagar-conta.sql no projeto.
       const { error } = await sb.rpc('apagar_conta');
-      if (error) return /apagar_conta|function/i.test(error.message) ? 'Falta correr supabase/apagar-conta.sql no Supabase.' : explicar(error);
+      if (error) return /apagar_conta|function/i.test(error.message) ? t('Falta correr supabase/apagar-conta.sql no Supabase.') : explicar(error);
       await sb.auth.signOut();
     }
     // Tudo o que esta conta guardou neste telemóvel.

@@ -11,6 +11,7 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
 import { formatarTelefone } from '@/data/motorista';
+import { t } from '@/i18n';
 import { useConta } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
 import { TIPOS_AJUDA, useSuporte, type PedidoAjuda } from '@/state/suporte';
@@ -27,21 +28,21 @@ export default function Suporte() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Ajuda e queixas</Text>
+        <Text style={s.titulo}>{t('Ajuda e queixas')}</Text>
       </View>
       <FecharTeclado style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled">
-          <Text style={s.secao}>Por responder ({abertos.length})</Text>
-          {abertos.length === 0 && <Text style={s.secundario}>Nada por responder. Os pedidos chegam de Conta → Ajuda.</Text>}
+          <Text style={s.secao}>{t('Por responder ({n})', { n: abertos.length })}</Text>
+          {abertos.length === 0 && <Text style={s.secundario}>{t('Nada por responder. Os pedidos chegam de Conta → Ajuda.')}</Text>}
           {abertos.map((p) => (
             <Aberto key={p.id} pedido={p} />
           ))}
-          {resolvidos.length > 0 && <Text style={s.secao}>Respondidos</Text>}
+          {resolvidos.length > 0 && <Text style={s.secao}>{t('Respondidos')}</Text>}
           {resolvidos.map((p) => (
             <View key={p.id} style={s.cartao}>
               <Cabeca pedido={p} />
               <Text style={[s.texto, s.resposta]}>{p.resposta}</Text>
-              {(p.reembolsoMzn ?? 0) > 0 && <Text style={[s.texto, { fontWeight: '700' }]}>Reembolso: {formatarMzn(p.reembolsoMzn!)}</Text>}
+              {(p.reembolsoMzn ?? 0) > 0 && <Text style={[s.texto, { fontWeight: '700' }]}>{t('Reembolso: {valor}', { valor: formatarMzn(p.reembolsoMzn!) })}</Text>}
             </View>
           ))}
         </ScrollView>
@@ -55,7 +56,7 @@ function Cabeca({ pedido: p }: { pedido: PedidoAjuda }) {
   return (
     <>
       <View style={s.linha}>
-        <Text style={s.nome}>{TIPOS_AJUDA.find((t) => t.id === p.tipo)?.nome}</Text>
+        <Text style={s.nome}>{t(TIPOS_AJUDA.find((x) => x.id === p.tipo)?.nome ?? 'Outro assunto')}</Text>
         <Text style={s.secundario}>
           {formatarDia(p.criadoEm, new Date())}, {formatarHora(p.criadoEm)}
         </Text>
@@ -85,22 +86,25 @@ function Aberto({ pedido: p }: { pedido: PedidoAjuda }) {
   function enviar() {
     responder(p.id, resposta.trim(), valor > 0 ? valor : undefined);
     // Em testes, o cliente costuma ser este mesmo telemóvel: o aviso aparece logo.
-    if (perfil?.telefone === p.clienteTelefone) conta.avisar('Resposta da Chauffeur', valor > 0 ? `${resposta.trim()} Devolvemos ${formatarMzn(valor)}.` : resposta.trim());
+    if (perfil?.telefone === p.clienteTelefone) conta.avisar(
+        t('Resposta da Chauffeur'),
+        valor > 0 ? t('{resposta} Devolvemos {valor}.', { resposta: resposta.trim(), valor: formatarMzn(valor) }) : resposta.trim(),
+      );
   }
 
   return (
     <View style={s.cartao}>
       <Cabeca pedido={p} />
-      <TextInput value={resposta} onChangeText={setResposta} multiline placeholder="Resposta ao cliente" placeholderTextColor={cores.textSecondary} style={s.campo} />
+      <TextInput value={resposta} onChangeText={setResposta} multiline placeholder={t('Resposta ao cliente')} placeholderTextColor={cores.textSecondary} style={s.campo} />
       <TextInput
         value={reembolso}
         onChangeText={(t) => setReembolso(t.replace(/[^\d,.]/g, ''))}
         keyboardType="decimal-pad"
-        placeholder="Reembolso em MT (opcional)"
+        placeholder={t('Reembolso em MT (opcional)')}
         placeholderTextColor={cores.textSecondary}
         style={[s.campo, { minHeight: 0 }]}
       />
-      <BotaoPrincipal texto={valor > 0 ? `Responder e devolver ${formatarMzn(valor)}` : 'Responder'} desativado={resposta.trim().length < 3} onPress={enviar} />
+      <BotaoPrincipal texto={valor > 0 ? t('Responder e devolver {valor}', { valor: formatarMzn(valor) }) : t('Responder')} desativado={resposta.trim().length < 3} onPress={enviar} />
     </View>
   );
 }

@@ -7,6 +7,7 @@ import { Text, TextInput } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarNumero } from '@/data/telefone';
+import { t } from '@/i18n';
 import { digitosCodigo, MOTORISTA_DEMO, proximoPasso, useSessao } from '@/state/sessao';
 
 // Tempo até se poder pedir outro código.
@@ -62,11 +63,11 @@ export default function Codigo() {
 
   return (
     <PassoRegisto
-      titulo={`Escreve o código de ${digitos} dígitos`}
-      descricao={demo ? 'Conta de demonstração do motorista: escreve o código de acesso.' : `Enviámos para +258 ${formatarNumero(telefone)}.`}
+      titulo={t('Escreve o código de {n} dígitos', { n: digitos })}
+      descricao={demo ? t('Conta de demonstração do motorista: escreve o código de acesso.') : t('Enviámos para +258 {numero}.', { numero: formatarNumero(telefone) })}
       onVoltar={() => router.back()}>
       {/* Um campo escondido recebe os dígitos (e o código da SMS, que o telemóvel sugere sozinho); as caixas só mostram. */}
-      <Pressable onPress={() => campo.current?.focus()} style={estilos.caixas} accessibilityLabel="Código de confirmação">
+      <Pressable onPress={() => campo.current?.focus()} style={estilos.caixas} accessibilityLabel={t('Código de confirmação')}>
         {Array.from({ length: digitos }, (_, i) => {
           const ativo = i === codigo.length && !aConfirmar;
           return (
@@ -91,20 +92,20 @@ export default function Codigo() {
         autoFocus
         maxLength={digitos}
         editable={!aConfirmar}
-        accessibilityLabel="Código"
+        accessibilityLabel={t('Código')}
         style={estilos.escondido}
       />
       {aConfirmar && <ActivityIndicator color={c.text} style={{ alignSelf: 'flex-start', marginBottom: Spacing.two }} />}
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
       {demo ? null : segundos > 0 ? (
-        <Text style={[s.ligacao, { color: c.textSecondary, textDecorationLine: 'none' }]}>Reenviar código em 0:{String(segundos).padStart(2, '0')}</Text>
+        <Text style={[s.ligacao, { color: c.textSecondary, textDecorationLine: 'none' }]}>{t('Reenviar código em 0:{s}', { s: String(segundos).padStart(2, '0') })}</Text>
       ) : (
         <Text style={s.ligacao} onPress={reenviar}>
-          Reenviar código
+          {t('Reenviar código')}
         </Text>
       )}
       <Text style={s.ligacao} onPress={() => router.back()}>
-        Mudar o número
+        {t('Mudar o número')}
       </Text>
     </PassoRegisto>
   );
