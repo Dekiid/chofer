@@ -6,7 +6,8 @@
 -- O link deixa de funcionar 2 horas depois da última atualização.
 create table if not exists public.partilhas (
   id text primary key check (length(id) >= 16),
-  dono uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  -- Dono da partilha quando a conta usa SMS; vazio em testes (contas só no telemóvel).
+  dono uuid default auth.uid() references auth.users (id) on delete cascade,
   dados jsonb not null,
   atualizada_em timestamptz not null default now()
 );
@@ -14,7 +15,7 @@ create table if not exists public.partilhas (
 alter table public.partilhas enable row level security;
 -- Ninguém lê nem escreve a tabela diretamente: só pelas duas funções abaixo.
 
--- O cliente (com sessão) cria ou atualiza a partilha da sua viagem.
+-- O cliente cria ou atualiza a partilha da sua viagem. Em testes, sem conta no Supabase, também pode (o id é aleatório).
 create or replace function public.guardar_partilha(p_id text, p_dados jsonb)
 returns void
 language sql
@@ -25,7 +26,7 @@ as $$
   values (p_id, auth.uid(), p_dados, now())
   on conflict (id) do update
     set dados = excluded.dados, atualizada_em = now()
-    where public.partilhas.dono = auth.uid();
+    where public.partilhas.dono is not distinct from auth.uid();
 $$;
 
 -- Quem tem o link lê a partilha, sem conta.
@@ -40,7 +41,10 @@ as $$
   where id = p_id and atualizada_em > now() - interval '2 hours';
 $$;
 
-revoke all on function public.guardar_partilha(text, jsonb) from public, anon;
-grant execute on function public.guardar_partilha(text, jsonb) to authenticated;
+revoke all on function public.guardar_partilha(text, jsonb) from public;
+grant execute on function public.guardar_partilha(text, jsonb) to anon, authenticated;
 revoke all on function public.ver_partilha(text) from public;
 grant execute on function public.ver_partilha(text) to anon, authenticated;
+
+-- Para quem já tinha corrido a versão anterior deste ficheiro.
+alter table public.partilhas alter column dono drop not null;
