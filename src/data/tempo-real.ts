@@ -62,7 +62,7 @@ export type EventoViagem =
   | { tipo: 'recusado'; id: string }
   | { tipo: 'posicao'; id: string; posicao: Ponto }
   | { tipo: 'estado'; id: string; estado: EstadoViagem; motorista?: Motorista }
-  | { tipo: 'cancelado'; id: string; por: 'cliente' | 'motorista' };
+  | { tipo: 'cancelado'; id: string; por: 'cliente' | 'motorista'; motivo?: 'falta' };
 
 type Ouvinte = (e: EventoViagem) => void;
 const ouvintes = new Set<Ouvinte>();

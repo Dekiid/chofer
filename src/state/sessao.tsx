@@ -45,6 +45,8 @@ type Sessao = {
   usarSemSms: () => void;
   guardarPerfil: (mudancas: Partial<Perfil>) => Promise<string | null>;
   sair: () => Promise<void>;
+  /** Apaga a conta e os dados dela neste telemóvel. Devolve a mensagem de erro, ou null. */
+  apagarConta: () => Promise<string | null>;
   /** Mostra o ecrã de boas-vindas logo a seguir ao registo. */
   bemVindo: boolean;
   fecharBemVindo: () => void;
@@ -225,6 +227,27 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     setSemSms(!sb);
   }, [semSms, guardarLocal]);
 
+  const apagarConta = useCallback(async () => {
+    if (!perfil) return null;
+    const sb = supabase();
+    if (sb && !semSms) {
+      // Precisa de supabase/apagar-conta.sql no projeto.
+      const { error } = await sb.rpc('apagar_conta');
+      if (error) return /apagar_conta|function/i.test(error.message) ? 'Falta correr supabase/apagar-conta.sql no Supabase.' : explicar(error);
+      await sb.auth.signOut();
+    }
+    // Tudo o que esta conta guardou neste telemóvel.
+    try {
+      const chaves = await AsyncStorage.getAllKeys();
+      await AsyncStorage.multiRemove(chaves.filter((k) => k.includes(perfil.telefone)));
+    } catch {}
+    await guardarLocal(null);
+    setPerfil(null);
+    setEstado('fora');
+    setSemSms(!sb);
+    return null;
+  }, [perfil, semSms, guardarLocal]);
+
   const completo = Boolean(perfil?.nome && perfil.apelido && perfil.email && perfil.termos);
 
   const valor = useMemo<Sessao>(
@@ -238,10 +261,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       usarSemSms: () => setSemSms(true),
       guardarPerfil,
       sair,
+      apagarConta,
       bemVindo,
       fecharBemVindo: () => setBemVindo(false),
     }),
-    [estado, perfil, completo, semSms, pedirCodigo, confirmarCodigo, guardarPerfil, sair, bemVindo],
+    [estado, perfil, completo, semSms, pedirCodigo, confirmarCodigo, guardarPerfil, sair, apagarConta, bemVindo],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

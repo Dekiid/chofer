@@ -13,6 +13,7 @@ import { Vidro } from '@/components/vidro';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
+import { ESPERA_MIN } from '@/data/cancelamento';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
@@ -79,6 +80,32 @@ export default function MotoristaEcra() {
 }
 
 type S = ReturnType<typeof estilos>;
+
+/** Na recolha: quanto tempo falta de espera; depois disso, o motorista pode marcar falta de comparência. */
+function Espera({ chegouEm, s }: { chegouEm?: number; s: S }) {
+  const m = useModoMotorista();
+  const [agora, setAgora] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (!chegouEm) return null;
+  const falta = chegouEm + ESPERA_MIN * 60000 - agora;
+  if (falta > 0) {
+    const min = Math.floor(falta / 60000);
+    const seg = Math.floor((falta % 60000) / 1000);
+    return (
+      <Text style={s.secundarioPequeno}>
+        Espera {min}:{String(seg).padStart(2, '0')}. Se o cliente não aparecer, podes marcar falta de comparência e ele paga a taxa.
+      </Text>
+    );
+  }
+  return (
+    <View style={{ marginTop: Spacing.two }}>
+      <BotaoSecundario texto="O cliente não apareceu" onPress={() => m.cancelarViagem('falta')} />
+    </View>
+  );
+}
 
 function EscolherCarro({ s }: { s: S }) {
   const { viaturas } = usePedido();
@@ -314,6 +341,7 @@ function ViagemEmCurso({ s }: { s: S }) {
             accessibilityLabel="Código de recolha"
           />
           {erro && <Text style={s.erro}>Código errado. Confirma com o cliente.</Text>}
+          <Espera chegouEm={viagem.chegouEm} s={s} />
           {!TEMPO_REAL_ATIVO && <Text style={s.secundarioPequeno}>Demonstração: o código do cliente é {pedido.codigoRecolha}.</Text>}
         </>
       )}
@@ -341,7 +369,7 @@ function ViagemEmCurso({ s }: { s: S }) {
         </View>
       </View>
       {fase !== 'em_viagem' && (
-        <Pressable onPress={m.cancelarViagem} style={{ alignSelf: 'center', paddingTop: Spacing.three }} hitSlop={8}>
+        <Pressable onPress={() => m.cancelarViagem()} style={{ alignSelf: 'center', paddingTop: Spacing.three }} hitSlop={8}>
           <Text style={s.cancelar}>Cancelar viagem</Text>
         </Pressable>
       )}

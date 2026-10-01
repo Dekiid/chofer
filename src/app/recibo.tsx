@@ -3,14 +3,17 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
+import { BotaoPrincipal, BotaoSecundario, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
+import { custoCancelar } from '@/data/cancelamento';
 import { formatarMzn } from '@/data/categorias';
 import { descricaoReserva, eReserva, linhasRecibo, nomePagamento, numeroRecibo, partilharRecibo } from '@/data/recibo';
 import { textoDias } from '@/data/reserva';
-import { totalPago, useConta } from '@/state/conta';
+import { publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
+import { useAgenda } from '@/state/agenda';
+import { totalPago, useConta, type ViagemFeita } from '@/state/conta';
 import { Text } from '@/components/texto';
 
 export default function Recibo() {
@@ -70,11 +73,26 @@ export default function Recibo() {
               </Text>
             </View>
           ))}
+          {v.estado === 'cancelada' && (v.taxaCancelamentoMzn ?? 0) + (v.reembolsoMzn ?? 0) > 0 && (
+            <>
+              <View style={s.linha}>
+                <Text style={s.secundario}>{v.motivoCancelamento === 'falta' ? 'Falta de comparência' : 'Taxa de cancelamento'}</Text>
+                <Text style={s.valor}>{formatarMzn(v.taxaCancelamentoMzn ?? 0)}</Text>
+              </View>
+              {(v.reembolsoMzn ?? 0) > 0 && (
+                <View style={s.linha}>
+                  <Text style={s.secundario}>Devolvido</Text>
+                  <Text style={s.valor}>{formatarMzn(v.reembolsoMzn ?? 0)}</Text>
+                </View>
+              )}
+            </>
+          )}
           <View style={[s.linha, s.linhaTotal]}>
-            <Text style={s.totalLinha}>Total pago</Text>
+            <Text style={s.totalLinha}>{v.estado === 'cancelada' ? 'Cancelada · pago' : 'Total pago'}</Text>
             <Text style={s.totalLinha}>{formatarMzn(totalPago(v))}</Text>
           </View>
         </View>
+        {v.estado === 'agendada' && <CancelarReserva v={v} />}
         {v.avaliacao && (
           <Text style={s.secundario}>
             A tua avaliação: {'★'.repeat(v.avaliacao.estrelas)}
@@ -86,6 +104,39 @@ export default function Recibo() {
         <BotaoPrincipal texto={aGerar ? 'A preparar o PDF…' : 'Guardar ou partilhar PDF'} onPress={pdf} desativado={aGerar || v.estado === 'cancelada'} />
       </View>
     </SafeAreaView>
+  );
+}
+
+/** Cancelar uma reserva já paga, com as regras de cancelamento à vista antes de confirmar. */
+function CancelarReserva({ v }: { v: ViagemFeita }) {
+  const cores = usePalette();
+  const s = estilos(cores);
+  const conta = useConta();
+  const agenda = useAgenda();
+  const [confirmar, setConfirmar] = useState(false);
+  const c = custoCancelar(v, new Date(), true);
+
+  function cancelar() {
+    conta.atualizarViagem(v.id, { estado: 'cancelada', taxaCancelamentoMzn: c.taxaMzn, reembolsoMzn: c.reembolsoMzn, motivoCancelamento: 'cliente' });
+    agenda.libertar(v.id);
+    if (TEMPO_REAL_ATIVO) publicar({ tipo: 'cancelado', id: v.id, por: 'cliente' });
+    conta.avisar('Reserva cancelada', c.reembolsoMzn > 0 ? `Devolvemos ${formatarMzn(c.reembolsoMzn)} por ${nomePagamento(v)}.` : 'A reserva foi cancelada.');
+  }
+
+  return (
+    <View style={[s.caixa, { gap: Spacing.two }]}>
+      <Text style={s.valor}>Cancelar a reserva</Text>
+      <Text style={s.secundario}>{c.texto}</Text>
+      {c.taxaMzn > 0 && <Text style={s.secundario}>Ficam {formatarMzn(c.taxaMzn)} como taxa de cancelamento.</Text>}
+      {confirmar ? (
+        <>
+          <BotaoPrincipal escuro texto={c.reembolsoMzn > 0 ? `Cancelar e receber ${formatarMzn(c.reembolsoMzn)}` : 'Cancelar a reserva'} onPress={cancelar} />
+          <BotaoSecundario texto="Manter a reserva" onPress={() => setConfirmar(false)} />
+        </>
+      ) : (
+        <BotaoSecundario texto="Cancelar a reserva" onPress={() => setConfirmar(true)} />
+      )}
+    </View>
   );
 }
 

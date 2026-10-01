@@ -44,7 +44,7 @@ export default function Viagens() {
           {v.viatura}
           {v.avaliacao ? ` · ${'★'.repeat(v.avaliacao.estrelas)}` : ''}
         </Text>
-        <Text style={s.valor}>{v.estado === 'cancelada' ? '—' : formatarMzn(totalPago(v))}</Text>
+        <Text style={s.valor}>{v.estado === 'cancelada' && !v.taxaCancelamentoMzn ? '—' : formatarMzn(totalPago(v))}</Text>
       </View>
     </Pressable>
   );

@@ -16,6 +16,7 @@ import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { calcularRota, pontoNaRota, restoDaRota, restoDesde, type Rota } from '@/data/rotas';
 import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
+import { custoCancelar, custoFalta, type Cancelamento } from '@/data/cancelamento';
 import { avisarMotoristaPorPush } from '@/data/push';
 import { ouvir, publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
@@ -68,6 +69,7 @@ export default function Viagem() {
   const [motivoSemResposta, setMotivoSemResposta] = useState('');
   const [idLocal] = useState(() => `v-${Date.now()}`);
   const idPedido = viagemConta?.id ?? idLocal;
+  const faltaRef = useRef<() => void>(() => {});
 
   // Tempo real: eventos do motorista desta viagem.
   useEffect(() => {
@@ -89,6 +91,10 @@ export default function Viagem() {
         if (e.motorista) setMotoristaReal(e.motorista);
         if (e.estado === 'em_viagem') setProgresso(0);
         setFase(e.estado);
+      }
+      if (e.tipo === 'cancelado' && e.por === 'motorista' && e.motivo === 'falta') {
+        faltaRef.current();
+        return;
       }
       if (e.tipo === 'cancelado' && e.por === 'motorista') {
         setMotivoSemResposta('O motorista cancelou a viagem.');
@@ -196,10 +202,44 @@ export default function Viagem() {
     router.dismissTo('/');
   }
 
-  function cancelar() {
+  // Quanto custa cancelar agora (regras em src/data/cancelamento.ts).
+  const aceite = fase === 'a_caminho' || fase === 'chegou';
+  const [aceiteEm, setAceiteEm] = useState<number | null>(null);
+  useEffect(() => {
+    if (aceite && aceiteEm == null) setAceiteEm(Date.now());
+  }, [aceite, aceiteEm]);
+  const [confirmarCancelar, setConfirmarCancelar] = useState<Cancelamento | null>(null);
+
+  // O motorista esperou e o cliente não apareceu.
+  useEffect(() => {
+    faltaRef.current = () => {
+      if (!viagemConta) return sair();
+      const c = custoFalta(viagemConta);
+      atualizarViagem(viagemConta.id, { estado: 'cancelada', porPagar: false, taxaCancelamentoMzn: c.taxaMzn, reembolsoMzn: 0, motivoCancelamento: 'falta' });
+      agenda.libertar(viagemConta.id);
+      avisar('Falta de comparência', `${c.texto} ${formatarMzn(c.taxaMzn)}.`);
+      sair();
+    };
+  });
+
+  function pedirCancelar() {
+    const c = viagemConta ? custoCancelar(viagemConta, new Date(), aceite, aceiteEm ?? undefined) : null;
+    if (c && (c.taxaMzn > 0 || c.reembolsoMzn > 0)) setConfirmarCancelar(c);
+    else cancelar(c);
+  }
+
+  function cancelar(c: Cancelamento | null) {
     if (TEMPO_REAL_ATIVO) publicar({ tipo: 'cancelado', id: idPedido, por: 'cliente' });
     if (viagemConta) {
-      atualizarViagem(viagemConta.id, { estado: 'cancelada' });
+      atualizarViagem(viagemConta.id, {
+        estado: 'cancelada',
+        porPagar: false,
+        taxaCancelamentoMzn: c?.taxaMzn ?? 0,
+        reembolsoMzn: c?.reembolsoMzn ?? 0,
+        motivoCancelamento: 'cliente',
+      });
+      if (c && c.taxaMzn > 0) avisar('Viagem cancelada', `Taxa de cancelamento: ${formatarMzn(c.taxaMzn)}, por ${pagamento}.`);
+      else if (c && c.reembolsoMzn > 0) avisar('Viagem cancelada', `Devolvemos ${formatarMzn(c.reembolsoMzn)} por ${pagamento}.`);
       // O carro volta a ficar livre na agenda.
       agenda.libertar(viagemConta.id);
     }
@@ -406,7 +446,20 @@ export default function Viagem() {
             {/* Com o motorista real, é ele que começa a viagem quando o cliente lhe diz o código. */}
             {fase === 'chegou' && !TEMPO_REAL_ATIVO && <BotaoPrincipal texto="Já estou no carro" onPress={() => setFase('em_viagem')} />}
             {fase === 'chegou' && TEMPO_REAL_ATIVO && <Text style={[s.secundario, { textAlign: 'center' }]}>A viagem começa quando disseres o código a {primeiroNome}.</Text>}
-            {(fase === 'procurar' || fase === 'sem_resposta' || fase === 'a_caminho' || fase === 'chegou') && <BotaoSecundario texto="Cancelar pedido" onPress={cancelar} />}
+            {(fase === 'procurar' || fase === 'sem_resposta' || fase === 'a_caminho' || fase === 'chegou') &&
+              (confirmarCancelar ? (
+                <View style={{ gap: Spacing.two }}>
+                  <Text style={s.secundario}>{confirmarCancelar.texto}</Text>
+                  <BotaoPrincipal
+                    escuro
+                    texto={confirmarCancelar.taxaMzn > 0 ? `Cancelar e pagar ${formatarMzn(confirmarCancelar.taxaMzn)}` : 'Cancelar pedido'}
+                    onPress={() => cancelar(confirmarCancelar)}
+                  />
+                  <BotaoSecundario texto="Manter a viagem" onPress={() => setConfirmarCancelar(null)} />
+                </View>
+              ) : (
+                <BotaoSecundario texto="Cancelar pedido" onPress={pedirCancelar} />
+              ))}
           </View>
         )}
       </Painel>

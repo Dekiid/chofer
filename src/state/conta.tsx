@@ -50,9 +50,14 @@ export type ViagemFeita = {
   avaliacao?: Avaliacao;
   /** Pedido para agora: paga-se no fim da viagem, como na Uber. Fica true até o pagamento ser feito. */
   porPagar?: boolean;
+  /** Cancelada: o que o cliente pagou ou perdeu, e o que lhe voltou. */
+  taxaCancelamentoMzn?: number;
+  reembolsoMzn?: number;
+  /** Quem cancelou, ou falta de comparência. */
+  motivoCancelamento?: 'cliente' | 'motorista' | 'falta';
 };
 
-export const totalPago = (v: ViagemFeita) => v.precoMzn - v.descontoMzn + v.gorjetaMzn;
+export const totalPago = (v: ViagemFeita) => (v.estado === 'cancelada' ? (v.taxaCancelamentoMzn ?? 0) : v.precoMzn - v.descontoMzn + v.gorjetaMzn);
 
 export type Mensagem = { id: string; de: 'cliente' | 'motorista'; texto: string; em: Date; lida: boolean };
 export type Aviso = { id: string; titulo: string; texto: string; em: Date; lido: boolean };

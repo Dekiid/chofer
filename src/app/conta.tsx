@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,6 +25,8 @@ export default function Conta() {
   const motorista = useMotoristaAprovado();
   const { marcarAvisosLidos } = conta;
   const agora = new Date();
+  const [apagar, setApagar] = useState(false);
+  const [erroApagar, setErroApagar] = useState<string | null>(null);
   const feitas = conta.viagens.filter((v) => v.estado === 'concluida').length;
 
   // Ao sair, os avisos vistos deixam de contar como novos.
@@ -169,6 +171,30 @@ export default function Conta() {
           <Text style={[s.nome, { color: '#D93025' }]}>Sair da conta</Text>
           {sessao.semSms && <Text style={s.secundario}>Conta de teste, sem SMS: fica só neste telemóvel.</Text>}
         </Pressable>
+        {!apagar ? (
+          <Text style={[s.ligacaoLegal, { color: cores.textSecondary }]} onPress={() => setApagar(true)}>
+            Apagar a conta
+          </Text>
+        ) : (
+          <View style={[s.entrada, { gap: Spacing.two }]}>
+            <Text style={s.nome}>Apagar a conta?</Text>
+            <Text style={s.secundario}>
+              Apagamos o teu perfil, os locais guardados e o histórico neste telemóvel. Os recibos de viagens pagas ficam guardados o tempo que a lei exige. Não dá para desfazer.
+            </Text>
+            {erroApagar && <Text style={[s.secundario, { color: '#D93025' }]}>{erroApagar}</Text>}
+            <View style={{ flexDirection: 'row', gap: Spacing.two }}>
+              <Pressable onPress={() => setApagar(false)} style={[s.botaoPequeno, { flex: 1, backgroundColor: cores.background }]}>
+                <Text style={[s.nomePequeno, { textAlign: 'center' }]}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                onPress={async () => setErroApagar(await sessao.apagarConta())}
+                style={[s.botaoPequeno, { flex: 1, backgroundColor: '#D93025' }]}
+                accessibilityLabel="Apagar para sempre">
+                <Text style={[s.nomePequeno, { textAlign: 'center', color: '#FFFFFF' }]}>Apagar para sempre</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

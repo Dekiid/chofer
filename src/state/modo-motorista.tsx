@@ -21,7 +21,7 @@ import { usePedido } from '@/state/pedido';
 import { useSessao } from '@/state/sessao';
 
 export type FaseMotorista = 'a_recolha' | 'chegou' | 'em_viagem' | 'concluida';
-export type ViagemMotorista = { pedido: PedidoMotorista; fase: FaseMotorista; rota: Rota | null };
+export type ViagemMotorista = { pedido: PedidoMotorista; fase: FaseMotorista; rota: Rota | null; /** Hora a que chegou à recolha, para a espera. */ chegouEm?: number };
 
 /** Tempo para aceitar um pedido (1 minuto, decisão do Flavio). Depois fica recusado. */
 export const TEMPO_PARA_ACEITAR = 60000;
@@ -62,7 +62,8 @@ type ModoMotorista = {
   /** Começa a viagem se o código do cliente estiver certo. */
   comecar: (codigo: string) => boolean;
   terminar: () => void;
-  cancelarViagem: () => void;
+  /** Cancela a viagem; com 'falta', o cliente não apareceu depois da espera. */
+  cancelarViagem: (motivo?: 'falta') => void;
   fecharResumo: () => void;
   simularPedido: () => void;
 };
@@ -324,7 +325,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
         if (!viagem) return;
         publicar({ tipo: 'estado', id: viagem.pedido.id, estado: 'chegou' });
         if (simular) setPosicao(viagem.pedido.origem);
-        setViagem({ ...viagem, fase: 'chegou', rota: null });
+        setViagem({ ...viagem, fase: 'chegou', rota: null, chegouEm: Date.now() });
       },
       comecar: (codigo) => {
         if (!viagem || codigo !== viagem.pedido.codigoRecolha) return false;
@@ -344,9 +345,9 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
         setFeitas((l) => [{ pedido: viagem.pedido, concluidaEm: new Date().toISOString() }, ...l]);
         setViagem({ ...viagem, fase: 'concluida', rota: null });
       },
-      cancelarViagem: () => {
+      cancelarViagem: (motivo) => {
         if (!viagem) return;
-        publicar({ tipo: 'cancelado', id: viagem.pedido.id, por: 'motorista' });
+        publicar({ tipo: 'cancelado', id: viagem.pedido.id, por: 'motorista', motivo });
         pararLocalizacaoFundo();
         setViagem(null);
       },
