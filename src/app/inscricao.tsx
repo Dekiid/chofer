@@ -11,6 +11,7 @@ import { usePalette } from '@/constants/use-palette';
 import { COMISSAO, formatarMzn, TIPOS_VIATURA } from '@/data/categorias';
 import { normalizarTelefone } from '@/data/motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type FotoPedida } from '@/state/inscricoes';
+import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
 
 const LUGARES = [4, 5, 7];
@@ -21,9 +22,11 @@ export default function Inscricao() {
   const cores = usePalette();
   const s = estilos(cores);
   const { submeter } = useInscricoes();
+  const { perfil } = useSessao();
 
   const [nome, setNome] = useState('');
-  const [telefone, setTelefone] = useState('');
+  // O número da conta, para o carro ficar ligado a este motorista no modo motorista.
+  const [telefone, setTelefone] = useState(perfil?.telefone.replace(/^\+258/, '') ?? '');
   const [documento, setDocumento] = useState('');
   const [cartaConducao, setCartaConducao] = useState('');
   const [marca, setMarca] = useState('');

@@ -21,7 +21,7 @@ import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import { PercursoViagem } from '@/components/percurso-viagem';
 import { useInscricoes } from '@/state/inscricoes';
-import { MOTORISTA_ABERTO_EM_TESTES, MOTORISTAS_DE_TESTE, useSessao } from '@/state/sessao';
+import { useSessao } from '@/state/sessao';
 
 /** App do motorista, como a da Uber: ficar online, receber e aceitar pedidos, ir buscar, confirmar o código, levar e terminar. */
 export default function MotoristaEcra() {
@@ -82,24 +82,35 @@ function EscolherCarro({ s }: { s: S }) {
   const { viaturas } = usePedido();
   const m = useModoMotorista();
   const { perfil } = useSessao();
-  const podeVerTodos = MOTORISTA_ABERTO_EM_TESTES || Boolean(perfil?.motoristaDemo) || MOTORISTAS_DE_TESTE.includes(perfil?.telefone ?? '');
   const { inscricoes } = useInscricoes();
-  // A conta de demonstração pode conduzir qualquer carro; um motorista aprovado só os que inscreveu.
-  const meus = new Set(inscricoes.filter((i) => i.estado === 'aprovada' && i.telefone === perfil?.telefone).map((i) => i.id));
+  // Cada motorista conduz só os carros pessoais que inscreveu e foram aprovados. A conta de demonstração usa a frota de exemplo.
+  const minhas = inscricoes.filter((i) => i.telefone === perfil?.telefone);
+  const aprovados = new Set(minhas.filter((i) => i.estado === 'aprovada').map((i) => i.id));
+  const carros = viaturas.filter((v) => !v.soCasamento && (perfil?.motoristaDemo ? !v.id.startsWith('insc-') : aprovados.has(v.id)));
+  const pendentes = minhas.filter((i) => i.estado === 'pendente').length;
   return (
     <>
       <Text style={s.titulo}>Qual é o teu carro?</Text>
-      <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Recebes os pedidos dos clientes que escolherem este carro.</Text>
+      <Text style={[s.secundario, { marginBottom: Spacing.two }]}>
+        {carros.length > 0
+          ? 'Recebes os pedidos dos clientes que escolherem este carro.'
+          : pendentes > 0
+            ? 'O teu carro está à espera de aprovação. Depois de aprovado, aparece aqui.'
+            : 'Ainda não tens nenhum carro aprovado. Inscreve o teu carro para receberes pedidos.'}
+      </Text>
       <ScrollView style={{ maxHeight: 320 }}>
-        {viaturas
-          .filter((v) => !v.soCasamento && (podeVerTodos || meus.has(v.id)))
-          .map((v) => (
-            <Pressable key={v.id} onPress={() => m.escolherViatura(v.id)} style={s.linhaCarro}>
-              <Text style={s.nome}>{nomeViatura(v)}</Text>
-              <Text style={s.secundario}>{v.motorista?.matricula ?? 'Motorista de demonstração'}</Text>
-            </Pressable>
-          ))}
+        {carros.map((v) => (
+          <Pressable key={v.id} onPress={() => m.escolherViatura(v.id)} style={s.linhaCarro}>
+            <Text style={s.nome}>{nomeViatura(v)}</Text>
+            <Text style={s.secundario}>{v.motorista?.matricula ?? 'Motorista de demonstração'}</Text>
+          </Pressable>
+        ))}
       </ScrollView>
+      {!perfil?.motoristaDemo && (
+        <View style={{ marginTop: Spacing.two }}>
+          <BotaoSecundario texto="Inscrever um carro" onPress={() => router.push('/inscricao')} />
+        </View>
+      )}
     </>
   );
 }
