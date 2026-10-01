@@ -1,0 +1,233 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { User } from '@supabase/supabase-js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+
+import { supabase } from '@/data/tempo-real';
+
+/** O que o cliente diz no registo. O telefone vem no formato +25884…. */
+export type Perfil = {
+  telefone: string;
+  nome?: string;
+  apelido?: string;
+  email?: string;
+  /** Versão dos termos aceite. */
+  termos?: string;
+};
+
+/** Código que entra sem SMS, no modo de teste. */
+export const CODIGO_TESTE = '123456';
+/** Dígitos do código por SMS (o Supabase manda 6). */
+export const DIGITOS_CODIGO = 6;
+
+type Sessao = {
+  estado: 'a_carregar' | 'fora' | 'dentro';
+  perfil: Perfil | null;
+  /** Registo feito: nome, email e termos. Sem isto, a app mostra o registo. */
+  completo: boolean;
+  /** Sem SMS: o código é sempre o mesmo e a conta fica só neste telemóvel. */
+  semSms: boolean;
+  /** Devolve a mensagem de erro, ou null se o código foi enviado. */
+  pedirCodigo: (telefone: string) => Promise<string | null>;
+  confirmarCodigo: (telefone: string, codigo: string) => Promise<string | null>;
+  /** Passar a entrar sem SMS (enquanto o envio de SMS não está ligado no Supabase). */
+  usarSemSms: () => void;
+  guardarPerfil: (mudancas: Partial<Perfil>) => Promise<string | null>;
+  sair: () => Promise<void>;
+  /** Mostra o ecrã de boas-vindas logo a seguir ao registo. */
+  bemVindo: boolean;
+  fecharBemVindo: () => void;
+};
+
+const Contexto = createContext<Sessao | null>(null);
+
+// Conta sem SMS (modo de demonstração, ou enquanto o Supabase não envia SMS): fica guardada só neste telemóvel.
+const CHAVE_LOCAL = 'chauffeur.conta';
+
+const perfilDe = (u: User): Perfil => {
+  const m = u.user_metadata ?? {};
+  return {
+    telefone: u.phone ? `+${u.phone.replace(/^\+/, '')}` : '',
+    nome: m.nome,
+    apelido: m.apelido,
+    email: m.email_recibos,
+    termos: m.termos,
+  };
+};
+
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Explica os erros do Supabase em português. */
+function explicar(e: { code?: string; message?: string; status?: number }): string {
+  if (e.code === 'phone_provider_disabled' || /provider.*disabled|Unsupported phone provider/i.test(e.message ?? ''))
+    return 'O envio de SMS ainda não está ligado no Supabase.';
+  if (e.code === 'sms_send_failed') return 'Não foi possível enviar a SMS para este número.';
+  if (e.code === 'over_sms_send_rate_limit' || e.status === 429) return 'Pediste muitos códigos seguidos. Espera um pouco e tenta outra vez.';
+  if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return 'Código errado ou expirado.';
+  return e.message ?? 'Algo correu mal. Tenta outra vez.';
+}
+
+export function SessaoProvider({ children }: { children: ReactNode }) {
+  const [estado, setEstado] = useState<Sessao['estado']>('a_carregar');
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  // Sem Supabase, nunca há SMS.
+  const [semSms, setSemSms] = useState(() => !supabase());
+  const [bemVindo, setBemVindo] = useState(false);
+
+  // Ao abrir: a conta do Supabase, se houver; senão, a conta guardada neste telemóvel.
+  useEffect(() => {
+    let ativo = true;
+    const sb = supabase();
+    (async () => {
+      if (sb) {
+        const { data } = await sb.auth.getSession();
+        if (!ativo) return;
+        if (data.session) {
+          setPerfil(perfilDe(data.session.user));
+          setEstado('dentro');
+          return;
+        }
+      }
+      let local: Perfil | null = null;
+      try {
+        const texto = await AsyncStorage.getItem(CHAVE_LOCAL);
+        local = texto ? (JSON.parse(texto) as Perfil) : null;
+      } catch {}
+      if (!ativo) return;
+      if (local) {
+        setSemSms(true);
+        setPerfil(local);
+        setEstado('dentro');
+      } else {
+        setEstado('fora');
+      }
+    })();
+    const ouvinte = sb?.auth.onAuthStateChange((evento, sessao) => {
+      if (evento === 'SIGNED_OUT') return;
+      if (sessao) {
+        setPerfil(perfilDe(sessao.user));
+        setEstado('dentro');
+      }
+    });
+    return () => {
+      ativo = false;
+      ouvinte?.data.subscription.unsubscribe();
+    };
+  }, []);
+
+  const guardarLocal = useCallback(async (p: Perfil | null) => {
+    try {
+      if (p) await AsyncStorage.setItem(CHAVE_LOCAL, JSON.stringify(p));
+      else await AsyncStorage.removeItem(CHAVE_LOCAL);
+    } catch {}
+  }, []);
+
+  const pedirCodigo = useCallback(
+    async (telefone: string) => {
+      const sb = supabase();
+      if (semSms || !sb) {
+        await esperar(500);
+        return null;
+      }
+      const { error } = await sb.auth.signInWithOtp({ phone: telefone });
+      return error ? explicar(error) : null;
+    },
+    [semSms],
+  );
+
+  const confirmarCodigo = useCallback(
+    async (telefone: string, codigo: string) => {
+      const sb = supabase();
+      if (semSms || !sb) {
+        await esperar(400);
+        if (codigo !== CODIGO_TESTE) return 'Código errado. No modo de teste o código é sempre 123456.';
+        // O mesmo número volta a encontrar a conta que já tinha neste telemóvel.
+        let anterior: Perfil | null = null;
+        try {
+          const texto = await AsyncStorage.getItem(`${CHAVE_LOCAL}.${telefone}`);
+          anterior = texto ? (JSON.parse(texto) as Perfil) : null;
+        } catch {}
+        const p = anterior ?? { telefone };
+        await guardarLocal(p);
+        setPerfil(p);
+        setEstado('dentro');
+        return null;
+      }
+      const { data, error } = await sb.auth.verifyOtp({ phone: telefone, token: codigo, type: 'sms' });
+      if (error || !data.user) return explicar(error ?? {});
+      setPerfil(perfilDe(data.user));
+      setEstado('dentro');
+      return null;
+    },
+    [semSms, guardarLocal],
+  );
+
+  const guardarPerfil = useCallback(
+    async (mudancas: Partial<Perfil>) => {
+      if (!perfil) return 'Sem conta.';
+      const novo = { ...perfil, ...mudancas };
+      const sb = supabase();
+      if (semSms || !sb) {
+        await guardarLocal(novo);
+        try {
+          await AsyncStorage.setItem(`${CHAVE_LOCAL}.${novo.telefone}`, JSON.stringify(novo));
+        } catch {}
+      } else {
+        // O email vai para os dados do perfil (não para o login), para não pedir confirmação por email.
+        const { error } = await sb.auth.updateUser({
+          data: { nome: novo.nome, apelido: novo.apelido, email_recibos: novo.email, termos: novo.termos },
+        });
+        if (error) return explicar(error);
+      }
+      setPerfil(novo);
+      // Acabou o registo: a app abre com o ecrã de boas-vindas.
+      if (mudancas.termos && !perfil.termos) setBemVindo(true);
+      return null;
+    },
+    [perfil, semSms, guardarLocal],
+  );
+
+  const sair = useCallback(async () => {
+    const sb = supabase();
+    if (sb && !semSms) await sb.auth.signOut();
+    await guardarLocal(null);
+    setPerfil(null);
+    setEstado('fora');
+    setSemSms(!sb);
+  }, [semSms, guardarLocal]);
+
+  const completo = Boolean(perfil?.nome && perfil.apelido && perfil.email && perfil.termos);
+
+  const valor = useMemo<Sessao>(
+    () => ({
+      estado,
+      perfil,
+      completo,
+      semSms,
+      pedirCodigo,
+      confirmarCodigo,
+      usarSemSms: () => setSemSms(true),
+      guardarPerfil,
+      sair,
+      bemVindo,
+      fecharBemVindo: () => setBemVindo(false),
+    }),
+    [estado, perfil, completo, semSms, pedirCodigo, confirmarCodigo, guardarPerfil, sair, bemVindo],
+  );
+
+  return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
+}
+
+export function useSessao(): Sessao {
+  const ctx = useContext(Contexto);
+  if (!ctx) throw new Error('useSessao tem de estar dentro de SessaoProvider');
+  return ctx;
+}
+
+/** O próximo passo do registo que falta, para retomar onde ficou. */
+export function proximoPasso(p: Perfil | null): '/registo/telefone' | '/registo/nome' | '/registo/email' | '/registo/termos' | null {
+  if (!p) return '/registo/telefone';
+  if (!p.nome || !p.apelido) return '/registo/nome';
+  if (!p.email) return '/registo/email';
+  if (!p.termos) return '/registo/termos';
+  return null;
+}

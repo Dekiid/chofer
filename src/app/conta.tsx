@@ -10,7 +10,9 @@ import { formatarDia, formatarHora } from '@/data/agenda';
 import { pedirAutorizacao } from '@/data/avisos-telemovel';
 import { formatarMzn } from '@/data/categorias';
 import { CREDITO_CONVITE_MZN, DESCONTO_CONVIDADO, PROMOS } from '@/data/promocoes';
+import { formatarNumero } from '@/data/telefone';
 import { LOCAIS, useConta } from '@/state/conta';
+import { useSessao } from '@/state/sessao';
 import { Text } from '@/components/texto';
 
 /** A conta do cliente: viagens, locais guardados, convites, promoções e avisos. */
@@ -18,6 +20,7 @@ export default function Conta() {
   const cores = usePalette();
   const s = estilos(cores);
   const conta = useConta();
+  const sessao = useSessao();
   const { marcarAvisosLidos } = conta;
   const agora = new Date();
   const feitas = conta.viagens.filter((v) => v.estado === 'concluida').length;
@@ -42,10 +45,11 @@ export default function Conta() {
       <ScrollView contentContainerStyle={s.conteudo}>
         <View style={s.perfil}>
           <View style={s.avatar}>
-            <Text style={s.avatarTexto}>C</Text>
+            <Text style={s.avatarTexto}>{(sessao.perfil?.nome ?? 'C').charAt(0).toUpperCase()}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.nome}>Cliente Chauffeur</Text>
+            <Text style={s.nome}>{sessao.perfil?.nome ? `${sessao.perfil.nome} ${sessao.perfil.apelido ?? ''}`.trim() : 'Cliente Chauffeur'}</Text>
+            {sessao.perfil?.telefone ? <Text style={s.secundario}>+258 {formatarNumero(sessao.perfil.telefone)}</Text> : null}
             <Text style={s.secundario}>
               ★ {conta.avaliacaoCliente.toFixed(1).replace('.', ',')} dada pelos motoristas · {feitas} {feitas === 1 ? 'viagem' : 'viagens'}
             </Text>
@@ -135,6 +139,17 @@ export default function Conta() {
             <Text style={s.texto}>{a.texto}</Text>
           </View>
         ))}
+
+        <Text style={s.ligacaoLegal} onPress={() => router.push({ pathname: '/legal', params: { doc: 'termos' } })}>
+          Termos de Utilização
+        </Text>
+        <Text style={s.ligacaoLegal} onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacidade' } })}>
+          Política de Privacidade
+        </Text>
+        <Pressable onPress={sessao.sair} style={s.entrada} accessibilityRole="button">
+          <Text style={[s.nome, { color: '#D93025' }]}>Sair da conta</Text>
+          {sessao.semSms && <Text style={s.secundario}>Conta de teste, sem SMS: fica só neste telemóvel.</Text>}
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -149,6 +164,7 @@ function estilos(c: Palette) {
     perfil: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginBottom: Spacing.two },
     avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
     avatarTexto: { color: c.onPrimary, fontSize: 22, fontWeight: '800' },
+    ligacaoLegal: { color: c.textSecondary, fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
     entrada: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: 2 },
     secao: { color: c.text, fontSize: 16, fontWeight: '800', marginTop: Spacing.three },
     caixa: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: Spacing.one },

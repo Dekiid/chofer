@@ -18,6 +18,7 @@ import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta } from '@/state/conta';
 import { useAgenda, type ResultadoReserva } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
+import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
 
 type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada' | 'falhou';
@@ -35,6 +36,7 @@ export default function Pagamento() {
   const agenda = useAgenda();
   const [estado, setEstado] = useState<Estado>('preencher');
   const conta = useConta();
+  const sessao = useSessao();
   const [codigoAberto, setCodigoAberto] = useState(false);
   const [codigoTexto, setCodigoTexto] = useState('');
   const [erroCodigo, setErroCodigo] = useState('');
@@ -136,6 +138,7 @@ export default function Pagamento() {
       codigoRecolha,
       pagamento: nomePagamento,
       criadoEm: new Date().toISOString(),
+      clienteNome: sessao.perfil?.nome,
     };
     // O carro fica ocupado desde a recolha (ou desde agora, nos pedidos imediatos) até ao fim da viagem.
     const resultado = await agenda.reservar({

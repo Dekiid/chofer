@@ -1,5 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { useSyncExternalStore } from 'react';
+import { AppState, Platform } from 'react-native';
 
 import type { Ponto } from '@/components/mapa-tipos';
 
@@ -46,6 +48,8 @@ export type PedidoMotorista = {
   codigoRecolha: string;
   pagamento: string;
   criadoEm: string;
+  /** Nome do cliente, para o motorista saber quem vai buscar. */
+  clienteNome?: string;
 };
 
 export type EstadoViagem = 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
@@ -86,10 +90,19 @@ const emEspera: EventoViagem[] = [];
 
 let cliente: SupabaseClient | null = null;
 
-/** O cliente do Supabase, partilhado pelo tempo real e pela agenda. Sem as chaves no .env.local, é null. */
+/** O cliente do Supabase, partilhado pelo tempo real, pela agenda e pelas contas. Sem as chaves no .env.local, é null. */
 export function supabase(): SupabaseClient | null {
   if (!TEMPO_REAL_ATIVO) return null;
-  cliente ??= createClient(URL_SUPABASE!, CHAVE_SUPABASE!, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  if (cliente) return cliente;
+  // A sessão da conta fica guardada no telemóvel, para não ser preciso entrar de cada vez que a app abre.
+  cliente = createClient(URL_SUPABASE!, CHAVE_SUPABASE!, {
+    auth: { storage: AsyncStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  });
+  // No telemóvel, a sessão só se renova com a app aberta (recomendação do Supabase para React Native).
+  if (Platform.OS !== 'web') {
+    const sb = cliente;
+    AppState.addEventListener('change', (estado) => (estado === 'active' ? sb.auth.startAutoRefresh() : sb.auth.stopAutoRefresh()));
+  }
   return cliente;
 }
 

@@ -19,6 +19,7 @@ import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
 import type { Motorista } from '@/data/motorista';
 import { useAgenda } from '@/state/agenda';
 import { ELOGIOS, useConta } from '@/state/conta';
+import { useSessao } from '@/state/sessao';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
 
@@ -40,6 +41,7 @@ export default function Viagem() {
   const s = estilos(cores);
   const pedido = usePedido();
   const conta = useConta();
+  const sessao = useSessao();
   const agenda = useAgenda();
   const { origem, destino } = pedido;
   const viagemConta = conta.viagemAtual;
@@ -110,6 +112,7 @@ export default function Viagem() {
         codigoRecolha: codigo,
         pagamento: PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '',
         criadoEm: new Date().toISOString(),
+        clienteNome: sessao.perfil?.nome,
       },
     });
     const t = setTimeout(() => {

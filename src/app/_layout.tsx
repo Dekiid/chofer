@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { AvisoTopo } from '@/components/aviso-topo';
+import { BemVindo } from '@/components/bem-vindo';
 import { Logo } from '@/components/logo';
 import { Text } from '@/components/texto';
 
@@ -14,6 +15,7 @@ import { ContaProvider } from '@/state/conta';
 import { InscricoesProvider } from '@/state/inscricoes';
 import { ModoMotoristaProvider } from '@/state/modo-motorista';
 import { PedidoProvider } from '@/state/pedido';
+import { SessaoProvider, useSessao } from '@/state/sessao';
 
 // O ecrã de abertura (fundo preto com o logótipo) fica até a letra da marca carregar.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -33,41 +35,72 @@ export default function RootLayout() {
   }, [pronto]);
 
   if (!pronto) return null;
-  if (abertura) {
-    return (
-      <View style={estilos.abertura}>
-        <StatusBar style="light" />
-        <Logo altura={44} variante="negativo" />
-        <Text style={estilos.cidade}>Maputo · Moçambique</Text>
-      </View>
-    );
-  }
+  if (abertura) return <Abertura />;
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AgendaProvider>
-        <InscricoesProvider>
-          <PedidoProvider>
-            <ModoMotoristaProvider>
-              <ContaProvider>
-                <StatusBar style="auto" />
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
-                  <Stack.Screen name="viagem" options={{ gestureEnabled: false }} />
-                  <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
-                  <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
-                  <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
-                  {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}
-                  <Stack.Screen name="motorista" options={{ gestureEnabled: false }} />
-                  <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
-                </Stack>
-                <AvisoTopo />
-              </ContaProvider>
-            </ModoMotoristaProvider>
-          </PedidoProvider>
-        </InscricoesProvider>
-      </AgendaProvider>
+      <SessaoProvider>
+        <AgendaProvider>
+          <InscricoesProvider>
+            <PedidoProvider>
+              <ModoMotoristaProvider>
+                <ContaProvider>
+                  <StatusBar style="auto" />
+                  <Navegacao />
+                  <AvisoTopo />
+                  <BemVindo />
+                </ContaProvider>
+              </ModoMotoristaProvider>
+            </PedidoProvider>
+          </InscricoesProvider>
+        </AgendaProvider>
+      </SessaoProvider>
     </ThemeProvider>
+  );
+}
+
+/** Abertura do manual: fundo preto, logótipo e cidade. */
+function Abertura() {
+  return (
+    <View style={estilos.abertura}>
+      <StatusBar style="light" />
+      <Logo altura={44} variante="negativo" />
+      <Text style={estilos.cidade}>Maputo · Moçambique</Text>
+    </View>
+  );
+}
+
+/** Sem conta (ou com o registo a meio) só se vê o registo; com conta, a app toda. */
+function Navegacao() {
+  const sessao = useSessao();
+  if (sessao.estado === 'a_carregar') return <Abertura />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={sessao.completo}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="confirmar" />
+        <Stack.Screen name="reserva" />
+        <Stack.Screen name="pagamento" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="viagem" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="recibo" />
+        <Stack.Screen name="viagens" />
+        <Stack.Screen name="conta" />
+        <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="aprovacoes" />
+        <Stack.Screen name="gestao" />
+        <Stack.Screen name="agenda" />
+        {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}
+        <Stack.Screen name="motorista" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!sessao.completo}>
+        <Stack.Screen name="registo" />
+      </Stack.Protected>
+      {/* Os termos abrem-se do registo e da conta. */}
+      <Stack.Screen name="legal" options={{ animation: 'slide_from_bottom' }} />
+    </Stack>
   );
 }
 

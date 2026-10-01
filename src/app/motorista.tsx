@@ -170,7 +170,7 @@ function PedidoNovo({ pedido, s }: { pedido: PedidoMotorista; s: S }) {
       <Text style={s.etiqueta}>{pedido.recolhaEm ? `Reserva · ${formatarDia(new Date(pedido.recolhaEm), new Date())}, ${formatarHora(new Date(pedido.recolhaEm))}` : 'Pedido para agora'}</Text>
       <Text style={s.valorGrande}>{formatarMzn(ganhoMotorista(pedido))}</Text>
       <Text style={s.secundario}>
-        Recebes isto · o cliente já pagou {formatarMzn(pedido.precoMzn)} por {pedido.pagamento}
+        Recebes isto · {pedido.clienteNome ?? 'o cliente'} já pagou {formatarMzn(pedido.precoMzn)} por {pedido.pagamento}
       </Text>
 
       <View style={s.caixa}>
