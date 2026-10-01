@@ -9,14 +9,21 @@ import { Vidro } from '@/components/vidro';
 import { t } from '@/i18n';
 
 /** Painel que fica por cima do mapa, preso ao fundo do ecrã. */
-export function Painel({ children, style, onLayout }: { children: ReactNode; style?: StyleProp<ViewStyle>; onLayout?: ViewProps['onLayout'] }) {
+/** A barrinha no topo da caixa, que mostra que se pode arrastar. */
+export function Alca() {
+  const c = usePalette();
+  return <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: VIDRO ? c.textSecondary : c.backgroundSelected, opacity: VIDRO ? 0.35 : 1, marginVertical: Spacing.two }} />;
+}
+
+/** Com «semAlca», quem está dentro desenha a barrinha (para a poder agarrar com o seu próprio gesto). */
+export function Painel({ children, style, onLayout, semAlca }: { children: ReactNode; style?: StyleProp<ViewStyle>; onLayout?: ViewProps['onLayout']; semAlca?: boolean }) {
   const c = usePalette();
   if (VIDRO) {
     // Folha flutuante em vidro, afastada das margens, com os cantos todos arredondados.
     return (
       <SafeAreaView onLayout={onLayout} edges={['bottom']} pointerEvents="box-none" style={[estilos.painelVidro, style]}>
         <Vidro style={estilos.folhaVidro}>
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.textSecondary, opacity: 0.35, marginVertical: Spacing.two }} />
+          {!semAlca && <Alca />}
           {children}
         </Vidro>
       </SafeAreaView>
@@ -44,7 +51,7 @@ export function Painel({ children, style, onLayout }: { children: ReactNode; sty
         },
         style,
       ]}>
-      <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.backgroundSelected, marginVertical: Spacing.two }} />
+      {!semAlca && <Alca />}
       {children}
     </SafeAreaView>
   );

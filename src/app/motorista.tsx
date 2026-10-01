@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
-import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { Extrapolation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
@@ -10,7 +11,7 @@ import { Mapa } from '@/components/mapa';
 import { MarcarNoMapa } from '@/components/marcar-no-mapa';
 import type { Ponto } from '@/components/mapa-tipos';
 import { Text, TextInput } from '@/components/texto';
-import { BotaoPrincipal, BotaoSecundario, BotaoVoltar, Painel } from '@/components/ui';
+import { Alca, BotaoPrincipal, BotaoSecundario, BotaoVoltar, Painel } from '@/components/ui';
 import { Vidro } from '@/components/vidro';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
@@ -81,7 +82,7 @@ export default function MotoristaEcra() {
         <View style={{ width: 44 }} />
       </SafeAreaView>
 
-      <Painel>
+      <Painel semAlca={!!m.viatura && !viagem && !pedidoNovo}>
         {!m.viatura ? (
           <EscolherCarro s={s} />
         ) : viagem ? (
@@ -97,6 +98,9 @@ export default function MotoristaEcra() {
 }
 
 type S = ReturnType<typeof estilos>;
+
+/** Mola da caixa do motorista: rápida a arrancar e sem ressalto no fim. */
+const MOLA = { damping: 26, stiffness: 190, mass: 0.9 };
 
 /** Na recolha: quanto tempo falta de espera; depois disso, o motorista pode marcar falta de comparência. */
 function Espera({ chegouEm, minutos, s }: { chegouEm?: number; minutos: number; s: S }) {
@@ -173,35 +177,33 @@ function Disponivel({ s }: { s: S }) {
   const [recolhido, setRecolhido] = useState(false);
   const progresso = useSharedValue(0); // 0 aberta, 1 recolhida
   const altura = useSharedValue(0);
-  const inicio = useRef(0);
-  function assentar(recolher: boolean, velocidade = 0) {
+  const inicio = useSharedValue(0);
+  function assentar(recolher: boolean) {
     setRecolhido(recolher);
-    progresso.value = withSpring(recolher ? 1 : 0, { damping: 26, stiffness: 190, mass: 0.9, velocity: velocidade });
+    progresso.value = withSpring(recolher ? 1 : 0, MOLA);
   }
-  const assentarRef = useRef(assentar);
-  useEffect(() => {
-    assentarRef.current = assentar;
-  });
-  const arrastar = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 6 && Math.abs(g.dy) > Math.abs(g.dx),
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        inicio.current = progresso.value;
-      },
-      onPanResponderMove: (_, g) => {
+  // O gesto corre no telemóvel (Gesture Handler), por isso acompanha o dedo sem atrasos e nunca se perde a meio.
+  // Há dois sítios para agarrar: o topo (a barrinha e o título) e os botões; a lista do meio rola por si.
+  const criarGesto = () =>
+    Gesture.Pan()
+      .activeOffsetY([-8, 8])
+      .failOffsetX([-24, 24])
+      .onBegin(() => {
+        inicio.value = progresso.value;
+      })
+      .onUpdate((e) => {
         const h = altura.value || 300;
-        progresso.value = Math.min(1, Math.max(0, inicio.current + g.dy / h));
-      },
-      onPanResponderRelease: (_, g) => {
+        progresso.value = Math.min(1, Math.max(0, inicio.value + e.translationY / h));
+      })
+      .onEnd((e) => {
         const h = altura.value || 300;
-        // Basta um arrasto curto (ou rápido) para decidir pela direção; um toque mínimo volta para onde estava.
-        const recolher = Math.abs(g.vy) > 0.3 || Math.abs(g.dy) > 40 ? g.dy > 0 : progresso.value > 0.5;
-        assentarRef.current(recolher, g.vy * 1000 / h);
-      },
-      onPanResponderTerminate: () => assentarRef.current(progresso.value > 0.5),
-    }),
-  ).current;
+        // Basta um arrasto curto (ou rápido) para decidir pela direção.
+        const recolher = Math.abs(e.velocityY) > 300 || Math.abs(e.translationY) > 40 ? e.translationY > 0 : progresso.value > 0.5;
+        progresso.value = withSpring(recolher ? 1 : 0, { ...MOLA, velocity: e.velocityY / h });
+        runOnJS(setRecolhido)(recolher);
+      });
+  const [gestoTopo] = useState(criarGesto);
+  const [gestoBotoes] = useState(criarGesto);
   const estiloRecolher = useAnimatedStyle(() =>
     altura.value === 0
       ? {}
@@ -216,9 +218,12 @@ function Disponivel({ s }: { s: S }) {
     const resumo = m.terminarTurno();
     if (resumo) router.push({ pathname: '/turno', params: { inicio: resumo.inicio } });
   }
-  // Arrasta-se a partir de qualquer zona da caixa (título, texto, botões); só a lista do meio rola por si.
   return (
-    <View {...arrastar.panHandlers}>
+    <GestureHandlerRootView>
+      <GestureDetector gesture={gestoTopo}>
+      <View>
+      {/* A barrinha faz parte da zona de agarrar. */}
+      <Alca />
       <View style={s.estado}>
         <View style={[s.pontoEstado, { backgroundColor: m.online ? (m.emPausa ? '#F59E0B' : cores.go) : cores.textSecondary }]} />
         <Text style={[s.titulo, { flex: 1 }]}>{!m.online ? t('Estás offline') : m.emPausa ? t('Estás em pausa') : t('Estás online')}</Text>
@@ -228,6 +233,8 @@ function Disponivel({ s }: { s: S }) {
           </Animated.View>
         </Pressable>
       </View>
+      </View>
+      </GestureDetector>
       <Animated.View style={[{ overflow: 'hidden' }, estiloRecolher]} pointerEvents={recolhido ? 'none' : 'auto'}>
       <View
         onLayout={(e) => {
@@ -320,6 +327,7 @@ function Disponivel({ s }: { s: S }) {
       </View>
       </Animated.View>
 
+      <GestureDetector gesture={gestoBotoes}>
       <View style={{ gap: Spacing.two }}>
         {!m.online ? (
           <>
@@ -341,7 +349,8 @@ function Disponivel({ s }: { s: S }) {
           </>
         )}
       </View>
-    </View>
+      </GestureDetector>
+    </GestureHandlerRootView>
   );
 }
 
