@@ -16,6 +16,18 @@ const CHAVE_SUPABASE = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const TEMPO_REAL_ATIVO = Boolean(URL_SUPABASE && CHAVE_SUPABASE);
 
+/** Erros comuns ao copiar as chaves do Supabase para o .env.local (sem mostrar a chave). */
+export function problemaConfiguracao(): string | null {
+  if (!TEMPO_REAL_ATIVO) return null;
+  const url = URL_SUPABASE!.trim();
+  const chave = CHAVE_SUPABASE!.trim();
+  if (/["'\s]/.test(URL_SUPABASE!) || /["'\s]/.test(CHAVE_SUPABASE!)) return 'há aspas ou espaços no .env.local';
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url)) return 'o endereço deve ser só https://xxxx.supabase.co, sem /rest/v1 nem mais nada';
+  if (chave.startsWith('sb_secret_') || chave.includes('service_role')) return 'essa é a chave secreta; usa a chave anon (ou publishable)';
+  if (!chave.startsWith('eyJ') && !chave.startsWith('sb_publishable_')) return 'a chave não parece a anon (começa por eyJ) nem a publishable (começa por sb_publishable_)';
+  return null;
+}
+
 /** Pedido que o cliente envia ao motorista do carro que escolheu. As datas vão como texto ISO. */
 export type PedidoMotorista = {
   id: string;
@@ -88,7 +100,9 @@ function ligar(): RealtimeChannel | null {
       for (const e of emEspera.splice(0)) enviar(e);
     } else {
       // CHANNEL_ERROR, TIMED_OUT ou CLOSED: o Supabase volta a tentar sozinho.
-      const detalhe = [estado, erro?.message].filter(Boolean).join(': ');
+      // No telemóvel, a causa real (por exemplo "401 Unauthorized") vem dentro do erro.
+      const causa = (erro?.cause as { message?: string } | undefined)?.message;
+      const detalhe = problemaConfiguracao() ?? [estado, erro?.message, causa].filter(Boolean).join(': ');
       console.warn('Tempo real sem ligação', detalhe);
       mudarLigacao({ estado: 'erro', detalhe });
     }
