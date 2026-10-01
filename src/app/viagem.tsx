@@ -23,8 +23,8 @@ import { Text, TextInput } from '@/components/texto';
 
 type Fase = 'procurar' | 'sem_resposta' | 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
 
-// Com o servidor ligado, se o motorista não aceitar neste tempo, o cliente pode tentar outra vez ou cancelar.
-const TEMPO_ESPERA_MOTORISTA = 45000;
+// Com o servidor ligado, se o motorista não aceitar neste tempo (um pouco mais do que o minuto que ele tem), o cliente pode tentar outra vez ou cancelar.
+const TEMPO_ESPERA_MOTORISTA = 75000;
 
 // Durações da simulação, em milissegundos.
 const TEMPO_PROCURA = 3000;

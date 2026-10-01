@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BotaoDeslizar } from '@/components/botao-deslizar';
 import { EstadoServidor } from '@/components/estado-servidor';
 import { Mapa } from '@/components/mapa';
 import type { Ponto } from '@/components/mapa-tipos';
@@ -106,28 +107,23 @@ function Disponivel({ s }: { s: S }) {
       <Text style={s.secundario}>
         {m.online ? 'À procura de pedidos para o teu carro…' : 'Fica online para receber pedidos.'} {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
-      <EstadoServidor />
+      {TEMPO_REAL_ATIVO && <EstadoServidor />}
 
-      {m.agendadas.length > 0 && (
-        <View style={s.caixa}>
-          <Text style={s.subtitulo}>Próximas reservas</Text>
-          {m.agendadas.map((p) => (
-            <View key={p.id} style={s.linhaReserva}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.nomePequeno} numberOfLines={1}>
-                  {p.recolhaEm ? `${formatarDia(new Date(p.recolhaEm), new Date())}, ${formatarHora(new Date(p.recolhaEm))}` : 'Agora'}
-                </Text>
-                <Text style={s.secundario} numberOfLines={1}>
-                  {p.origem.nome} → {p.destino.nome}
-                </Text>
-              </View>
-              <Pressable onPress={() => m.comecarAgendada(p.id)} style={s.botaoPequeno}>
-                <Text style={s.botaoPequenoTexto}>Começar</Text>
-              </Pressable>
-            </View>
-          ))}
+      <Pressable onPress={() => router.push('/pedidos-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel="Pedidos e reservas">
+        <View style={{ flex: 1 }}>
+          <Text style={s.nomePequeno}>Pedidos e reservas</Text>
+          <Text style={s.secundarioPequeno}>
+            {m.pendentes.length} {m.pendentes.length === 1 ? 'pendente' : 'pendentes'} · {m.agendadas.length} {m.agendadas.length === 1 ? 'aceite' : 'aceites'}
+            {m.agendadas[0]?.recolhaEm ? ` · próxima ${formatarDia(new Date(m.agendadas[0].recolhaEm), new Date()).toLowerCase()}, ${formatarHora(new Date(m.agendadas[0].recolhaEm))}` : ''}
+          </Text>
         </View>
-      )}
+        {m.pendentes.length > 0 && (
+          <View style={s.contador}>
+            <Text style={s.contadorTexto}>{m.pendentes.length}</Text>
+          </View>
+        )}
+        <Text style={s.seta}>›</Text>
+      </Pressable>
 
       <View style={s.linhaDefinicao}>
         <View style={{ flex: 1 }}>
@@ -185,13 +181,9 @@ function PedidoNovo({ pedido, s }: { pedido: PedidoMotorista; s: S }) {
         <Linha ponto={<View style={s.pontoDestino} />} titulo={pedido.destino.nome} texto={`Viagem de ${pedido.minutos} min · ${formatarKm(pedido.km)}`} s={s} />
       </View>
 
-      <View style={s.botoes}>
-        <View style={{ flex: 1 }}>
-          <BotaoSecundario texto="Recusar" onPress={m.recusar} />
-        </View>
-        <View style={{ flex: 2 }}>
-          <BotaoPrincipal texto={`Aceitar · ${Math.ceil(resta / 1000)}s`} onPress={m.aceitar} />
-        </View>
+      <View style={{ gap: Spacing.two }}>
+        <BotaoDeslizar texto={`Desliza para aceitar · ${Math.ceil(resta / 1000)}s`} onConfirmar={m.aceitar} />
+        <BotaoDeslizar texto="Desliza para recusar" tipo="secundario" onConfirmar={m.recusar} />
       </View>
     </>
   );
@@ -343,6 +335,9 @@ function estilos(c: Palette) {
     erro: { color: '#DC2626', fontSize: 13, fontWeight: '700', marginTop: Spacing.one },
     estrelas: { flexDirection: 'row', gap: Spacing.two, marginVertical: Spacing.two },
     estrela: { fontSize: 36 },
+    contador: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: c.go, alignItems: 'center', justifyContent: 'center' },
+    contadorTexto: { color: '#000000', fontSize: 12, fontWeight: '800' },
+    seta: { color: c.textSecondary, fontSize: 22, fontWeight: '600' },
     cancelar: { color: c.textSecondary, fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
   });
 }
