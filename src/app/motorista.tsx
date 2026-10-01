@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -182,18 +181,26 @@ function Disponivel({ s }: { s: S }) {
     progresso.value = withSpring(recolher ? 1 : 0, MOLA);
   }
   // Basta um gesto curto para cima ou para baixo: a caixa abre ou fecha sozinha até ao fim, com uma mola suave.
-  // Há dois sítios para agarrar: o topo (a barrinha e o título) e os botões; a lista do meio rola por si.
-  const criarGesto = () =>
-    Gesture.Pan()
-      .activeOffsetY([-10, 10])
-      .failOffsetX([-24, 24])
-      .runOnJS(true)
-      .onEnd((e) => {
-        if (e.translationY > 15 || e.velocityY > 250) assentar(true);
-        else if (e.translationY < -15 || e.velocityY < -250) assentar(false);
-      });
-  const [gestoTopo] = useState(criarGesto);
-  const [gestoBotoes] = useState(criarGesto);
+  // Funciona em qualquer zona da caixa (como no ecrã de confirmar a viagem). Com a caixa aberta, puxar para baixo
+  // só a fecha quando a lista do meio está no topo; senão, a lista rola.
+  const listaNoTopo = useRef(true);
+  const recolhidoRef = useRef(recolhido);
+  useEffect(() => {
+    recolhidoRef.current = recolhido;
+  }, [recolhido]);
+  const [arrastar] = useState(() =>
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, g) => {
+        if (Math.abs(g.dy) < 10 || Math.abs(g.dy) < Math.abs(g.dx) * 1.5) return false;
+        return recolhidoRef.current ? g.dy < 0 : g.dy > 0 && listaNoTopo.current;
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 20 || g.vy > 0.3) assentar(true);
+        else if (g.dy < -20 || g.vy < -0.3) assentar(false);
+      },
+    }),
+  );
   const estiloRecolher = useAnimatedStyle(() =>
     altura.value === 0
       ? {}
@@ -203,28 +210,19 @@ function Disponivel({ s }: { s: S }) {
           transform: [{ translateY: progresso.value * 12 }],
         },
   );
-  const estiloSeta = useAnimatedStyle(() => ({ transform: [{ rotate: `${progresso.value * 180}deg` }] }));
   function terminarTurno() {
     const resumo = m.terminarTurno();
     if (resumo) router.push({ pathname: '/turno', params: { inicio: resumo.inicio } });
   }
   return (
-    <GestureHandlerRootView>
-      <GestureDetector gesture={gestoTopo}>
+    <View {...arrastar.panHandlers}>
       <View>
-      {/* A barrinha faz parte da zona de agarrar. */}
       <Alca />
       <View style={s.estado}>
         <View style={[s.pontoEstado, { backgroundColor: m.online ? (m.emPausa ? '#F59E0B' : cores.go) : cores.textSecondary }]} />
         <Text style={[s.titulo, { flex: 1 }]}>{!m.online ? t('Estás offline') : m.emPausa ? t('Estás em pausa') : t('Estás online')}</Text>
-        <Pressable onPress={() => assentar(!recolhido)} hitSlop={12} accessibilityLabel={recolhido ? t('Mostrar mais') : t('Esconder')}>
-          <Animated.View style={estiloSeta}>
-            <Text style={s.seta}>⌄</Text>
-          </Animated.View>
-        </Pressable>
       </View>
       </View>
-      </GestureDetector>
       <Animated.View style={[{ overflow: 'hidden' }, estiloRecolher]} pointerEvents={recolhido ? 'none' : 'auto'}>
       <View
         onLayout={(e) => {
@@ -240,7 +238,7 @@ function Disponivel({ s }: { s: S }) {
         {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
       </View>
-      <ScrollView style={{ maxHeight: 320, marginBottom: Spacing.three }} contentContainerStyle={{ paddingBottom: Spacing.two }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ maxHeight: 320, marginBottom: Spacing.three }} contentContainerStyle={{ paddingBottom: Spacing.two }} showsVerticalScrollIndicator={false} scrollEventThrottle={32} onScroll={(e) => (listaNoTopo.current = e.nativeEvent.contentOffset.y <= 2)}>
       <ResumoTurnoAtual s={s} />
       {TEMPO_REAL_ATIVO && <EstadoServidor />}
       <IrParaCasa s={s} />
@@ -317,7 +315,6 @@ function Disponivel({ s }: { s: S }) {
       </View>
       </Animated.View>
 
-      <GestureDetector gesture={gestoBotoes}>
       <View style={{ gap: Spacing.two }}>
         {!m.online ? (
           <>
@@ -339,8 +336,7 @@ function Disponivel({ s }: { s: S }) {
           </>
         )}
       </View>
-      </GestureDetector>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 
