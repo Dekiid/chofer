@@ -12,12 +12,13 @@ import { nomeLugar, zonaLugar, type Lugar } from '@/data/lugares';
 import { lugarNoPonto } from '@/data/moradas';
 import { t } from '@/i18n';
 
-export type TipoPin = 'origem' | 'destino' | 'paragem';
+export type TipoPin = 'origem' | 'destino' | 'paragem' | 'casa';
 
 const TEXTOS: Record<TipoPin, { titulo: string; botao: string }> = {
   origem: { titulo: 'Onde te vamos buscar?', botao: 'Confirmar recolha' },
   destino: { titulo: 'Para onde vamos?', botao: 'Confirmar destino' },
   paragem: { titulo: 'Onde paramos pelo caminho?', botao: 'Confirmar paragem' },
+  casa: { titulo: 'Onde fica a tua casa?', botao: 'Confirmar casa' },
 };
 
 /** Marcar a recolha, o destino ou uma paragem arrastando o mapa por baixo do pin. */

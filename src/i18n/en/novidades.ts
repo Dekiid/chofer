@@ -190,4 +190,12 @@ export const novidades: Record<string, string> = {
   'Prepara o carro para cumprir a reserva: {reserva}': 'Get the car ready for the booking: {reserva}',
   'Mostrar mais': 'Show more',
   'Esconder': 'Hide',
+  "Escolher a casa": "Choose home",
+  "Escreve a zona ou o bairro": "Type the area or neighbourhood",
+  "Zona da casa": "Home area",
+  "Não encontrei essa zona. Marca-a no mapa.": "I couldn't find that area. Mark it on the map.",
+  "Marcar a casa no mapa": "Mark home on the map",
+  "Marcar no mapa": "Mark on the map",
+  "Onde fica a tua casa?": "Where is your home?",
+  "Confirmar casa": "Confirm home",
 };

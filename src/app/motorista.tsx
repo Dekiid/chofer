@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
 import { EstadoServidor } from '@/components/estado-servidor';
 import { Mapa } from '@/components/mapa';
+import { MarcarNoMapa } from '@/components/marcar-no-mapa';
 import type { Ponto } from '@/components/mapa-tipos';
 import { Text, TextInput } from '@/components/texto';
 import { BotaoPrincipal, BotaoSecundario, BotaoVoltar, Painel } from '@/components/ui';
@@ -18,7 +19,7 @@ import { duracaoTexto } from '@/data/datas';
 import { ESPERA_MIN } from '@/data/cancelamento';
 import { ELOGIOS_CLIENTE, ESPERA_AEROPORTO_MIN, ligacaoVoo, textoNecessidades, textoPreferencias } from '@/data/extras-viagem';
 import { nomeNivel, zonasProcura } from '@/data/procura';
-import { LUGARES } from '@/data/lugares';
+import { LUGARES, pesquisarLugares, type Lugar } from '@/data/lugares';
 import { PREMIO_CONVITE_MOTORISTA_MZN } from '@/data/convite-motorista';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
@@ -364,11 +365,17 @@ function ZonasProcura({ s }: { s: S }) {
 
 /** Ir para casa: no fim do dia, só recebe pedidos que o deixam mais perto de casa (duas vezes por dia). */
 function IrParaCasa({ s }: { s: S }) {
+  const cores = usePalette();
   const m = useModoMotorista();
   const casaDaConta = useConta().locais.casa;
   const [escolher, setEscolher] = useState(false);
+  const [noMapa, setNoMapa] = useState(false);
+  const [texto, setTexto] = useState('');
   const [erro, setErro] = useState('');
-  const opcoes = [...(casaDaConta ? [casaDaConta] : []), ...LUGARES.filter((l) => l.id !== casaDaConta?.id)];
+  // Escreve-se a zona ou o bairro; sem texto, aparecem a casa guardada na conta e alguns sítios conhecidos.
+  const opcoes = texto.trim()
+    ? pesquisarLugares(texto).slice(0, 6)
+    : [...(casaDaConta ? [casaDaConta] : []), ...LUGARES.filter((l) => l.id !== casaDaConta?.id)].slice(0, 6);
   const restam = MAX_IR_PARA_CASA_POR_DIA - m.usosCasaHoje;
   function mudar(v: boolean) {
     setErro('');
@@ -376,10 +383,16 @@ function IrParaCasa({ s }: { s: S }) {
     if (!m.casa) return setEscolher(true);
     if (!m.ligarIrParaCasa()) setErro(t('Já usaste as {n} vezes de hoje.', { n: MAX_IR_PARA_CASA_POR_DIA }));
   }
+  function guardar(l: Lugar) {
+    m.setCasa({ id: l.id, nome: l.nome, zona: l.zona, latitude: l.latitude, longitude: l.longitude });
+    setEscolher(false);
+    setNoMapa(false);
+    setTexto('');
+  }
   return (
     <View style={[s.caixa, { gap: Spacing.one }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
-        <View style={{ flex: 1 }}>
+        <Pressable style={{ flex: 1 }} onPress={() => !m.irParaCasa && setEscolher((e) => !e)} accessibilityLabel={t('Escolher a casa')}>
           <Text style={s.nomePequeno}>{t('Ir para casa')}</Text>
           <Text style={s.secundarioPequeno}>
             {m.irParaCasa && m.casa
@@ -388,31 +401,38 @@ function IrParaCasa({ s }: { s: S }) {
                 ? t('Casa: {casa} · {n} de {max} usos hoje', { casa: nomeLugar(m.casa), n: m.usosCasaHoje, max: MAX_IR_PARA_CASA_POR_DIA })
                 : t('Escolhe onde fica a tua casa.')}
             {m.casa && !m.irParaCasa ? '  ' : ''}
-            {m.casa && !m.irParaCasa && (
-              <Text style={s.ligacao} onPress={() => setEscolher((e) => !e)}>
-                {t('Mudar')}
-              </Text>
-            )}
+            {m.casa && !m.irParaCasa && <Text style={s.ligacao}>{t('Mudar')}</Text>}
           </Text>
-        </View>
+        </Pressable>
         <Switch value={m.irParaCasa} onValueChange={mudar} disabled={!m.irParaCasa && m.casa != null && restam <= 0} accessibilityLabel={t('Ir para casa')} />
       </View>
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
       {escolher && (
-        <View style={s.elogios}>
-          {opcoes.map((l) => (
-            <Pressable
-              key={l.id}
-              onPress={() => {
-                m.setCasa({ id: l.id, nome: l.nome, zona: l.zona, latitude: l.latitude, longitude: l.longitude });
-                setEscolher(false);
-              }}
-              style={[s.elogio, m.casa?.id === l.id && { borderWidth: 1.5 }]}>
-              <Text style={s.secundarioPequeno}>{l.id === casaDaConta?.id ? t('Casa guardada · {zona}', { zona: l.zona }) : nomeLugar(l)}</Text>
-            </Pressable>
-          ))}
+        <View style={{ gap: Spacing.two, marginTop: Spacing.one }}>
+          <TextInput
+            value={texto}
+            onChangeText={setTexto}
+            placeholder={t('Escreve a zona ou o bairro')}
+            placeholderTextColor={cores.textSecondary}
+            style={s.campoCasa}
+            accessibilityLabel={t('Zona da casa')}
+          />
+          <View style={s.elogios}>
+            {opcoes.map((l) => (
+              <Pressable key={l.id} onPress={() => guardar(l)} style={[s.elogio, m.casa?.id === l.id && { borderWidth: 1.5 }]}>
+                <Text style={s.secundarioPequeno}>{l.id === casaDaConta?.id ? t('Casa guardada · {zona}', { zona: l.zona }) : nomeLugar(l)}</Text>
+              </Pressable>
+            ))}
+            {texto.trim() !== '' && opcoes.length === 0 && <Text style={s.secundarioPequeno}>{t('Não encontrei essa zona. Marca-a no mapa.')}</Text>}
+          </View>
+          <Pressable onPress={() => setNoMapa(true)} style={s.botaoMapaCasa} accessibilityLabel={t('Marcar a casa no mapa')}>
+            <Text style={s.nomePequeno}>{t('Marcar no mapa')}</Text>
+          </Pressable>
         </View>
       )}
+      <Modal visible={noMapa} animationType="slide" onRequestClose={() => setNoMapa(false)}>
+        <MarcarNoMapa tipo="casa" inicial={m.casa ?? casaDaConta ?? { id: 'posicao', nome: t('A tua localização'), zona: '', latitude: m.posicao.latitude, longitude: m.posicao.longitude }} onConfirmar={guardar} onVoltar={() => setNoMapa(false)} />
+      </Modal>
     </View>
   );
 }
@@ -698,6 +718,8 @@ function estilos(c: Palette) {
     secundario: { color: c.textSecondary, fontSize: 14 },
     secundarioPequeno: { color: c.textSecondary, fontSize: 12, marginTop: 1 },
     elogios: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
+    campoCasa: { backgroundColor: c.background, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, color: c.text, fontSize: 15 },
+    botaoMapaCasa: { alignItems: 'center', borderRadius: Radius.pill, paddingVertical: Spacing.two, borderWidth: 1.5, borderColor: c.text },
     elogio: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: c.backgroundElement },
     ligacao: { color: c.text, fontWeight: '800', textDecorationLine: 'underline' },
     etiqueta: { color: c.text, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: Spacing.two },
