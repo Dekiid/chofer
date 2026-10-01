@@ -10,7 +10,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
-import { CLUB, vantagensClub } from '@/data/club';
+import { CLUB, estadoViagensGratis, vantagensClub } from '@/data/club';
 import { normalizarTelefone } from '@/data/motorista';
 import { t } from '@/i18n';
 import { useConta } from '@/state/conta';
@@ -28,7 +28,8 @@ export default function Club() {
   const [aProcessar, setAProcessar] = useState(false);
   const numero = normalizarTelefone(telefone);
   const a = conta.assinatura;
-  const poupado = conta.viagens.reduce((t, v) => t + (v.descontoClubMzn ?? 0), 0);
+  const poupado = conta.viagens.reduce((t, v) => t + (v.descontoClubMzn ?? 0) + (v.gratisMzn ?? 0), 0);
+  const gratis = estadoViagensGratis(conta.viagens, a);
 
   async function pagar() {
     setAProcessar(true);
@@ -71,6 +72,15 @@ export default function Club() {
             </View>
           ))}
 
+          {conta.clubAtivo && (
+            <Text style={s.secundario}>
+              {gratis.disponivel
+                ? t('Tens uma viagem grátis: aplica-se sozinha no próximo pagamento.')
+                : gratis.faltam === 1
+                  ? t('Falta {n} viagem para a próxima grátis.', { n: gratis.faltam })
+                  : t('Faltam {n} viagens para a próxima grátis.', { n: gratis.faltam })}
+            </Text>
+          )}
           {poupado > 0 && <Text style={s.secundario}>{t('Já poupaste {valor} com o Club.', { valor: formatarMzn(poupado) })}</Text>}
 
           <View style={{ height: Spacing.two }} />

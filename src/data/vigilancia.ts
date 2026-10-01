@@ -6,7 +6,7 @@ import type { Ponto } from '@/components/mapa-tipos';
  */
 export const PARAGEM_LONGA_MIN = 5;
 /** Distância ao caminho a partir da qual se pergunta se está tudo bem. */
-export const DESVIO_KM = 1;
+export const DESVIO_KM = 2;
 /** Sem resposta neste tempo, avisam-se os contactos de confiança. */
 export const SEGUNDOS_PARA_AVISAR = 60;
 

@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
+import { CLUB } from '@/data/club';
 import { totalPago, type Faturacao, type ViagemFeita } from '@/state/conta';
 import { PAGAMENTOS } from '@/state/pedido';
 import { t } from '@/i18n';
@@ -27,8 +28,10 @@ export function linhasRecibo(v: ViagemFeita): { nome: string; valor: number }[] 
     : [{ nome: t('Viagem · {km} km', { km: v.km.toFixed(1).replace('.', ',') }), valor: v.precoMzn - v.taxaImediatoMzn }];
   if (v.taxaImediatoMzn) linhas.push({ nome: t('Taxa de pedido imediato'), valor: v.taxaImediatoMzn });
   const club = v.descontoClubMzn ?? 0;
-  const promo = v.descontoMzn - club;
+  const gratis = v.gratisMzn ?? 0;
+  const promo = v.descontoMzn - club - gratis;
   if (promo) linhas.push({ nome: v.promo ? t('Desconto ({codigo})', { codigo: v.promo }) : t('Desconto'), valor: -promo });
+  if (gratis) linhas.push({ nome: t('Viagem grátis do Club (até {km} km)', { km: CLUB.kmGratis }), valor: -gratis });
   if (club) linhas.push({ nome: t('Chauffeur Club'), valor: -club });
   if (v.gorjetaMzn) linhas.push({ nome: t('Gorjeta para o motorista'), valor: v.gorjetaMzn });
   return linhas;

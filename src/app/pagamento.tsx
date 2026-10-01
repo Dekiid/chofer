@@ -13,7 +13,7 @@ import { formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agen
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
-import { CLUB, descontoClub } from '@/data/club';
+import { descontoClub, descontoGratis, estadoViagensGratis } from '@/data/club';
 import { normalizarTelefone } from '@/data/motorista';
 import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
@@ -76,8 +76,11 @@ export default function Pagamento() {
   const primeiraViagem = !conta.viagens.some((v) => v.estado === 'concluida');
   const descontoPromo = descontoDe(conta.promo, preco);
   // Chauffeur Club: mais 10% sobre o que fica depois do código promocional.
-  const descontoClubMzn = conta.clubAtivo ? descontoClub(preco - descontoPromo) : 0;
-  const desconto = descontoPromo + descontoClubMzn;
+  // Viagem grátis do Club (uma a cada 10, até 5 km): só nas viagens com motorista.
+  const gratis = conta.clubAtivo && !reserva && estadoViagensGratis(conta.viagens.filter((v) => v.id !== noFim?.id), conta.assinatura).disponivel;
+  const gratisMzn = gratis ? descontoGratis(preco - descontoPromo, noFim ? noFim.km : km) : 0;
+  const descontoClubMzn = conta.clubAtivo ? descontoClub(preco - descontoPromo - gratisMzn) : 0;
+  const desconto = descontoPromo + gratisMzn + descontoClubMzn;
   // A gorjeta vai toda para o motorista e não leva desconto.
   const aPagar = preco - desconto + (noFim?.gorjetaMzn ?? 0);
   // Conta dividida: cada amigo paga uma parte igual (arredondada a 10 MT); o cliente paga o resto.
@@ -115,7 +118,7 @@ export default function Pagamento() {
     const nomeMetodo = t(PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '');
     if (noFim) {
       if (!(await continuar({ ok: true }))) return;
-      conta.atualizarViagem(noFim.id, { porPagar: false, descontoMzn: desconto, descontoClubMzn, carteiraMzn: daCarteira, promo: conta.promo?.codigo, pagamento: pedido.pagamento });
+      conta.atualizarViagem(noFim.id, { porPagar: false, descontoMzn: desconto, descontoClubMzn, gratisMzn, carteiraMzn: daCarteira, promo: conta.promo?.codigo, pagamento: pedido.pagamento });
       registarExtras(noFim.id, noFim.destino.nome);
       conta.setPromo(null);
       conta.avisar(
@@ -240,6 +243,7 @@ export default function Pagamento() {
       taxaImediatoMzn: agendada ? 0 : taxaImediato(viatura, km),
       descontoMzn: desconto,
       descontoClubMzn,
+      gratisMzn,
       carteiraMzn: daCarteira,
       promo: conta.promo?.codigo,
       gorjetaMzn: 0,
@@ -454,6 +458,7 @@ export default function Pagamento() {
               </Text>
             </Text>
           )}
+          {gratisMzn > 0 && <Text style={s.desconto}>{t('Viagem grátis do Club: −{valor}', { valor: formatarMzn(gratisMzn) })}</Text>}
           {descontoClubMzn > 0 && <Text style={s.desconto}>{t('Chauffeur Club: −{valor}', { valor: formatarMzn(descontoClubMzn) })}</Text>}
           {!conta.clubAtivo && descontoClub(preco - descontoPromo) > 0 && (
             <Text style={s.desconto} onPress={() => router.push('/club')}>

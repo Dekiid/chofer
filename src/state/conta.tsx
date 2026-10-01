@@ -65,6 +65,8 @@ export type ViagemFeita = {
   voo?: string;
   /** Quem cancelou, ou falta de comparência. */
   motivoCancelamento?: 'cliente' | 'motorista' | 'falta';
+  /** Viagem grátis do Club (já incluída em descontoMzn). */
+  gratisMzn?: number;
   /** Desconto da assinatura Chauffeur Club (já incluído em descontoMzn). */
   descontoClubMzn?: number;
   /** Parte paga com o saldo da carteira. */
