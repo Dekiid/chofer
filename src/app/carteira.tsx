@@ -11,6 +11,7 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
 import { normalizarTelefone } from '@/data/motorista';
+import { cobrarEsperar, metodoDoNumero, pagamentosReais } from '@/data/pagamentos';
 import { t } from '@/i18n';
 import { useConta, type Movimento } from '@/state/conta';
 
@@ -44,6 +45,7 @@ export default function Carteira() {
   const [valor, setValor] = useState(CARREGAMENTOS[1]);
   const [telefone, setTelefone] = useState('');
   const [aProcessar, setAProcessar] = useState(false);
+  const [erro, setErro] = useState('');
   const numero = normalizarTelefone(telefone);
   const agora = new Date();
   const valorLevantar = conta.saldoMzn;
@@ -51,7 +53,18 @@ export default function Carteira() {
   async function confirmar() {
     if (!numero || !acao) return;
     setAProcessar(true);
-    await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO));
+    setErro('');
+    // O carregamento é cobrado a sério pela DebitoPay quando os pagamentos reais estão ligados.
+    // O levantamento ainda é simulado: a devolução para o M-Pesa faz-se à mão até haver envios pela API.
+    const falhou =
+      acao === 'carregar' && pagamentosReais
+        ? await cobrarEsperar({ tipo: 'carteira', metodo: metodoDoNumero(numero), telefone: numero.replace(/^\+258/, ''), valorMzn: valor, viaturaId: 'carteira', viagem: {} })
+        : (await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO)), null);
+    if (falhou) {
+      setErro(falhou);
+      setAProcessar(false);
+      return;
+    }
     if (acao === 'carregar') {
       conta.movimentar(valor, 'carregamento');
       conta.avisar(t('Carteira carregada'), t('{valor} entraram na tua carteira.', { valor: formatarMzn(valor) }));
@@ -98,10 +111,11 @@ export default function Carteira() {
                 value={telefone}
                 onChangeText={setTelefone}
                 keyboardType="phone-pad"
-                placeholder={t('Número M-Pesa, ex.: 84 123 4567')}
+                placeholder={acao === 'carregar' ? t('Número M-Pesa ou e-Mola, ex.: 84 123 4567') : t('Número M-Pesa, ex.: 84 123 4567')}
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
+              {erro ? <Text style={[s.secundario, { color: '#DC2626' }]}>{erro}</Text> : null}
               <BotaoPrincipal texto={acao === 'carregar' ? t('Carregar {valor}', { valor: formatarMzn(valor) }) : t('Levantar')} desativado={!numero} onPress={confirmar} />
               <BotaoSecundario texto={t('Cancelar')} onPress={() => setAcao(null)} />
             </View>

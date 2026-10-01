@@ -18,6 +18,7 @@ import { normalizarTelefone } from '@/data/motorista';
 import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { avisarMotoristaPorPush } from '@/data/push';
+import { cobrarEsperar, pagamentosReais } from '@/data/pagamentos';
 import { publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta, type ParteDivisao } from '@/state/conta';
@@ -56,6 +57,8 @@ export default function Pagamento() {
   const [codigoTexto, setCodigoTexto] = useState('');
   const [erroCodigo, setErroCodigo] = useState('');
   const [falha, setFalha] = useState('');
+  // A falha foi da agenda (o horário foi apanhado) ou do pagamento (recusado, sem saldo, expirou).
+  const [falhaPagamento, setFalhaPagamento] = useState(false);
   const montado = useRef(true);
 
   const { destino, viatura, quando, reserva } = pedido;
@@ -146,7 +149,7 @@ export default function Pagamento() {
         pontoInicio: ponto(pedido.origem),
         pontoFim: ponto(pedido.origem),
       });
-      if (!(await continuar(resultado))) return;
+      if (!(await continuar(resultado, idViagem))) return;
       conta.registarViagem({
         id: idViagem,
         passageiro: pedido.passageiro ?? undefined,
@@ -223,7 +226,7 @@ export default function Pagamento() {
       pontoFim: ponto(destino),
       pedido: agendada ? paraMotorista : undefined,
     });
-    if (!(await continuar(resultado))) return;
+    if (!(await continuar(resultado, idViagem))) return;
     // Fica no histórico do cliente, com o recibo.
     conta.registarViagem({
       id: idViagem,
@@ -273,8 +276,9 @@ export default function Pagamento() {
   }
 
   /** Depois de guardar na agenda: se falhou, mostra porquê; se correu bem, espera pela confirmação do pagamento. */
-  async function continuar(resultado: ResultadoReserva): Promise<boolean> {
+  async function continuar(resultado: ResultadoReserva, idReservado?: string): Promise<boolean> {
     if (!montado.current) return false;
+    setFalhaPagamento(false);
     if (!resultado.ok) {
       setFalha(
         resultado.motivo === 'ocupado'
@@ -283,6 +287,31 @@ export default function Pagamento() {
       );
       setEstado('falhou');
       return false;
+    }
+    // Pagamento real pela DebitoPay: o pedido vai para o telemóvel e espera-se pelo PIN.
+    // Sem pagamentos reais (pré-visualização, testes), a confirmação é simulada.
+    const pagaPorTelemovel = aCobrar > 0 && (pedido.pagamento === 'mpesa' || pedido.pagamento === 'emola');
+    if (pagamentosReais && pagaPorTelemovel) {
+      const erro = await cobrarEsperar(
+        {
+          metodo: pedido.pagamento,
+          telefone: telefone.replace(/\D/g, ''),
+          valorMzn: aCobrar,
+          viaturaId: noFim?.viaturaId ?? viatura.id,
+          viagem: { id: noFim?.id ?? idReservado, origem: noFim?.origem.nome ?? pedido.origem.nome, destino: noFim?.destino.nome ?? destino?.nome, cliente: sessao.perfil?.telefone },
+        },
+        () => montado.current,
+      );
+      if (!montado.current) return false;
+      if (erro) {
+        // O carro volta a ficar livre na agenda: a reserva só conta depois de paga.
+        if (idReservado) agenda.libertar(idReservado);
+        setFalha(erro);
+        setFalhaPagamento(true);
+        setEstado('falhou');
+        return false;
+      }
+      return true;
     }
     await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO));
     return montado.current;
@@ -363,12 +392,13 @@ export default function Pagamento() {
   if (estado === 'falhou') {
     return (
       <SafeAreaView style={[s.ecra, s.centro]}>
-        <Text style={s.titulo}>{t('Esse horário já não está livre')}</Text>
+        <Text style={s.titulo}>{falhaPagamento ? t('O pagamento não passou') : t('Esse horário já não está livre')}</Text>
         <Text style={s.secundarioCentro}>{falha}</Text>
         <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
           <BotaoPrincipal
-            texto={t('Escolher outra hora')}
+            texto={falhaPagamento ? t('Tentar outra vez') : t('Escolher outra hora')}
             onPress={() => {
+              if (falhaPagamento) return setEstado('preencher');
               if (reserva) pedido.setReserva({ ...reserva, inicio: null });
               else pedido.setQuando(null);
               router.back();

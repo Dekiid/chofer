@@ -1,0 +1,3 @@
+# O webhook é chamado pela DebitoPay, que não tem sessão do Supabase: a origem é validada pela assinatura HMAC.
+[functions.webhook-debitopay]
+verify_jwt = false

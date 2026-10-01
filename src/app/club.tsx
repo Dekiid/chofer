@@ -12,6 +12,7 @@ import { formatarDia } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
 import { CLUB, estadoViagensGratis, vantagensClub } from '@/data/club';
 import { normalizarTelefone } from '@/data/motorista';
+import { cobrarEsperar, metodoDoNumero, pagamentosReais } from '@/data/pagamentos';
 import { t } from '@/i18n';
 import { useConta } from '@/state/conta';
 
@@ -26,14 +27,24 @@ export default function Club() {
   const [aderir, setAderir] = useState(false);
   const [telefone, setTelefone] = useState('');
   const [aProcessar, setAProcessar] = useState(false);
+  const [erro, setErro] = useState('');
   const numero = normalizarTelefone(telefone);
   const a = conta.assinatura;
   const poupado = conta.viagens.reduce((t, v) => t + (v.descontoClubMzn ?? 0) + (v.gratisMzn ?? 0), 0);
   const gratis = estadoViagensGratis(conta.viagens, a);
 
   async function pagar() {
+    if (!numero) return;
     setAProcessar(true);
-    await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO));
+    setErro('');
+    const falhou = pagamentosReais
+      ? await cobrarEsperar({ tipo: 'club', metodo: metodoDoNumero(numero), telefone: numero.replace(/^\+258/, ''), valorMzn: CLUB.precoMensalMzn, viaturaId: 'club', viagem: {} })
+      : (await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO)), null);
+    if (falhou) {
+      setErro(falhou);
+      setAProcessar(false);
+      return;
+    }
     conta.aderirClub();
     conta.avisar(t('Bem-vindo ao Chauffeur Club'), t('O desconto já vale na próxima viagem.'));
     setAProcessar(false);
@@ -103,10 +114,11 @@ export default function Club() {
                 value={telefone}
                 onChangeText={setTelefone}
                 keyboardType="phone-pad"
-                placeholder={t('Número M-Pesa, ex.: 84 123 4567')}
+                placeholder={t('Número M-Pesa ou e-Mola, ex.: 84 123 4567')}
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
+              {erro ? <Text style={[s.secundario, { color: '#DC2626' }]}>{erro}</Text> : null}
               <BotaoPrincipal texto={t('Pagar {valor}', { valor: formatarMzn(CLUB.precoMensalMzn) })} desativado={!numero} onPress={pagar} />
               <BotaoSecundario texto={t('Agora não')} onPress={() => setAderir(false)} />
             </View>

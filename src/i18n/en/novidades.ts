@@ -23,6 +23,8 @@ export const novidades: Record<string, string> = {
   'Carregar a carteira': 'Top up wallet',
   'Levantar {valor} para o M-Pesa': 'Withdraw {valor} to M-Pesa',
   'Número M-Pesa, ex.: 84 123 4567': 'M-Pesa number, e.g. 84 123 4567',
+  'Número M-Pesa ou e-Mola, ex.: 84 123 4567': 'M-Pesa or e-Mola number, e.g. 84 123 4567',
+  'O pagamento não passou': "The payment didn't go through",
   'Carregar {valor}': 'Top up {valor}',
   Levantar: 'Withdraw',
   'Levantar para o M-Pesa': 'Withdraw to M-Pesa',
