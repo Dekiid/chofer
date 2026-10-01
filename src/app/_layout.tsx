@@ -12,6 +12,7 @@ import { Text } from '@/components/texto';
 // Define a tarefa da localização em segundo plano logo ao abrir a app, como o TaskManager exige.
 import '@/data/localizacao-fundo';
 
+import { IdiomaProvider } from '@/i18n/idioma';
 import { AgendaProvider } from '@/state/agenda';
 import { ContaProvider } from '@/state/conta';
 import { InscricoesProvider } from '@/state/inscricoes';
@@ -43,6 +44,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <IdiomaProvider>
       <SessaoProvider>
         <AgendaProvider>
           <InscricoesProvider>
@@ -61,6 +63,7 @@ export default function RootLayout() {
           </InscricoesProvider>
         </AgendaProvider>
       </SessaoProvider>
+      </IdiomaProvider>
     </ThemeProvider>
   );
 }
