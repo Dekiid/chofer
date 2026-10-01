@@ -3,14 +3,12 @@ export type Motorista = {
   /** Número completo com indicativo, por exemplo +258841234567. */
   telefone: string;
   matricula: string;
-  avaliacao?: number;
 };
 
 // Motorista simulado para os modelos de exemplo; os carros inscritos trazem o seu próprio motorista.
 export const MOTORISTA_EXEMPLO: Motorista = {
   nome: 'Carlos M.',
   telefone: '+258840000000',
-  avaliacao: 4.9,
   matricula: 'AFK 123 MC',
 };
 

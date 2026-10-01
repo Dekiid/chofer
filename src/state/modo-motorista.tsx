@@ -42,6 +42,15 @@ type ModoMotorista = {
   eu: Motorista;
   online: boolean;
   setOnline: (v: boolean) => void;
+  /** Turno em curso, ou null. */
+  turno: Turno | null;
+  /** Em pausa: continua online, mas não recebe pedidos para agora. */
+  emPausa: boolean;
+  pausar: () => void;
+  retomar: () => void;
+  /** Fica offline, fecha o turno e devolve o resumo. */
+  terminarTurno: () => ResumoTurno | null;
+  turnos: ResumoTurno[];
   posicao: Ponto;
   /** Move o carro sozinho pela rota, para testar sem conduzir. */
   simular: boolean;
@@ -68,6 +77,27 @@ type ModoMotorista = {
   fecharResumo: () => void;
   simularPedido: () => void;
 };
+
+/** Turno aberto: começa quando o motorista fica online e acaba quando ele o termina. */
+export type Turno = { inicio: string; pausas: { inicio: string; fim?: string }[] };
+/** Resumo de um turno terminado, guardado para o motorista rever. */
+export type ResumoTurno = {
+  inicio: string;
+  fim: string;
+  minutosOnline: number;
+  minutosPausa: number;
+  viagens: number;
+  ganhosMzn: number;
+  km: number;
+};
+
+/** Minutos de pausa de um turno, contando a pausa em curso até agora. */
+export function minutosPausa(turno: Turno, ate = Date.now()) {
+  return Math.round(turno.pausas.reduce((t, p) => t + ((p.fim ? new Date(p.fim).getTime() : ate) - new Date(p.inicio).getTime()), 0) / 60000);
+}
+
+/** Depois de tantas horas a trabalhar, a app pede ao motorista para descansar. */
+export const HORAS_ATE_DESCANSO = 10;
 
 const Contexto = createContext<ModoMotorista | null>(null);
 
@@ -102,13 +132,17 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
     [],
   );
   const deHoje = feitas.filter((f) => new Date(f.concluidaEm).toDateString() === new Date().toDateString());
+  const chaveMotorista = perfil?.telefone ? `chauffeur.motorista.${perfil.telefone}` : null;
+  const [turno, setTurno] = useGuardado<Turno | null>(chaveMotorista && `${chaveMotorista}.turno`, null);
+  const [turnos, setTurnos] = useGuardado<ResumoTurno[]>(chaveMotorista && `${chaveMotorista}.turnos`, []);
+  const emPausa = turno?.pausas.some((p) => !p.fim) ?? false;
   const ganhosHoje = deHoje.reduce((t, f) => t + ganhoMotorista(f.pedido), 0);
   const viagensHoje = deHoje.length;
 
   // Os eventos chegam fora do ciclo do React; estas referências têm sempre o estado atual.
-  const atual = useRef({ online, viaturaId, pedidoNovo, viagem, posicao, eu, simular });
+  const atual = useRef({ online, emPausa, viaturaId, pedidoNovo, viagem, posicao, eu, simular });
   useEffect(() => {
-    atual.current = { online, viaturaId, pedidoNovo, viagem, posicao, eu, simular };
+    atual.current = { online, emPausa, viaturaId, pedidoNovo, viagem, posicao, eu, simular };
   });
 
   const receber = useCallback((p: PedidoMotorista) => {
@@ -135,7 +169,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
           if (e.pedido.viaturaId !== a.viaturaId) return;
           // Reservas chegam mesmo offline e ficam confirmadas; pedidos para agora só com o motorista online e livre.
           if (e.pedido.recolhaEm) receberReserva(e.pedido);
-          else if (a.online && !a.viagem && !a.pedidoNovo) receber(e.pedido);
+          else if (a.online && !a.emPausa && !a.viagem && !a.pedidoNovo) receber(e.pedido);
         }
         if (e.tipo === 'cancelado' && e.por === 'cliente') {
           if (a.pedidoNovo?.id === e.id) setPedidoNovo(null);
@@ -270,10 +304,10 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   }, [pedidoDemo, receberReserva]);
 
   useEffect(() => {
-    if (TEMPO_REAL_ATIVO || !online || viagem || pedidoNovo) return;
+    if (TEMPO_REAL_ATIVO || !online || emPausa || viagem || pedidoNovo) return;
     const t = setTimeout(simularPedido, 5000);
     return () => clearTimeout(t);
-  }, [online, viagem, pedidoNovo, simularPedido]);
+  }, [online, emPausa, viagem, pedidoNovo, simularPedido]);
 
   const valor = useMemo<ModoMotorista>(
     () => ({
@@ -286,10 +320,44 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       online,
       setOnline: (v) => {
         setOnline(v);
+        // Ficar online abre o turno, se ainda não houver um.
+        if (v && !turno) setTurno({ inicio: new Date().toISOString(), pausas: [] });
         // Para receber pedidos com a app fechada.
         if (v && viatura && perfil?.telefone) registarPushMotorista(viatura.id, perfil.telefone);
         if (!v) setPedidoNovo(null);
       },
+      turno,
+      emPausa,
+      pausar: () => {
+        if (!turno || emPausa) return;
+        setPedidoNovo(null);
+        setTurno({ ...turno, pausas: [...turno.pausas, { inicio: new Date().toISOString() }] });
+      },
+      retomar: () => {
+        if (!turno) return;
+        setTurno({ ...turno, pausas: turno.pausas.map((p) => (p.fim ? p : { ...p, fim: new Date().toISOString() })) });
+      },
+      terminarTurno: () => {
+        setOnline(false);
+        setPedidoNovo(null);
+        if (!turno) return null;
+        const fim = new Date();
+        const doTurno = feitas.filter((f) => f.concluidaEm >= turno.inicio);
+        const pausa = minutosPausa(turno, fim.getTime());
+        const resumo: ResumoTurno = {
+          inicio: turno.inicio,
+          fim: fim.toISOString(),
+          minutosPausa: pausa,
+          minutosOnline: Math.max(0, Math.round((fim.getTime() - new Date(turno.inicio).getTime()) / 60000) - pausa),
+          viagens: doTurno.length,
+          ganhosMzn: doTurno.reduce((t, f) => t + ganhoMotorista(f.pedido), 0),
+          km: Math.round(doTurno.reduce((t, f) => t + f.pedido.km, 0) * 10) / 10,
+        };
+        setTurnos((l) => [resumo, ...l].slice(0, 60));
+        setTurno(null);
+        return resumo;
+      },
+      turnos,
       posicao,
       simular,
       setSimular,
@@ -355,7 +423,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       fecharResumo: () => setViagem(null),
       simularPedido,
     }),
-    [viatura, perfil, eu, online, posicao, simular, pedidoNovo, expiraEm, viagem, agendadas, feitas, setFeitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva],
+    [viatura, perfil, eu, online, turno, setTurno, emPausa, turnos, setTurnos, posicao, simular, pedidoNovo, expiraEm, viagem, agendadas, feitas, setFeitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

@@ -17,3 +17,10 @@ export function mascaraData(texto: string): string {
   const n = texto.replace(/\D/g, '').slice(0, 8);
   return [n.slice(0, 2), n.slice(2, 4), n.slice(4)].filter(Boolean).join('/');
 }
+
+/** 135 → «2 h 15 min». */
+export function duracaoTexto(min: number): string {
+  const h = Math.floor(min / 60);
+  const r = min % 60;
+  return h > 0 ? `${h} h ${String(r).padStart(2, '0')} min` : `${r} min`;
+}

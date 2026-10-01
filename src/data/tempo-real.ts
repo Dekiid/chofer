@@ -66,6 +66,9 @@ export type PedidoMotorista = {
 /** O que o motorista diz do cliente no fim da viagem. */
 export type AvaliacaoCliente = { estrelas: number; elogios: string[]; em: string; motorista: string };
 
+/** O que o cliente diz do motorista no fim da viagem. Sem o nome do cliente, como na Uber. */
+export type AvaliacaoMotorista = { estrelas: number; elogios: string[]; comentario: string; em: string; viagemId: string };
+
 export type EstadoViagem = 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
 
 export type EventoViagem =
@@ -75,6 +78,7 @@ export type EventoViagem =
   | { tipo: 'posicao'; id: string; posicao: Ponto }
   | { tipo: 'estado'; id: string; estado: EstadoViagem; motorista?: Motorista }
   | { tipo: 'avaliacao_cliente'; telefone: string; avaliacao: AvaliacaoCliente }
+  | { tipo: 'avaliacao_motorista'; telefone: string; avaliacao: AvaliacaoMotorista }
   | { tipo: 'cancelado'; id: string; por: 'cliente' | 'motorista'; motivo?: 'falta' };
 
 type Ouvinte = (e: EventoViagem) => void;

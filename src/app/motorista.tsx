@@ -13,15 +13,16 @@ import { Vidro } from '@/components/vidro';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
+import { duracaoTexto } from '@/data/datas';
 import { ESPERA_MIN } from '@/data/cancelamento';
 import { ELOGIOS_CLIENTE, ESPERA_AEROPORTO_MIN, ligacaoVoo, textoPreferencias } from '@/data/extras-viagem';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
 import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
-import { useAvaliacoes } from '@/state/avaliacoes';
+import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
 import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
-import { ganhoMotorista, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
+import { ganhoMotorista, HORAS_ATE_DESCANSO, minutosPausa, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import { PercursoViagem } from '@/components/percurso-viagem';
@@ -158,15 +159,26 @@ function Disponivel({ s }: { s: S }) {
   const expirados = documentos.filter((d) => d.estado === 'expirado' || d.estado === 'em_falta');
   const aExpirar = documentos.filter((d) => d.estado === 'a_expirar');
   const bloqueado = expirados.length > 0;
+  const nota = useAvaliacoes().mediaMotorista(m.eu.telefone);
+  function terminarTurno() {
+    const resumo = m.terminarTurno();
+    if (resumo) router.push({ pathname: '/turno', params: { inicio: resumo.inicio } });
+  }
   return (
     <>
       <View style={s.estado}>
-        <View style={[s.pontoEstado, { backgroundColor: m.online ? cores.go : cores.textSecondary }]} />
-        <Text style={s.titulo}>{m.online ? t('Estás online') : t('Estás offline')}</Text>
+        <View style={[s.pontoEstado, { backgroundColor: m.online ? (m.emPausa ? '#F59E0B' : cores.go) : cores.textSecondary }]} />
+        <Text style={s.titulo}>{!m.online ? t('Estás offline') : m.emPausa ? t('Estás em pausa') : t('Estás online')}</Text>
       </View>
       <Text style={s.secundario}>
-        {m.online ? t('À procura de pedidos para o teu carro…') : t('Fica online para receber pedidos.')} {nomeViatura(m.viatura!)} · {m.eu.nome}
+        {!m.online
+          ? t('Fica online para receber pedidos.')
+          : m.emPausa
+            ? t('Não recebes pedidos para agora. As reservas continuam a chegar.')
+            : t('À procura de pedidos para o teu carro…')}{' '}
+        {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
+      <ResumoTurnoAtual s={s} />
       {TEMPO_REAL_ATIVO && <EstadoServidor />}
 
       <Pressable onPress={() => router.push('/pedidos-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('Pedidos e reservas')}>
@@ -206,6 +218,16 @@ function Disponivel({ s }: { s: S }) {
         </Pressable>
       )}
 
+      <Pressable onPress={() => router.push('/avaliacoes-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('As tuas avaliações')}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.nomePequeno}>{t('As tuas avaliações')}</Text>
+          <Text style={s.secundarioPequeno}>
+            {nota ? (nota.n === 1 ? t('★ {media} · {n} avaliação', { media: formatarNota(nota.media), n: nota.n }) : t('★ {media} · {n} avaliações', { media: formatarNota(nota.media), n: nota.n })) : t('Ainda sem avaliações')}
+          </Text>
+        </View>
+        <Text style={s.seta}>›</Text>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/ganhos')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('Ganhos')}>
         <View style={{ flex: 1 }}>
           <Text style={s.nomePequeno}>{t('Ganhos')}</Text>
@@ -233,15 +255,51 @@ function Disponivel({ s }: { s: S }) {
       )}
 
       <View style={{ gap: Spacing.two }}>
-        <BotaoPrincipal
-          texto={m.online ? t('Ficar offline') : bloqueado ? t('Atualiza os documentos') : t('Ficar online')}
-          escuro={m.online}
-          desativado={!m.online && bloqueado}
-          onPress={() => m.setOnline(!m.online)}
-        />
-        {!m.online && <BotaoSecundario texto={t('Mudar de carro')} onPress={() => m.escolherViatura(null)} />}
+        {!m.online ? (
+          <>
+            <BotaoPrincipal
+              texto={bloqueado ? t('Atualiza os documentos') : m.turno ? t('Continuar o turno') : t('Ficar online')}
+              desativado={bloqueado}
+              onPress={() => m.setOnline(true)}
+            />
+            {m.turno ? <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} /> : <BotaoSecundario texto={t('Mudar de carro')} onPress={() => m.escolherViatura(null)} />}
+          </>
+        ) : m.emPausa ? (
+          <>
+            <BotaoPrincipal texto={t('Voltar ao trabalho')} onPress={m.retomar} />
+            <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} />
+          </>
+        ) : (
+          <>
+            <BotaoSecundario texto={t('Fazer uma pausa')} onPress={m.pausar} />
+            <BotaoPrincipal texto={t('Terminar o turno')} escuro onPress={terminarTurno} />
+          </>
+        )}
       </View>
     </>
+  );
+}
+
+/** Turno em curso: tempo a trabalhar, pausas e o que já fez. Depois de muitas horas, pede para descansar. */
+function ResumoTurnoAtual({ s }: { s: S }) {
+  const m = useModoMotorista();
+  const [agora, setAgora] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setAgora(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  if (!m.turno) return null;
+  const pausa = minutosPausa(m.turno, agora);
+  const trabalho = Math.max(0, Math.round((agora - new Date(m.turno.inicio).getTime()) / 60000) - pausa);
+  const cansado = trabalho >= HORAS_ATE_DESCANSO * 60;
+  return (
+    <View style={[s.caixa, cansado && { borderWidth: 1.5, borderColor: '#F59E0B' }]}>
+      <Text style={s.secundarioPequeno}>
+        {t('Turno: {tempo} a trabalhar', { tempo: duracaoTexto(trabalho) })}
+        {pausa > 0 ? ` · ${t('{tempo} de pausa', { tempo: duracaoTexto(pausa) })}` : ''}
+      </Text>
+      {cansado && <Text style={[s.secundarioPequeno, { color: '#B45309', fontWeight: '700' }]}>{t('Já trabalhaste {n} horas. Faz uma pausa para descansar.', { n: HORAS_ATE_DESCANSO })}</Text>}
+    </View>
   );
 }
 

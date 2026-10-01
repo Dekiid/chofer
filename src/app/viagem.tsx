@@ -23,6 +23,7 @@ import { ouvir, publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
 import type { Motorista } from '@/data/motorista';
 import { useAgenda } from '@/state/agenda';
+import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
 import { ELOGIOS, useConta } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
@@ -47,6 +48,7 @@ export default function Viagem() {
   const s = estilos(cores);
   const pedido = usePedido();
   const conta = useConta();
+  const avaliacoes = useAvaliacoes();
   const sessao = useSessao();
   const agenda = useAgenda();
   const { origem, destino } = pedido;
@@ -182,6 +184,7 @@ export default function Viagem() {
   const viatura = pedido.viatura;
   const motorista = motoristaReal ?? viatura.motorista ?? MOTORISTA_EXEMPLO;
   const primeiroNome = motorista.nome.split(' ')[0];
+  const notaMotorista = avaliacoes.mediaMotorista(motorista.telefone);
 
   // Avisos de cada mudança de fase: dentro da app e no telemóvel.
   const { avisar, atualizarViagem } = conta;
@@ -258,6 +261,8 @@ export default function Viagem() {
 
   function concluir() {
     const avaliacao = estrelas > 0 ? { estrelas, elogios, comentario: comentario.trim() } : undefined;
+    // A avaliação chega ao motorista, que a vê nas suas avaliações (sem o nome do cliente).
+    if (avaliacao) avaliacoes.avaliarMotorista(motorista.telefone, { ...avaliacao, em: new Date().toISOString(), viagemId: idPedido });
     if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'concluida', gorjetaMzn: gorjeta, avaliacao });
     // Pedido para agora: paga-se agora, no fim, com a gorjeta incluída.
     if (porPagar && viagemConta) return router.replace({ pathname: '/pagamento', params: { viagem: viagemConta.id } });
@@ -364,7 +369,7 @@ export default function Viagem() {
             <View style={{ flex: 1 }}>
               <Text style={s.nome}>
                 {motorista.nome}{' '}
-                {motorista.avaliacao !== undefined && <Text style={s.secundario}>★ {motorista.avaliacao.toString().replace('.', ',')}</Text>}
+                <Text style={s.secundario}>{notaMotorista ? `★ ${formatarNota(notaMotorista.media)}` : t('Novo')}</Text>
               </Text>
               <Text style={s.secundario}>{nomeViatura(viatura)}</Text>
             </View>

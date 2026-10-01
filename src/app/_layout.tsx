@@ -116,6 +116,8 @@ function Navegacao() {
           <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
           <Stack.Screen name="ganhos" />
           <Stack.Screen name="documentos" />
+          <Stack.Screen name="turno" />
+          <Stack.Screen name="avaliacoes-motorista" />
         </Stack.Protected>
       </Stack.Protected>
       <Stack.Protected guard={!sessao.completo}>
