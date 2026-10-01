@@ -15,6 +15,8 @@ import { formatarHora, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { calcularRota, pontoNaRota, restoDaRota, restoDesde, type Rota } from '@/data/rotas';
+import { SincronizarPartilha } from '@/components/sincronizar-partilha';
+import { guardarPartilha, ligacaoPartilha, novoIdPartilha, PARTILHA_POR_LINK, type DadosPartilha } from '@/data/partilha';
 import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
 import { custoCancelar, custoFalta, type Cancelamento } from '@/data/cancelamento';
 import { devePartilhar, textoPreferencias } from '@/data/extras-viagem';
@@ -24,6 +26,7 @@ import { calcularPreco, distanciaKm, duracaoMin } from '@/data/viagem';
 import type { Motorista } from '@/data/motorista';
 import { useAgenda } from '@/state/agenda';
 import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
+import { useAcompanharChat, useChat } from '@/state/chat';
 import { ELOGIOS, useConta } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
@@ -49,6 +52,7 @@ export default function Viagem() {
   const pedido = usePedido();
   const conta = useConta();
   const avaliacoes = useAvaliacoes();
+  const chat = useChat();
   const sessao = useSessao();
   const agenda = useAgenda();
   const { origem, destino } = pedido;
@@ -73,6 +77,8 @@ export default function Viagem() {
   const [motivoSemResposta, setMotivoSemResposta] = useState('');
   const [idLocal] = useState(() => `v-${Date.now()}`);
   const idPedido = viagemConta?.id ?? idLocal;
+  // As mensagens do motorista chegam enquanto a viagem está aberta.
+  useAcompanharChat(idPedido, 'cliente');
   const faltaRef = useRef<() => void>(() => {});
 
   // Tempo real: eventos do motorista desta viagem.
@@ -201,6 +207,9 @@ export default function Viagem() {
     if (fase === 'concluida') avisar(t('Chegaste ao destino'), t('Obrigado por viajares com a Chauffeur. Avalia {nome} e vê o recibo.', { nome: primeiroNome }));
   }, [fase, destino, avisar, atualizarViagem, viagemConta, primeiroNome, viatura, motorista.matricula, codigo]);
 
+  // Viagem partilhada por link: criado na primeira partilha; o resumo vai para o servidor pelo SincronizarPartilha.
+  const [idPartilha, setIdPartilha] = useState<string | null>(null);
+
   if (!destino) return <Redirect href="/" />;
 
   const preco = viagemConta ? viagemConta.precoMzn - viagemConta.descontoMzn : calcularPreco(viatura, pedido.rota?.km ?? 0, pedido.quando?.tipo === 'imediato');
@@ -209,6 +218,29 @@ export default function Viagem() {
   // Com o motorista real, o tempo que falta sai da distância até ao ponto seguinte.
   const minutosRestantes = TEMPO_REAL_ATIVO && carro ? duracaoMin(distanciaKm(carro, origem) * 1.3) : Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
   const minutosViagem = TEMPO_REAL_ATIVO && carro ? duracaoMin(distanciaKm(carro, destino) * 1.3) : Math.max(1, Math.round((pedido.rota?.minutos ?? 0) * (1 - progresso)));
+  const dadosPartilha: DadosPartilha = {
+    viagemId: idPedido,
+    cliente: sessao.perfil?.nome ?? '',
+    motorista: motorista.nome,
+    viatura: nomeViatura(viatura),
+    matricula: motorista.matricula,
+    origem,
+    destino,
+    estado: fase === 'concluida' ? 'concluida' : fase === 'chegou' ? 'chegou' : fase === 'em_viagem' ? 'em_viagem' : 'a_caminho',
+    posicao: carro,
+    chegadaPrevista: fase === 'concluida' ? null : somarMin(new Date(), fase === 'em_viagem' ? minutosViagem : minutosRestantes + (pedido.rota?.minutos ?? 0)).toISOString(),
+    atualizadaEm: new Date().toISOString(),
+  };
+  /** Link para seguir a viagem em direto; sem servidor, a localização no Google Maps. */
+  function ligacaoAoVivo(): string {
+    if (!PARTILHA_POR_LINK) return ligacaoMapa(carro ?? origem);
+    const id = idPartilha ?? novoIdPartilha();
+    if (!idPartilha) {
+      setIdPartilha(id);
+      guardarPartilha(id, dadosPartilha);
+    }
+    return ligacaoPartilha(id);
+  }
 
   function sair() {
     pedido.limpar();
@@ -242,6 +274,7 @@ export default function Viagem() {
   }
 
   function cancelar(c: Cancelamento | null) {
+    if (idPartilha) guardarPartilha(idPartilha, { ...dadosPartilha, estado: 'cancelada', chegadaPrevista: null });
     if (TEMPO_REAL_ATIVO) publicar({ tipo: 'cancelado', id: idPedido, por: 'cliente' });
     if (viagemConta) {
       atualizarViagem(viagemConta.id, {
@@ -289,7 +322,7 @@ export default function Viagem() {
       t('Estou numa viagem Chauffeur para {destino}.', { destino: destino!.nome }) + '\n' +
       t('Carro: {viatura}, matrícula {matricula}. Motorista: {motorista}.', { viatura: nomeViatura(viatura), matricula: motorista.matricula, motorista: motorista.nome }) + '\n' +
       t('Chegada prevista às {hora}.', { hora: chegada }) + '\n' +
-      t('Onde estou agora: {ligacao}', { ligacao: ligacaoMapa(onde) });
+      (PARTILHA_POR_LINK ? t('Segue a viagem em direto: {ligacao}', { ligacao: ligacaoAoVivo() }) : t('Onde estou agora: {ligacao}', { ligacao: ligacaoMapa(onde) }));
     try {
       await Share.share({ message: texto });
     } catch {
@@ -299,7 +332,7 @@ export default function Viagem() {
 
   async function partilharLocalizacao() {
     try {
-      await Share.share({ message: t('Preciso de ajuda. Estou num {viatura} ({matricula}). A minha localização: {ligacao}', { viatura: nomeViatura(viatura), matricula: motorista.matricula, ligacao: ligacaoMapa(carro ?? origem) }) });
+      await Share.share({ message: t('Preciso de ajuda. Estou num {viatura} ({matricula}). A minha localização: {ligacao}', { viatura: nomeViatura(viatura), matricula: motorista.matricula, ligacao: ligacaoAoVivo() }) });
     } catch {}
   }
 
@@ -309,6 +342,7 @@ export default function Viagem() {
 
   return (
     <View style={s.ecra}>
+      {idPartilha && <SincronizarPartilha id={idPartilha} dados={dadosPartilha} />}
       <Mapa
         origem={fase === 'em_viagem' || fase === 'concluida' ? undefined : origem}
         // Como no manual: com o motorista a caminho, só o carro e a recolha.
@@ -415,7 +449,7 @@ export default function Viagem() {
                       matricula: motorista.matricula,
                       motorista: motorista.nome,
                       codigo,
-                    }),
+                    }) + (PARTILHA_POR_LINK ? ' ' + t('Segue o carro em direto: {ligacao}', { ligacao: ligacaoAoVivo() }) : ''),
                   ),
                 )
               }>
@@ -431,7 +465,12 @@ export default function Viagem() {
           <View style={s.acoes}>
             {/* Já dentro do carro não faz sentido ligar ao motorista. */}
             {fase !== 'em_viagem' && <Acao texto={t('Ligar')} onPress={ligar} s={s} />}
-            <Acao texto={t('Mensagem')} onPress={() => router.push('/chat')} s={s} contador={conta.naoLidasChat} />
+            <Acao
+              texto={t('Mensagem')}
+              onPress={() => router.push({ pathname: '/chat', params: { id: idPedido, como: 'cliente', nome: motorista.nome, detalhe: `${nomeViatura(viatura)} · ${motorista.matricula}` } })}
+              s={s}
+              contador={chat.naoLidas(idPedido, 'cliente')}
+            />
             <Acao texto={t('Partilhar')} onPress={partilhar} s={s} />
           </View>
         )}
@@ -524,7 +563,7 @@ export default function Viagem() {
                   Linking.openURL(
                     sms(
                       conta.contactosConfianca.map((c) => c.telefone),
-                      t('Preciso de ajuda. Estou num {viatura} ({matricula}). A minha localização: {ligacao}', { viatura: nomeViatura(viatura), matricula: motorista.matricula, ligacao: ligacaoMapa(carro ?? origem) }),
+                      t('Preciso de ajuda. Estou num {viatura} ({matricula}). A minha localização: {ligacao}', { viatura: nomeViatura(viatura), matricula: motorista.matricula, ligacao: ligacaoAoVivo() }),
                     ),
                   )
                 }

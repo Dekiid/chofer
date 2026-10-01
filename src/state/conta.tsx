@@ -67,7 +67,6 @@ export const totalPago = (v: ViagemFeita) => (v.estado === 'cancelada' ? (v.taxa
 /** Conta de empresa: as viagens pagas com «Fatura da empresa» juntam-se numa fatura por mês. */
 export type Empresa = { nome: string; nuit: string; emailFaturas: string };
 
-export type Mensagem = { id: string; de: 'cliente' | 'motorista'; texto: string; em: Date; lida: boolean };
 export type Aviso = { id: string; titulo: string; texto: string; em: Date; lido: boolean };
 
 type Conta = {
@@ -87,11 +86,6 @@ type Conta = {
   setContactosConfianca: (c: ContactoConfianca[]) => void;
   partilhaAuto: PartilhaAuto;
   setPartilhaAuto: (r: PartilhaAuto) => void;
-
-  mensagens: Mensagem[];
-  naoLidasChat: number;
-  enviarMensagem: (texto: string) => void;
-  marcarChatLido: () => void;
 
   avisos: Aviso[];
   avisosNaoLidos: number;
@@ -116,15 +110,6 @@ const ContaContext = createContext<Conta | null>(null);
 
 // Respostas simuladas do motorista, até haver chat pelo servidor.
 // Procura palavras em português e em inglês, porque as respostas rápidas do chat vão na língua da app.
-function respostaDoMotorista(texto: string): string {
-  const m = texto.toLowerCase();
-  const tem = (...palavras: string[]) => palavras.some((p) => m.includes(p));
-  if (tem('onde', 'demora', 'where', 'how long')) return t('Estou a poucos minutos. Já te vejo no mapa.');
-  if (tem('porta', 'sair', 'desço', 'door', 'outside', 'heading out', 'coming down')) return t('Perfeito, espero por ti à porta.');
-  if (tem('bagagem', 'mala', 'luggage', 'bag')) return t('Sem problema, ajudo-te com a bagagem.');
-  return t('Recebido, obrigado!');
-}
-
 // Duas viagens antigas, para o histórico não aparecer vazio no protótipo.
 function viagensExemplo(): ViagemFeita[] {
   const dia = (d: number, h: number) => {
@@ -157,7 +142,6 @@ export function ContaProvider({ children }: { children: ReactNode }) {
   const [partilhaAuto, setPartilhaAuto] = useGuardado<PartilhaAuto>(chave && `${chave}.partilha`, 'noite');
   const [empresa, setEmpresa] = useGuardado<Empresa | null>(chave && `${chave}.empresa`, null);
   const [viagemAtualId, setViagemAtualId] = useState<string | null>(null);
-  const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [avisoTopo, setAvisoTopo] = useState<Aviso | null>(null);
   const [avisosNoTelemovel, setAvisosNoTelemovel] = useState(true);
@@ -204,17 +188,6 @@ export function ContaProvider({ children }: { children: ReactNode }) {
     });
   }, [avisar, setViagens]);
 
-  const enviarMensagem = useCallback((texto: string) => {
-    const limpo = texto.trim();
-    if (!limpo) return;
-    setMensagens((atual) => [...atual, { id: `m-${Date.now()}`, de: 'cliente', texto: limpo, em: new Date(), lida: true }]);
-    setTimeout(() => {
-      setMensagens((atual) => [...atual, { id: `m-${Date.now()}`, de: 'motorista', texto: respostaDoMotorista(limpo), em: new Date(), lida: false }]);
-    }, 1500);
-  }, []);
-
-  const marcarChatLido = useCallback(() => setMensagens((atual) => (atual.some((m) => !m.lida) ? atual.map((m) => ({ ...m, lida: true })) : atual)), []);
-
   const valor = useMemo<Conta>(() => {
     const viagemAtual = viagens.find((v) => v.id === viagemAtualId) ?? null;
     return {
@@ -226,8 +199,6 @@ export function ContaProvider({ children }: { children: ReactNode }) {
         const id = idDado ?? `v-${Date.now()}`;
         setViagens((atual) => [{ ...v, id, criadaEm: new Date() }, ...atual]);
         setViagemAtualId(id);
-        // Chat novo para cada viagem.
-        setMensagens([]);
         return id;
       },
       atualizarViagem: (id, mudancas) => setViagens((atual) => atual.map((v) => (v.id === id ? { ...v, ...mudancas } : v))),
@@ -237,10 +208,6 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       setContactosConfianca,
       partilhaAuto,
       setPartilhaAuto,
-      mensagens,
-      naoLidasChat: mensagens.filter((m) => !m.lida).length,
-      enviarMensagem,
-      marcarChatLido,
       avisos,
       avisosNaoLidos: avisos.filter((a) => !a.lido).length,
       avisoTopo,
@@ -257,7 +224,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       creditoMzn: 0,
       amigosConvidados: 0,
     };
-  }, [locais, setLocais, viagens, setViagens, viagemAtualId, mensagens, avisos, avisoTopo, avisosNoTelemovel, preferencias, setPreferencias, contactosConfianca, setContactosConfianca, partilhaAuto, setPartilhaAuto, empresa, setEmpresa, promo, avisar, enviarMensagem, marcarChatLido]);
+  }, [locais, setLocais, viagens, setViagens, viagemAtualId, avisos, avisoTopo, avisosNoTelemovel, preferencias, setPreferencias, contactosConfianca, setContactosConfianca, partilhaAuto, setPartilhaAuto, empresa, setEmpresa, promo, avisar]);
 
   return <ContaContext.Provider value={valor}>{children}</ContaContext.Provider>;
 }

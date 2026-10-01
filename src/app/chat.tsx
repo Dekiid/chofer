@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,31 +7,45 @@ import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarHora } from '@/data/agenda';
-import { MOTORISTA_EXEMPLO } from '@/data/motorista';
-import { useConta } from '@/state/conta';
-import { usePedido } from '@/state/pedido';
+import { useAcompanharChat, useChat, type LadoChat } from '@/state/chat';
+import { useModoMotorista } from '@/state/modo-motorista';
+import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
 import { t } from '@/i18n';
 
 // Respostas rápidas, para escrever pouco enquanto se espera pelo carro.
-const RAPIDAS = ['Já estou a sair', 'Estou à porta', 'Quanto tempo demora?', 'Tenho bagagem'];
+const RAPIDAS: Record<LadoChat, string[]> = {
+  cliente: ['Já estou a sair', 'Estou à porta', 'Quanto tempo demora?', 'Tenho bagagem'],
+  motorista: ['Estou a chegar', 'Já cheguei', 'Há trânsito, chego em breve', 'Onde estás exatamente?'],
+};
 
-/** Mensagens com o motorista dentro da app, sem trocar números de telefone. */
+/**
+ * Mensagens entre o cliente e o motorista da viagem, sem trocar números de telefone.
+ * Parâmetros: id da viagem, de que lado está quem escreve, e o nome e o detalhe do outro lado.
+ */
 export default function Chat() {
   const cores = usePalette();
   const s = estilos(cores);
-  const { mensagens, enviarMensagem, marcarChatLido } = useConta();
-  const motorista = usePedido().viatura.motorista ?? MOTORISTA_EXEMPLO;
+  const p = useLocalSearchParams<{ id: string; como?: LadoChat; nome?: string; detalhe?: string }>();
+  const eu: LadoChat = p.como === 'motorista' ? 'motorista' : 'cliente';
+  const chat = useChat();
+  const { perfil } = useSessao();
+  const modo = useModoMotorista();
+  const meuNome = eu === 'motorista' ? modo.eu.nome : (perfil?.nome ?? t('Cliente'));
+  const mensagens = chat.mensagens(p.id);
+  const outro = p.nome || (eu === 'motorista' ? t('Cliente') : t('Motorista'));
   const [texto, setTexto] = useState('');
   const rolo = useRef<ScrollView>(null);
+  useAcompanharChat(p.id, eu);
 
-  // Com o chat aberto, as mensagens do motorista contam como lidas.
+  // Com o chat aberto, as mensagens do outro lado contam como lidas.
+  const { marcarLidas } = chat;
   useEffect(() => {
-    marcarChatLido();
-  }, [mensagens.length, marcarChatLido]);
+    marcarLidas(p.id, eu);
+  }, [mensagens.length, marcarLidas, p.id, eu]);
 
   function enviar(mensagem: string) {
-    enviarMensagem(mensagem);
+    chat.enviar(p.id, eu, meuNome, mensagem);
     setTexto('');
   }
 
@@ -40,27 +54,27 @@ export default function Chat() {
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
         <View style={s.avatar}>
-          <Text style={s.avatarTexto}>{motorista.nome[0]}</Text>
+          <Text style={s.avatarTexto}>{outro[0]}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.titulo}>{motorista.nome}</Text>
-          <Text style={s.secundario}>{motorista.matricula}</Text>
+          <Text style={s.titulo}>{outro}</Text>
+          {p.detalhe ? <Text style={s.secundario}>{p.detalhe}</Text> : null}
         </View>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={rolo} contentContainerStyle={s.lista} onContentSizeChange={() => rolo.current?.scrollToEnd({ animated: true })}>
-          <Text style={s.aviso}>{t('As mensagens ficam guardadas na viagem. O teu número não é partilhado com o motorista.')}</Text>
+          <Text style={s.aviso}>{eu === 'cliente' ? t('As mensagens ficam guardadas na viagem. O teu número não é partilhado com o motorista.') : t('As mensagens ficam guardadas na viagem. Não escrevas enquanto conduzes.')}</Text>
           {mensagens.map((m) => (
-            <View key={m.id} style={[s.balao, m.de === 'cliente' ? s.meu : s.dele]}>
-              <Text style={[s.textoBalao, m.de === 'cliente' && { color: cores.onPrimary }]}>{m.texto}</Text>
-              <Text style={[s.hora, m.de === 'cliente' && { color: cores.onPrimary, opacity: 0.7 }]}>{formatarHora(m.em)}</Text>
+            <View key={m.id} style={[s.balao, m.de === eu ? s.meu : s.dele]}>
+              <Text style={[s.textoBalao, m.de === eu && { color: cores.onPrimary }]}>{m.texto}</Text>
+              <Text style={[s.hora, m.de === eu && { color: cores.onPrimary, opacity: 0.7 }]}>{formatarHora(new Date(m.em))}</Text>
             </View>
           ))}
         </ScrollView>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={s.rapidas} keyboardShouldPersistTaps="handled">
-          {RAPIDAS.map((r) => (
+          {RAPIDAS[eu].map((r) => (
             <Pressable key={r} onPress={() => enviar(t(r))} style={s.rapida}>
               <Text style={s.rapidaTexto}>{t(r)}</Text>
             </Pressable>

@@ -69,6 +69,9 @@ export type AvaliacaoCliente = { estrelas: number; elogios: string[]; em: string
 /** O que o cliente diz do motorista no fim da viagem. Sem o nome do cliente, como na Uber. */
 export type AvaliacaoMotorista = { estrelas: number; elogios: string[]; comentario: string; em: string; viagemId: string };
 
+/** Mensagem do chat de uma viagem. */
+export type MensagemChat = { id: string; de: 'cliente' | 'motorista'; nome: string; texto: string; em: string };
+
 export type EstadoViagem = 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
 
 export type EventoViagem =
@@ -78,6 +81,7 @@ export type EventoViagem =
   | { tipo: 'posicao'; id: string; posicao: Ponto }
   | { tipo: 'estado'; id: string; estado: EstadoViagem; motorista?: Motorista }
   | { tipo: 'avaliacao_cliente'; telefone: string; avaliacao: AvaliacaoCliente }
+  | { tipo: 'mensagem'; id: string; mensagem: MensagemChat }
   | { tipo: 'avaliacao_motorista'; telefone: string; avaliacao: AvaliacaoMotorista }
   | { tipo: 'cancelado'; id: string; por: 'cliente' | 'motorista'; motivo?: 'falta' };
 

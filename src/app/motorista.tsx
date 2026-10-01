@@ -21,6 +21,7 @@ import { nomeLugar } from '@/data/lugares';
 import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
+import { useAcompanharChat, useChat } from '@/state/chat';
 import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
 import { ganhoMotorista, HORAS_ATE_DESCANSO, minutosPausa, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { usePedido } from '@/state/pedido';
@@ -389,6 +390,11 @@ function ViagemEmCurso({ s }: { s: S }) {
   const [estrelas, setEstrelas] = useState(0);
   const [elogios, setElogios] = useState<string[]>([]);
   const avaliacoes = useAvaliacoes();
+  const chat = useChat();
+  useAcompanharChat(pedido.id, 'motorista');
+  const naoLidas = chat.naoLidas(pedido.id, 'motorista');
+  const abrirChat = () =>
+    router.push({ pathname: '/chat', params: { id: pedido.id, como: 'motorista', nome: pedido.passageiro?.nome ?? pedido.clienteNome ?? t('Cliente'), detalhe: nomeLugar(pedido.origem) } });
 
   const alvo: Ponto = fase === 'a_recolha' || fase === 'chegou' ? pedido.origem : pedido.destino;
   const km = viagem.rota ? viagem.rota.km : distanciaKm(m.posicao, alvo) * 1.3;
@@ -479,6 +485,16 @@ function ViagemEmCurso({ s }: { s: S }) {
       />
       {pedido.clienteNome && !pedido.passageiro ? <Text style={s.secundarioPequeno}>{t('Cliente: {nome}', { nome: pedido.clienteNome })}</Text> : null}
       <ExtrasPedido pedido={pedido} ligar={fase !== 'em_viagem'} s={s} />
+
+      <Pressable onPress={abrirChat} style={[s.caixa, s.linhaReserva, { marginTop: Spacing.two }]} accessibilityLabel={t('Mensagem')}>
+        <Text style={[s.nomePequeno, { flex: 1 }]}>{t('Mensagem ao cliente')}</Text>
+        {naoLidas > 0 && (
+          <View style={s.contador}>
+            <Text style={s.contadorTexto}>{naoLidas}</Text>
+          </View>
+        )}
+        <Text style={s.seta}>›</Text>
+      </Pressable>
 
       <View style={[s.botoes, { marginTop: Spacing.three }]}>
         {fase !== 'chegou' && (

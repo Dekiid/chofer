@@ -15,6 +15,7 @@ import '@/data/localizacao-fundo';
 import { IdiomaProvider } from '@/i18n/idioma';
 import { AgendaProvider } from '@/state/agenda';
 import { AvaliacoesProvider } from '@/state/avaliacoes';
+import { ChatProvider } from '@/state/chat';
 import { ContaProvider } from '@/state/conta';
 import { InscricoesProvider } from '@/state/inscricoes';
 import { ModoMotoristaProvider } from '@/state/modo-motorista';
@@ -48,6 +49,7 @@ export default function RootLayout() {
       <IdiomaProvider>
       <SessaoProvider>
         <AvaliacoesProvider>
+        <ChatProvider>
         <AgendaProvider>
           <InscricoesProvider>
             <PedidoProvider>
@@ -64,6 +66,7 @@ export default function RootLayout() {
             </PedidoProvider>
           </InscricoesProvider>
         </AgendaProvider>
+        </ChatProvider>
         </AvaliacoesProvider>
       </SessaoProvider>
       </IdiomaProvider>
@@ -89,6 +92,8 @@ function Navegacao() {
   if (sessao.estado === 'a_carregar') return <Abertura />;
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      {/* Link de partilha: abre sem conta, para a família seguir a viagem no browser. */}
+      <Stack.Screen name="seguir/[id]" />
       <Stack.Protected guard={sessao.completo}>
         <Stack.Screen name="index" />
         <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
