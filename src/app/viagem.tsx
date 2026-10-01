@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EstadoServidor } from '@/components/estado-servidor';
 import { Mapa } from '@/components/mapa';
+import { PercursoViagem } from '@/components/percurso-viagem';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoSecundario, Painel } from '@/components/ui';
@@ -314,6 +315,18 @@ export default function Viagem() {
             </View>
             <Text style={s.matricula}>{motorista.matricula}</Text>
           </View>
+        )}
+
+        {/* Recolha e destino à vista durante toda a viagem, como na Uber. */}
+        {comMotorista && (
+          <PercursoViagem
+            origem={origem}
+            paragens={pedido.paragens}
+            destino={destino}
+            etapa={fase === 'em_viagem' ? 'destino' : 'recolha'}
+            detalheRecolha={fase === 'a_caminho' ? `${minutosRestantes} min` : fase === 'chegou' ? 'Chegou' : undefined}
+            detalheDestino={fase === 'em_viagem' ? `${minutosViagem} min` : undefined}
+          />
         )}
 
         {(fase === 'a_caminho' || fase === 'chegou') && (

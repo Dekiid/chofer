@@ -19,6 +19,7 @@ import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { ganhoMotorista, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
+import { PercursoViagem } from '@/components/percurso-viagem';
 import { useInscricoes } from '@/state/inscricoes';
 import { useSessao } from '@/state/sessao';
 
@@ -225,7 +226,7 @@ function ViagemEmCurso({ s }: { s: S }) {
           <Text style={s.titulo}>Viagem concluída</Text>
         </View>
         <Text style={s.valorGrande}>{formatarMzn(ganhoMotorista(pedido))}</Text>
-        <Text style={[s.secundario, { marginBottom: Spacing.three }]}>Já está nos teus ganhos de hoje. A viagem foi paga antes, por {pedido.pagamento}.</Text>
+        <Text style={[s.secundario, { marginBottom: Spacing.three }]}>Já está nos teus ganhos de hoje. {pedido.pagaNoFim ? `O cliente paga agora pela app, por ${pedido.pagamento}.` : `A viagem foi paga antes, por ${pedido.pagamento}.`}</Text>
         <Text style={s.nomePequeno}>Como correu com o cliente?</Text>
         <View style={s.estrelas}>
           {[1, 2, 3, 4, 5].map((n) => (
@@ -246,7 +247,7 @@ function ViagemEmCurso({ s }: { s: S }) {
         <Text style={s.titulo}>{fase === 'a_recolha' ? 'A caminho da recolha' : fase === 'chegou' ? 'Pede o código ao cliente' : `A caminho de ${pedido.destino.nome}`}</Text>
       </View>
 
-      {fase === 'chegou' ? (
+      {fase === 'chegou' && (
         <>
           <Text style={[s.secundario, { marginBottom: Spacing.two }]}>O cliente tem um código de 4 números. A viagem só começa com o código certo.</Text>
           <TextInput
@@ -262,16 +263,18 @@ function ViagemEmCurso({ s }: { s: S }) {
           {erro && <Text style={s.erro}>Código errado. Confirma com o cliente.</Text>}
           {!TEMPO_REAL_ATIVO && <Text style={s.secundarioPequeno}>Demonstração: o código do cliente é {pedido.codigoRecolha}.</Text>}
         </>
-      ) : (
-        <View style={s.caixa}>
-          <Linha
-            ponto={<View style={fase === 'a_recolha' ? s.pontoRecolha : s.pontoDestino} />}
-            titulo={alvo === pedido.origem ? pedido.origem.nome : pedido.destino.nome}
-            texto={`${duracaoMin(km)} min · ${formatarKm(km)}`}
-            s={s}
-          />
-        </View>
       )}
+
+      {/* Recolha e destino sempre à vista, com o ponto para onde vais agora em destaque. */}
+      <PercursoViagem
+        origem={pedido.origem}
+        paragens={pedido.paragens}
+        destino={pedido.destino}
+        etapa={fase === 'em_viagem' ? 'destino' : 'recolha'}
+        detalheRecolha={fase === 'a_recolha' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : fase === 'chegou' ? 'Chegaste' : undefined}
+        detalheDestino={fase === 'em_viagem' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : formatarKm(pedido.km)}
+      />
+      {pedido.clienteNome ? <Text style={s.secundarioPequeno}>Cliente: {pedido.clienteNome}</Text> : null}
 
       <View style={[s.botoes, { marginTop: Spacing.three }]}>
         {fase !== 'chegou' && (
