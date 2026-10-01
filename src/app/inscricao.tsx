@@ -14,6 +14,7 @@ import { normalizarTelefone } from '@/data/motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type FotoPedida } from '@/state/inscricoes';
 import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
+import { t } from '@/i18n';
 
 const LUGARES = [4, 5, 7];
 // Distância usada no exemplo de ganhos da nota da comissão.
@@ -105,11 +106,11 @@ export default function Inscricao() {
   if (enviada) {
     return (
       <SafeAreaView style={[s.ecra, s.centro]}>
-        <Text style={s.titulo}>Inscrição enviada</Text>
+        <Text style={s.titulo}>{t('Inscrição enviada')}</Text>
         <Text style={[s.ajuda, { textAlign: 'center', marginBottom: Spacing.four }]}>
-          Vamos rever os teus dados e as fotos do carro. Assim que a inscrição for aprovada, o teu carro passa a aparecer na app.
+          {t('Vamos rever os teus dados e as fotos do carro. Assim que a inscrição for aprovada, o teu carro passa a aparecer na app.')}
         </Text>
-        <BotaoPrincipal texto="Voltar ao início" onPress={() => router.back()} />
+        <BotaoPrincipal texto={t('Voltar ao início')} onPress={() => router.back()} />
       </SafeAreaView>
     );
   }
@@ -132,63 +133,63 @@ export default function Inscricao() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.tituloCabecalho}>Inscrever o meu carro</Text>
+        <Text style={s.tituloCabecalho}>{t('Inscrever o meu carro')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <Text style={s.secao}>Dados pessoais</Text>
-        {campo('Nome completo', nome, setNome, erros.nome, 'Escreve o nome completo.', { placeholder: 'Ex.: João Macuácua', autoComplete: 'name' })}
-        {campo('Número de contacto', telefone, setTelefone, erros.telefone, 'Número móvel moçambicano, ex.: 84 123 4567.', {
+        <Text style={s.secao}>{t('Dados pessoais')}</Text>
+        {campo(t('Nome completo'), nome, setNome, erros.nome, t('Escreve o nome completo.'), { placeholder: t('Ex.: {exemplo}', { exemplo: 'João Macuácua' }), autoComplete: 'name' })}
+        {campo(t('Número de contacto'), telefone, setTelefone, erros.telefone, t('Número móvel moçambicano, ex.: 84 123 4567.'), {
           placeholder: '84 123 4567',
           keyboardType: 'phone-pad',
           autoComplete: 'tel',
         })}
-        <Text style={s.ajuda}>Os clientes usam este número para te ligar durante a viagem.</Text>
-        {campo('Número do BI', documento, setDocumento, erros.documento, 'Escreve o número do BI.', { autoCapitalize: 'characters' })}
-        {campo('Número da carta de condução', cartaConducao, setCartaConducao, erros.cartaConducao, 'Escreve o número da carta.', {
+        <Text style={s.ajuda}>{t('Os clientes usam este número para te ligar durante a viagem.')}</Text>
+        {campo(t('Número do BI'), documento, setDocumento, erros.documento, t('Escreve o número do BI.'), { autoCapitalize: 'characters' })}
+        {campo(t('Número da carta de condução'), cartaConducao, setCartaConducao, erros.cartaConducao, t('Escreve o número da carta.'), {
           autoCapitalize: 'characters',
         })}
-        {campo('Carta válida até', validadeCarta, (t) => setValidadeCarta(mascaraData(t)), erros.validadeCarta, 'Data futura, DD/MM/AAAA.', {
-          placeholder: 'DD/MM/AAAA',
+        {campo(t('Carta válida até'), validadeCarta, (v) => setValidadeCarta(mascaraData(v)), erros.validadeCarta, t('Data futura, DD/MM/AAAA.'), {
+          placeholder: t('DD/MM/AAAA'),
           keyboardType: 'number-pad',
         })}
 
-        <Text style={s.secao}>O carro</Text>
+        <Text style={s.secao}>{t('O carro')}</Text>
         <View style={s.linha}>
-          <View style={{ flex: 1 }}>{campo('Marca', marca, setMarca, erros.marca, 'Obrigatório.', { placeholder: 'Ex.: Mercedes-Benz' })}</View>
-          <View style={{ flex: 1 }}>{campo('Modelo', modelo, setModelo, erros.modelo, 'Obrigatório.', { placeholder: 'Ex.: Classe E' })}</View>
+          <View style={{ flex: 1 }}>{campo(t('Marca'), marca, setMarca, erros.marca, t('Obrigatório.'), { placeholder: t('Ex.: {exemplo}', { exemplo: 'Mercedes-Benz' }) })}</View>
+          <View style={{ flex: 1 }}>{campo(t('Modelo'), modelo, setModelo, erros.modelo, t('Obrigatório.'), { placeholder: t('Ex.: {exemplo}', { exemplo: 'Classe E' }) })}</View>
         </View>
         <View style={s.linha}>
-          <View style={{ flex: 1 }}>{campo('Ano', ano, setAno, erros.ano, 'Ex.: 2021.', { placeholder: '2021', keyboardType: 'number-pad', maxLength: 4 })}</View>
+          <View style={{ flex: 1 }}>{campo(t('Ano'), ano, setAno, erros.ano, t('Ex.: {exemplo}', { exemplo: '2021.' }), { placeholder: '2021', keyboardType: 'number-pad', maxLength: 4 })}</View>
           <View style={{ flex: 1 }}>
-            {campo('Matrícula', matricula, setMatricula, erros.matricula, 'Obrigatório.', { placeholder: 'AFK 123 MC', autoCapitalize: 'characters' })}
+            {campo(t('Matrícula'), matricula, setMatricula, erros.matricula, t('Obrigatório.'), { placeholder: 'AFK 123 MC', autoCapitalize: 'characters' })}
           </View>
         </View>
         <View style={s.linha}>
           <View style={{ flex: 1 }}>
-            {campo('Seguro válido até', validadeSeguro, (t) => setValidadeSeguro(mascaraData(t)), erros.validadeSeguro, 'Data futura.', {
-              placeholder: 'DD/MM/AAAA',
+            {campo(t('Seguro válido até'), validadeSeguro, (v) => setValidadeSeguro(mascaraData(v)), erros.validadeSeguro, t('Data futura.'), {
+              placeholder: t('DD/MM/AAAA'),
               keyboardType: 'number-pad',
             })}
           </View>
           <View style={{ flex: 1 }}>
-            {campo('Inspeção válida até', validadeInspecao, (t) => setValidadeInspecao(mascaraData(t)), erros.validadeInspecao, 'Data futura.', {
-              placeholder: 'DD/MM/AAAA',
+            {campo(t('Inspeção válida até'), validadeInspecao, (v) => setValidadeInspecao(mascaraData(v)), erros.validadeInspecao, t('Data futura.'), {
+              placeholder: t('DD/MM/AAAA'),
               keyboardType: 'number-pad',
             })}
           </View>
         </View>
 
-        <Text style={s.rotulo}>Tipo</Text>
+        <Text style={s.rotulo}>{t('Tipo')}</Text>
         <View style={s.opcoes}>
-          {TIPOS_VIATURA.map((t) => (
-            <Pressable key={t.tipo} onPress={() => setTipo(t.tipo)} style={[s.opcao, tipo === t.tipo && s.opcaoAtiva]}>
-              <Text style={[s.textoOpcao, tipo === t.tipo && s.textoOpcaoAtiva]}>{t.tipo}</Text>
+          {TIPOS_VIATURA.map((x) => (
+            <Pressable key={x.tipo} onPress={() => setTipo(x.tipo)} style={[s.opcao, tipo === x.tipo && s.opcaoAtiva]}>
+              <Text style={[s.textoOpcao, tipo === x.tipo && s.textoOpcaoAtiva]}>{t(x.tipo)}</Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={s.rotulo}>Lugares para passageiros</Text>
+        <Text style={s.rotulo}>{t('Lugares para passageiros')}</Text>
         <View style={s.opcoes}>
           {LUGARES.map((n) => (
             <Pressable key={n} onPress={() => setLugares(n)} style={[s.opcao, lugares === n && s.opcaoAtiva]}>
@@ -197,27 +198,32 @@ export default function Inscricao() {
           ))}
         </View>
 
-        <Text style={s.secao}>Preço</Text>
-        {campo('Preço por km que propões (MT)', preco, setPreco, erros.preco, 'Indica o preço por km.', {
-          placeholder: `Ex.: ${TIPOS_VIATURA.find((t) => t.tipo === tipo)?.porKmMzn}`,
+        <Text style={s.secao}>{t('Preço')}</Text>
+        {campo(t('Preço por km que propões (MT)'), preco, setPreco, erros.preco, t('Indica o preço por km.'), {
+          placeholder: t('Ex.: {exemplo}', { exemplo: TIPOS_VIATURA.find((x) => x.tipo === tipo)?.porKmMzn ?? '' }),
           keyboardType: 'number-pad',
           maxLength: 4,
         })}
         <View style={s.nota}>
-          <Text style={s.notaTitulo}>O Chauffeur fica com {Math.round(COMISSAO * 100)}% do valor total de cada viagem.</Text>
+          <Text style={s.notaTitulo}>{t('O Chauffeur fica com {pct}% do valor total de cada viagem.', { pct: Math.round(COMISSAO * 100) })}</Text>
           <Text style={s.notaTexto}>
             {Number(preco) > 0
-              ? `Exemplo: numa viagem de ${KM_EXEMPLO} km o cliente paga ${formatarMzn(Number(preco) * KM_EXEMPLO)}. Tu recebes ${formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * (1 - COMISSAO)))} e o Chauffeur fica com ${formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * COMISSAO))}.`
-              : `Tu recebes os outros ${Math.round((1 - COMISSAO) * 100)}%. O preço fica sujeito à nossa aprovação.`}
+              ? t('Exemplo: numa viagem de {km} km o cliente paga {total}. Tu recebes {teu} e o Chauffeur fica com {comissao}.', {
+                  km: KM_EXEMPLO,
+                  total: formatarMzn(Number(preco) * KM_EXEMPLO),
+                  teu: formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * (1 - COMISSAO))),
+                  comissao: formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * COMISSAO)),
+                })
+              : t('Tu recebes os outros {pct}%. O preço fica sujeito à nossa aprovação.', { pct: Math.round((1 - COMISSAO) * 100) })}
           </Text>
         </View>
 
-        <Text style={s.secao}>Casamentos</Text>
-        <Text style={s.ajuda}>Queres alugar o carro, com motorista, para casamentos? Indica quanto cobras pelo dia do casamento.</Text>
+        <Text style={s.secao}>{t('Casamentos')}</Text>
+        <Text style={s.ajuda}>{t('Queres alugar o carro, com motorista, para casamentos? Indica quanto cobras pelo dia do casamento.')}</Text>
         <View style={s.opcoes}>
           {[true, false].map((sim) => (
             <Pressable key={String(sim)} onPress={() => setCasamentos(sim)} style={[s.opcao, casamentos === sim && s.opcaoAtiva]}>
-              <Text style={[s.textoOpcao, casamentos === sim && s.textoOpcaoAtiva]}>{sim ? 'Sim' : 'Não'}</Text>
+              <Text style={[s.textoOpcao, casamentos === sim && s.textoOpcaoAtiva]}>{sim ? t('Sim') : t('Não')}</Text>
             </Pressable>
           ))}
         </View>
@@ -225,46 +231,46 @@ export default function Inscricao() {
           <>
             <View style={s.linha}>
               <View style={{ flex: 1 }}>
-                {campo('Sem decoração (MT)', semDecoracao, setSemDecoracao, erros.semDecoracao, 'Indica o preço.', {
-                  placeholder: 'Ex.: 9000',
+                {campo(t('Sem decoração (MT)'), semDecoracao, setSemDecoracao, erros.semDecoracao, t('Indica o preço.'), {
+                  placeholder: t('Ex.: {exemplo}', { exemplo: 9000 }),
                   keyboardType: 'number-pad',
                   maxLength: 6,
                 })}
               </View>
               <View style={{ flex: 1 }}>
-                {campo('Com decoração (MT)', comDecoracao, setComDecoracao, erros.comDecoracao, 'Indica o preço.', {
-                  placeholder: 'Ex.: 12500',
+                {campo(t('Com decoração (MT)'), comDecoracao, setComDecoracao, erros.comDecoracao, t('Indica o preço.'), {
+                  placeholder: t('Ex.: {exemplo}', { exemplo: 12500 }),
                   keyboardType: 'number-pad',
                   maxLength: 6,
                 })}
               </View>
             </View>
-            <Text style={s.ajuda}>Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço. Aplica-se a mesma comissão de {Math.round(COMISSAO * 100)}%.</Text>
+            <Text style={s.ajuda}>{t('Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço. Aplica-se a mesma comissão de {pct}%.', { pct: Math.round(COMISSAO * 100) })}</Text>
             <Pressable
               onPress={async () => {
                 const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
                 if (!r.canceled) setFotoDecorada(r.assets[0].uri);
               }}
-              accessibilityLabel="Escolher foto do carro decorado"
+              accessibilityLabel={t('Escolher foto do carro decorado')}
               style={[s.foto, { marginBottom: Spacing.two }]}>
               {fotoDecorada ? (
                 <Image source={{ uri: fotoDecorada }} style={StyleSheet.absoluteFill} contentFit="cover" />
               ) : (
                 <View style={s.fotoVazia}>
                   <Text style={s.mais}>+</Text>
-                  <Text style={s.dica}>O teu carro decorado, de frente na diagonal</Text>
+                  <Text style={s.dica}>{t('O teu carro decorado, de frente na diagonal')}</Text>
                 </View>
               )}
               <View style={s.etiqueta}>
-                <Text style={s.etiquetaTexto}>Decorado</Text>
+                <Text style={s.etiquetaTexto}>{t('Decorado')}</Text>
               </View>
             </Pressable>
-            <Text style={s.ajuda}>Opcional. É a foto que os clientes veem na opção com decoração.</Text>
+            <Text style={s.ajuda}>{t('Opcional. É a foto que os clientes veem na opção com decoração.')}</Text>
           </>
         )}
 
-        <Text style={s.secao}>Fotos do carro</Text>
-        <Text style={s.ajuda}>Precisamos destas quatro fotos, com boa luz. A foto de frente é a que os clientes vão ver na app.</Text>
+        <Text style={s.secao}>{t('Fotos do carro')}</Text>
+        <Text style={s.ajuda}>{t('Precisamos destas quatro fotos, com boa luz. A foto de frente é a que os clientes vão ver na app.')}</Text>
         <View style={s.grelha}>
           {FOTOS_PEDIDAS.map((f) => {
             const uri = fotos[f.id];
@@ -272,29 +278,29 @@ export default function Inscricao() {
               <Pressable
                 key={f.id}
                 onPress={() => escolherFoto(f.id)}
-                accessibilityLabel={`Escolher foto: ${f.nome}`}
+                accessibilityLabel={t('Escolher foto: {foto}', { foto: t(f.nome) })}
                 style={[s.foto, tentouEnviar && !uri && s.inputErro]}>
                 {uri ? (
                   <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
                 ) : (
                   <View style={s.fotoVazia}>
                     <Text style={s.mais}>+</Text>
-                    <Text style={s.dica}>{f.dica}</Text>
+                    <Text style={s.dica}>{t(f.dica)}</Text>
                   </View>
                 )}
                 <View style={s.etiqueta}>
-                  <Text style={s.etiquetaTexto}>{f.nome}</Text>
+                  <Text style={s.etiquetaTexto}>{t(f.nome)}</Text>
                 </View>
               </Pressable>
             );
           })}
         </View>
-        {tentouEnviar && erros.fotos && <Text style={s.erro}>Faltam fotos do carro.</Text>}
+        {tentouEnviar && erros.fotos && <Text style={s.erro}>{t('Faltam fotos do carro.')}</Text>}
 
         <View style={{ marginTop: Spacing.four }}>
-          <BotaoPrincipal texto="Enviar inscrição" onPress={enviar} />
+          <BotaoPrincipal texto={t('Enviar inscrição')} onPress={enviar} />
         </View>
-        <Text style={[s.ajuda, { textAlign: 'center', marginTop: Spacing.two }]}>A inscrição só fica ativa depois da nossa aprovação.</Text>
+        <Text style={[s.ajuda, { textAlign: 'center', marginTop: Spacing.two }]}>{t('A inscrição só fica ativa depois da nossa aprovação.')}</Text>
       </ScrollView>
     </SafeAreaView>
   );

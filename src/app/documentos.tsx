@@ -10,6 +10,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarData, lerData, mascaraData } from '@/data/datas';
 import { AVISO_VALIDADE_DIAS, estadoDocumentos, useInscricoes, type Documento } from '@/state/inscricoes';
+import { t } from '@/i18n';
 
 const COR = { ok: '#22C55E', a_expirar: '#F59E0B', expirado: '#DC2626', em_falta: '#DC2626' } as const;
 
@@ -40,29 +41,33 @@ export default function Documentos() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Documentos</Text>
+        <Text style={s.titulo}>{t('Documentos')}</Text>
       </View>
       <FecharTeclado style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled">
           <Text style={s.secundario}>
-            Mantém os documentos em dia. Avisamos {AVISO_VALIDADE_DIAS} dias antes de expirarem. Com algum expirado, não podes ficar online.
+            {t('Mantém os documentos em dia. Avisamos {n} dias antes de expirarem. Com algum expirado, não podes ficar online.', { n: AVISO_VALIDADE_DIAS })}
           </Text>
           {documentos.map((d) => (
             <View key={d.documento} style={s.cartao}>
               <View style={s.linha}>
                 <View style={[s.ponto, { backgroundColor: COR[d.estado] }]} />
-                <Text style={s.nome}>{d.nome}</Text>
+                <Text style={s.nome}>{t(d.nome)}</Text>
               </View>
               <Text style={s.secundario}>
                 {d.estado === 'em_falta'
-                  ? 'Falta a data de validade.'
+                  ? t('Falta a data de validade.')
                   : d.estado === 'expirado'
-                    ? `Expirou a ${formatarData(d.validade!)}.`
-                    : `Válido até ${formatarData(d.validade!)}${d.estado === 'a_expirar' ? `, faltam ${d.dias} ${d.dias === 1 ? 'dia' : 'dias'}` : ''}.`}
+                    ? t('Expirou a {data}.', { data: formatarData(d.validade!) })
+                    : d.estado === 'a_expirar'
+                      ? d.dias === 1
+                        ? t('Válido até {data}, falta {n} dia.', { data: formatarData(d.validade!), n: d.dias })
+                        : t('Válido até {data}, faltam {n} dias.', { data: formatarData(d.validade!), n: d.dias ?? 0 })
+                      : t('Válido até {data}.', { data: formatarData(d.validade!) })}
               </Text>
               <TextInput
                 style={s.campo}
-                placeholder="Nova validade (DD/MM/AAAA)"
+                placeholder={t('Nova validade (DD/MM/AAAA)')}
                 placeholderTextColor={cores.textSecondary}
                 keyboardType="number-pad"
                 value={textos[d.documento] ?? ''}
@@ -70,13 +75,13 @@ export default function Documentos() {
                   setGuardado(false);
                   setTextos((x) => ({ ...x, [d.documento]: mascaraData(t) }));
                 }}
-                accessibilityLabel={`Nova validade: ${d.nome}`}
+                accessibilityLabel={t('Nova validade: {doc}', { doc: t(d.nome) })}
               />
             </View>
           ))}
-          <Text style={s.nota}>Em testes basta a data. Antes do lançamento, pedimos também a foto do documento novo e a aprovação passa pelo painel de gestão.</Text>
-          {guardado && <Text style={[s.secundario, { color: COR.ok }]}>Guardado.</Text>}
-          <BotaoPrincipal texto="Guardar" desativado={invalidos > 0 || !Object.values(textos).some((t) => t && lerData(t))} onPress={guardar} />
+          <Text style={s.nota}>{t('Em testes basta a data. Antes do lançamento, pedimos também a foto do documento novo e a aprovação passa pelo painel de gestão.')}</Text>
+          {guardado && <Text style={[s.secundario, { color: COR.ok }]}>{t('Guardado.')}</Text>}
+          <BotaoPrincipal texto={t('Guardar')} desativado={invalidos > 0 || !Object.values(textos).some((t) => t && lerData(t))} onPress={guardar} />
         </ScrollView>
       </FecharTeclado>
     </SafeAreaView>

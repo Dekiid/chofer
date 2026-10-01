@@ -15,6 +15,7 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { ESPERA_MIN } from '@/data/cancelamento';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
+import { nomeLugar } from '@/data/lugares';
 import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { estadoDocumentos, useInscricoes } from '@/state/inscricoes';
@@ -23,6 +24,7 @@ import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import { PercursoViagem } from '@/components/percurso-viagem';
 import { useSessao } from '@/state/sessao';
+import { t } from '@/i18n';
 
 /** App do motorista, como a da Uber: ficar online, receber e aceitar pedidos, ir buscar, confirmar o código, levar e terminar. */
 export default function MotoristaEcra() {
@@ -52,11 +54,11 @@ export default function MotoristaEcra() {
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <BotaoVoltar onPress={() => router.back()} />
         {m.viatura && (
-          <Pressable onPress={() => router.push('/ganhos')} accessibilityLabel="Ver ganhos">
+          <Pressable onPress={() => router.push('/ganhos')} accessibilityLabel={t('Ver ganhos')}>
             <Vidro style={s.ganhos}>
               <Text style={s.ganhosValor}>{formatarMzn(m.ganhosHoje)}</Text>
               <Text style={s.ganhosTexto}>
-                Hoje · {m.viagensHoje} {m.viagensHoje === 1 ? 'viagem' : 'viagens'} ›
+                {m.viagensHoje === 1 ? t('Hoje · {n} viagem', { n: m.viagensHoje }) : t('Hoje · {n} viagens', { n: m.viagensHoje })} ›
               </Text>
             </Vidro>
           </Pressable>
@@ -96,13 +98,13 @@ function Espera({ chegouEm, s }: { chegouEm?: number; s: S }) {
     const seg = Math.floor((falta % 60000) / 1000);
     return (
       <Text style={s.secundarioPequeno}>
-        Espera {min}:{String(seg).padStart(2, '0')}. Se o cliente não aparecer, podes marcar falta de comparência e ele paga a taxa.
+        {t('Espera {tempo}. Se o cliente não aparecer, podes marcar falta de comparência e ele paga a taxa.', { tempo: `${min}:${String(seg).padStart(2, '0')}` })}
       </Text>
     );
   }
   return (
     <View style={{ marginTop: Spacing.two }}>
-      <BotaoSecundario texto="O cliente não apareceu" onPress={() => m.cancelarViagem('falta')} />
+      <BotaoSecundario texto={t('O cliente não apareceu')} onPress={() => m.cancelarViagem('falta')} />
     </View>
   );
 }
@@ -119,25 +121,25 @@ function EscolherCarro({ s }: { s: S }) {
   const pendentes = minhas.filter((i) => i.estado === 'pendente').length;
   return (
     <>
-      <Text style={s.titulo}>Qual é o teu carro?</Text>
+      <Text style={s.titulo}>{t('Qual é o teu carro?')}</Text>
       <Text style={[s.secundario, { marginBottom: Spacing.two }]}>
         {carros.length > 0
-          ? 'Recebes os pedidos dos clientes que escolherem este carro.'
+          ? t('Recebes os pedidos dos clientes que escolherem este carro.')
           : pendentes > 0
-            ? 'O teu carro está à espera de aprovação. Depois de aprovado, aparece aqui.'
-            : 'Ainda não tens nenhum carro aprovado. Inscreve o teu carro para receberes pedidos.'}
+            ? t('O teu carro está à espera de aprovação. Depois de aprovado, aparece aqui.')
+            : t('Ainda não tens nenhum carro aprovado. Inscreve o teu carro para receberes pedidos.')}
       </Text>
       <ScrollView style={{ maxHeight: 320 }}>
         {carros.map((v) => (
           <Pressable key={v.id} onPress={() => m.escolherViatura(v.id)} style={s.linhaCarro}>
             <Text style={s.nome}>{nomeViatura(v)}</Text>
-            <Text style={s.secundario}>{v.motorista?.matricula ?? 'Motorista de demonstração'}</Text>
+            <Text style={s.secundario}>{v.motorista?.matricula ?? t('Motorista de demonstração')}</Text>
           </Pressable>
         ))}
       </ScrollView>
       {!perfil?.motoristaDemo && (
         <View style={{ marginTop: Spacing.two }}>
-          <BotaoSecundario texto="Inscrever um carro" onPress={() => router.push('/inscricao')} />
+          <BotaoSecundario texto={t('Inscrever um carro')} onPress={() => router.push('/inscricao')} />
         </View>
       )}
     </>
@@ -158,19 +160,19 @@ function Disponivel({ s }: { s: S }) {
     <>
       <View style={s.estado}>
         <View style={[s.pontoEstado, { backgroundColor: m.online ? cores.go : cores.textSecondary }]} />
-        <Text style={s.titulo}>{m.online ? 'Estás online' : 'Estás offline'}</Text>
+        <Text style={s.titulo}>{m.online ? t('Estás online') : t('Estás offline')}</Text>
       </View>
       <Text style={s.secundario}>
-        {m.online ? 'À procura de pedidos para o teu carro…' : 'Fica online para receber pedidos.'} {nomeViatura(m.viatura!)} · {m.eu.nome}
+        {m.online ? t('À procura de pedidos para o teu carro…') : t('Fica online para receber pedidos.')} {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
       {TEMPO_REAL_ATIVO && <EstadoServidor />}
 
-      <Pressable onPress={() => router.push('/pedidos-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel="Pedidos e reservas">
+      <Pressable onPress={() => router.push('/pedidos-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('Pedidos e reservas')}>
         <View style={{ flex: 1 }}>
-          <Text style={s.nomePequeno}>Pedidos e reservas</Text>
+          <Text style={s.nomePequeno}>{t('Pedidos e reservas')}</Text>
           <Text style={s.secundarioPequeno}>
-            {m.agendadas.length} {m.agendadas.length === 1 ? 'reserva agendada' : 'reservas agendadas'}
-            {m.agendadas[0]?.recolhaEm ? ` · próxima ${formatarDia(new Date(m.agendadas[0].recolhaEm), new Date()).toLowerCase()}, ${formatarHora(new Date(m.agendadas[0].recolhaEm))}` : ''}
+            {m.agendadas.length === 1 ? t('{n} reserva agendada', { n: m.agendadas.length }) : t('{n} reservas agendadas', { n: m.agendadas.length })}
+            {m.agendadas[0]?.recolhaEm ? ` · ${t('próxima {dia}, {hora}', { dia: formatarDia(new Date(m.agendadas[0].recolhaEm), new Date()).toLowerCase(), hora: formatarHora(new Date(m.agendadas[0].recolhaEm)) })}` : ''}
           </Text>
         </View>
         {m.agendadas.length > 0 && (
@@ -185,42 +187,44 @@ function Disponivel({ s }: { s: S }) {
         <Pressable
           onPress={() => router.push({ pathname: '/documentos', params: { id: inscricao.id } })}
           style={[s.caixa, s.linhaReserva, (bloqueado || aExpirar.length > 0) && { borderWidth: 1.5, borderColor: bloqueado ? '#DC2626' : '#F59E0B' }]}
-          accessibilityLabel="Documentos">
+          accessibilityLabel={t('Documentos')}>
           <View style={{ flex: 1 }}>
-            <Text style={s.nomePequeno}>Documentos</Text>
+            <Text style={s.nomePequeno}>{t('Documentos')}</Text>
             <Text style={s.secundarioPequeno}>
               {bloqueado
-                ? `${expirados.map((d) => d.nome).join(', ')}: ${expirados.some((d) => d.estado === 'em_falta') ? 'falta a validade' : 'expirado'}. Atualiza para ficares online.`
+                ? expirados.some((d) => d.estado === 'em_falta')
+                  ? t('{docs}: falta a validade. Atualiza para ficares online.', { docs: expirados.map((d) => t(d.nome)).join(', ') })
+                  : t('{docs}: expirado. Atualiza para ficares online.', { docs: expirados.map((d) => t(d.nome)).join(', ') })
                 : aExpirar.length > 0
-                  ? aExpirar.map((d) => `${d.nome} expira em ${d.dias} ${d.dias === 1 ? 'dia' : 'dias'}`).join(' · ')
-                  : 'Carta, seguro e inspeção em dia.'}
+                  ? aExpirar.map((d) => (d.dias === 1 ? t('{doc} expira em {n} dia', { doc: t(d.nome), n: d.dias }) : t('{doc} expira em {n} dias', { doc: t(d.nome), n: d.dias ?? 0 }))).join(' · ')
+                  : t('Carta, seguro e inspeção em dia.')}
             </Text>
           </View>
           <Text style={s.seta}>›</Text>
         </Pressable>
       )}
 
-      <Pressable onPress={() => router.push('/ganhos')} style={[s.caixa, s.linhaReserva]} accessibilityLabel="Ganhos">
+      <Pressable onPress={() => router.push('/ganhos')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('Ganhos')}>
         <View style={{ flex: 1 }}>
-          <Text style={s.nomePequeno}>Ganhos</Text>
-          <Text style={s.secundarioPequeno}>Por dia e por semana, e quando recebes.</Text>
+          <Text style={s.nomePequeno}>{t('Ganhos')}</Text>
+          <Text style={s.secundarioPequeno}>{t('Por dia e por semana, e quando recebes.')}</Text>
         </View>
         <Text style={s.seta}>›</Text>
       </Pressable>
 
       <View style={s.linhaDefinicao}>
         <View style={{ flex: 1 }}>
-          <Text style={s.nomePequeno}>Simular a condução</Text>
-          <Text style={s.secundarioPequeno}>Para testes: o carro anda sozinho pela rota.</Text>
+          <Text style={s.nomePequeno}>{t('Simular a condução')}</Text>
+          <Text style={s.secundarioPequeno}>{t('Para testes: o carro anda sozinho pela rota.')}</Text>
         </View>
         <Switch value={m.simular} onValueChange={m.setSimular} />
       </View>
       {!TEMPO_REAL_ATIVO && (
         <Text style={[s.secundarioPequeno, { marginBottom: Spacing.two }]}>
-          Modo de demonstração: sem servidor ligado, os pedidos são simulados.{m.online ? ' ' : ''}
+          {t('Modo de demonstração: sem servidor ligado, os pedidos são simulados.')}{m.online ? ' ' : ''}
           {m.online && (
             <Text style={s.ligacao} onPress={m.simularPedido}>
-              Simular um pedido
+              {t('Simular um pedido')}
             </Text>
           )}
         </Text>
@@ -228,12 +232,12 @@ function Disponivel({ s }: { s: S }) {
 
       <View style={{ gap: Spacing.two }}>
         <BotaoPrincipal
-          texto={m.online ? 'Ficar offline' : bloqueado ? 'Atualiza os documentos' : 'Ficar online'}
+          texto={m.online ? t('Ficar offline') : bloqueado ? t('Atualiza os documentos') : t('Ficar online')}
           escuro={m.online}
           desativado={!m.online && bloqueado}
           onPress={() => m.setOnline(!m.online)}
         />
-        {!m.online && <BotaoSecundario texto="Mudar de carro" onPress={() => m.escolherViatura(null)} />}
+        {!m.online && <BotaoSecundario texto={t('Mudar de carro')} onPress={() => m.escolherViatura(null)} />}
       </View>
     </>
   );
@@ -255,25 +259,28 @@ function PedidoNovo({ pedido, s }: { pedido: PedidoMotorista; s: S }) {
       <View style={s.barra}>
         <View style={[s.barraCheia, { width: `${(resta / TEMPO_PARA_ACEITAR) * 100}%`, backgroundColor: cores.go }]} />
       </View>
-      <Text style={s.etiqueta}>{pedido.recolhaEm ? `Reserva · ${formatarDia(new Date(pedido.recolhaEm), new Date())}, ${formatarHora(new Date(pedido.recolhaEm))}` : 'Pedido para agora'}</Text>
+      <Text style={s.etiqueta}>{pedido.recolhaEm ? t('Reserva · {dia}, {hora}', { dia: formatarDia(new Date(pedido.recolhaEm), new Date()), hora: formatarHora(new Date(pedido.recolhaEm)) }) : t('Pedido para agora')}</Text>
       <Text style={s.valorGrande}>{formatarMzn(ganhoMotorista(pedido))}</Text>
       <Text style={s.secundario}>
-        Recebes isto · {pedido.clienteNome ?? 'o cliente'} {pedido.pagaNoFim ? 'paga' : 'já pagou'} {formatarMzn(pedido.precoMzn)} por {pedido.pagamento}
-        {pedido.pagaNoFim ? ' no fim da viagem' : ''}
+        {t(pedido.pagaNoFim ? 'Recebes isto · {cliente} paga {preco} por {pagamento} no fim da viagem' : 'Recebes isto · {cliente} já pagou {preco} por {pagamento}', {
+          cliente: pedido.clienteNome ?? t('o cliente'),
+          preco: formatarMzn(pedido.precoMzn),
+          pagamento: t(pedido.pagamento),
+        })}
       </Text>
       <NotaPagamento paraMotorista />
 
       <View style={s.caixa}>
-        <Linha ponto={<View style={s.pontoRecolha} />} titulo={pedido.origem.nome} texto={`${duracaoMin(kmRecolha)} min · ${formatarKm(kmRecolha)} de ti`} s={s} />
+        <Linha ponto={<View style={s.pontoRecolha} />} titulo={nomeLugar(pedido.origem)} texto={t('{min} min · {km} de ti', { min: duracaoMin(kmRecolha), km: formatarKm(kmRecolha) })} s={s} />
         {pedido.paragens.map((p, i) => (
-          <Linha key={i} ponto={<View style={s.pontoParagem} />} titulo={p.nome} texto={`Paragem ${i + 1}`} s={s} />
+          <Linha key={i} ponto={<View style={s.pontoParagem} />} titulo={nomeLugar(p)} texto={t('Paragem {n}', { n: i + 1 })} s={s} />
         ))}
-        <Linha ponto={<View style={s.pontoDestino} />} titulo={pedido.destino.nome} texto={`Viagem de ${pedido.minutos} min · ${formatarKm(pedido.km)}`} s={s} />
+        <Linha ponto={<View style={s.pontoDestino} />} titulo={nomeLugar(pedido.destino)} texto={t('Viagem de {min} min · {km}', { min: pedido.minutos, km: formatarKm(pedido.km) })} s={s} />
       </View>
 
       <View style={{ gap: Spacing.two }}>
-        <BotaoDeslizar texto={`Desliza para aceitar · ${Math.ceil(resta / 1000)}s`} onConfirmar={m.aceitar} />
-        <BotaoDeslizar texto="Desliza para recusar" tipo="secundario" onConfirmar={m.recusar} />
+        <BotaoDeslizar texto={t('Desliza para aceitar · {s}s', { s: Math.ceil(resta / 1000) })} onConfirmar={m.aceitar} />
+        <BotaoDeslizar texto={t('Desliza para recusar')} tipo="secundario" onConfirmar={m.recusar} />
       </View>
     </>
   );
@@ -303,19 +310,19 @@ function ViagemEmCurso({ s }: { s: S }) {
       <>
         <View style={s.estado}>
           <View style={[s.pontoEstado, { backgroundColor: cores.go }]} />
-          <Text style={s.titulo}>Viagem concluída</Text>
+          <Text style={s.titulo}>{t('Viagem concluída')}</Text>
         </View>
         <Text style={s.valorGrande}>{formatarMzn(ganhoMotorista(pedido))}</Text>
-        <Text style={[s.secundario, { marginBottom: Spacing.three }]}>Já está nos teus ganhos de hoje. {pedido.pagaNoFim ? `O cliente paga agora pela app, por ${pedido.pagamento}.` : `A viagem foi paga antes, por ${pedido.pagamento}.`}</Text>
-        <Text style={s.nomePequeno}>Como correu com o cliente?</Text>
+        <Text style={[s.secundario, { marginBottom: Spacing.three }]}>{t('Já está nos teus ganhos de hoje.')} {pedido.pagaNoFim ? t('O cliente paga agora pela app, por {pagamento}.', { pagamento: t(pedido.pagamento) }) : t('A viagem foi paga antes, por {pagamento}.', { pagamento: t(pedido.pagamento) })}</Text>
+        <Text style={s.nomePequeno}>{t('Como correu com o cliente?')}</Text>
         <View style={s.estrelas}>
           {[1, 2, 3, 4, 5].map((n) => (
-            <Pressable key={n} onPress={() => setEstrelas(n)} accessibilityLabel={`${n} estrelas`}>
+            <Pressable key={n} onPress={() => setEstrelas(n)} accessibilityLabel={n === 1 ? t('{n} estrela', { n }) : t('{n} estrelas', { n })}>
               <Text style={[s.estrela, { color: n <= estrelas ? cores.accent : cores.backgroundSelected }]}>★</Text>
             </Pressable>
           ))}
         </View>
-        <BotaoPrincipal texto="Continuar" onPress={m.fecharResumo} desativado={estrelas === 0} />
+        <BotaoPrincipal texto={t('Continuar')} onPress={m.fecharResumo} desativado={estrelas === 0} />
       </>
     );
   }
@@ -324,12 +331,12 @@ function ViagemEmCurso({ s }: { s: S }) {
     <>
       <View style={s.estado}>
         <View style={[s.pontoEstado, { backgroundColor: cores.go }]} />
-        <Text style={s.titulo}>{fase === 'a_recolha' ? 'A caminho da recolha' : fase === 'chegou' ? 'Pede o código ao cliente' : `A caminho de ${pedido.destino.nome}`}</Text>
+        <Text style={s.titulo}>{fase === 'a_recolha' ? t('A caminho da recolha') : fase === 'chegou' ? t('Pede o código ao cliente') : t('A caminho de {destino}', { destino: nomeLugar(pedido.destino) })}</Text>
       </View>
 
       {fase === 'chegou' && (
         <>
-          <Text style={[s.secundario, { marginBottom: Spacing.two }]}>O cliente tem um código de 4 números. A viagem só começa com o código certo.</Text>
+          <Text style={[s.secundario, { marginBottom: Spacing.two }]}>{t('O cliente tem um código de 4 números. A viagem só começa com o código certo.')}</Text>
           <TextInput
             value={codigo}
             onChangeText={(t) => tentarCodigo(t.replace(/\D/g, '').slice(0, 4))}
@@ -338,11 +345,11 @@ function ViagemEmCurso({ s }: { s: S }) {
             placeholder="0000"
             placeholderTextColor={cores.textSecondary}
             style={[s.codigo, erro && { borderColor: '#DC2626' }]}
-            accessibilityLabel="Código de recolha"
+            accessibilityLabel={t('Código de recolha')}
           />
-          {erro && <Text style={s.erro}>Código errado. Confirma com o cliente.</Text>}
+          {erro && <Text style={s.erro}>{t('Código errado. Confirma com o cliente.')}</Text>}
           <Espera chegouEm={viagem.chegouEm} s={s} />
-          {!TEMPO_REAL_ATIVO && <Text style={s.secundarioPequeno}>Demonstração: o código do cliente é {pedido.codigoRecolha}.</Text>}
+          {!TEMPO_REAL_ATIVO && <Text style={s.secundarioPequeno}>{t('Demonstração: o código do cliente é {codigo}.', { codigo: pedido.codigoRecolha })}</Text>}
         </>
       )}
 
@@ -352,25 +359,25 @@ function ViagemEmCurso({ s }: { s: S }) {
         paragens={pedido.paragens}
         destino={pedido.destino}
         etapa={fase === 'em_viagem' ? 'destino' : 'recolha'}
-        detalheRecolha={fase === 'a_recolha' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : fase === 'chegou' ? 'Chegaste' : undefined}
+        detalheRecolha={fase === 'a_recolha' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : fase === 'chegou' ? t('Chegaste') : undefined}
         detalheDestino={fase === 'em_viagem' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : formatarKm(pedido.km)}
       />
-      {pedido.clienteNome ? <Text style={s.secundarioPequeno}>Cliente: {pedido.clienteNome}</Text> : null}
+      {pedido.clienteNome ? <Text style={s.secundarioPequeno}>{t('Cliente: {nome}', { nome: pedido.clienteNome })}</Text> : null}
 
       <View style={[s.botoes, { marginTop: Spacing.three }]}>
         {fase !== 'chegou' && (
           <View style={{ flex: 1 }}>
-            <BotaoSecundario texto="Navegar" onPress={navegar} />
+            <BotaoSecundario texto={t('Navegar')} onPress={navegar} />
           </View>
         )}
         <View style={{ flex: 2 }}>
-          {fase === 'a_recolha' && <BotaoPrincipal texto="Cheguei" onPress={m.cheguei} />}
-          {fase === 'em_viagem' && <BotaoPrincipal texto="Terminar viagem" onPress={m.terminar} />}
+          {fase === 'a_recolha' && <BotaoPrincipal texto={t('Cheguei')} onPress={m.cheguei} />}
+          {fase === 'em_viagem' && <BotaoPrincipal texto={t('Terminar viagem')} onPress={m.terminar} />}
         </View>
       </View>
       {fase !== 'em_viagem' && (
         <Pressable onPress={() => m.cancelarViagem()} style={{ alignSelf: 'center', paddingTop: Spacing.three }} hitSlop={8}>
-          <Text style={s.cancelar}>Cancelar viagem</Text>
+          <Text style={s.cancelar}>{t('Cancelar viagem')}</Text>
         </Pressable>
       )}
     </>

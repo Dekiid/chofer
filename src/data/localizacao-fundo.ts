@@ -2,6 +2,8 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 
+import { t } from '@/i18n';
+
 import { publicar } from './tempo-real';
 
 // Localização do motorista em segundo plano, durante uma viagem: o cliente continua a ver o carro
@@ -53,8 +55,8 @@ export async function comecarLocalizacaoFundo(viagemId: string): Promise<boolean
       activityType: Location.ActivityType.AutomotiveNavigation,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: 'Chauffeur · viagem em curso',
-        notificationBody: 'A partilhar a tua localização com o cliente.',
+        notificationTitle: t('Chauffeur · viagem em curso'),
+        notificationBody: t('A partilhar a tua localização com o cliente.'),
         notificationColor: '#22C55E',
       },
     });

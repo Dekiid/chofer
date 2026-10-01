@@ -7,7 +7,7 @@ import { avisarNoTelemovel } from '@/data/avisos-telemovel';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { COMISSAO, nomeViatura, type Viatura } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
-import { LOCALIZACAO_PADRAO, LUGARES } from '@/data/lugares';
+import { LOCALIZACAO_PADRAO, LUGARES, nomeLugar } from '@/data/lugares';
 import { comecarLocalizacaoFundo, pararLocalizacaoFundo } from '@/data/localizacao-fundo';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import { calcularRota, calcularRotaPor, pontoNaRota, rotaEstimadaPor, type Rota } from '@/data/rotas';
@@ -19,6 +19,7 @@ import { calcularPreco, distanciaKm } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { useSessao } from '@/state/sessao';
+import { t } from '@/i18n';
 
 export type FaseMotorista = 'a_recolha' | 'chegou' | 'em_viagem' | 'concluida';
 export type ViagemMotorista = { pedido: PedidoMotorista; fase: FaseMotorista; rota: Rota | null; /** Hora a que chegou à recolha, para a espera. */ chegouEm?: number };
@@ -114,7 +115,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
     setPedidoNovo(p);
     setExpiraEm(Date.now() + TEMPO_PARA_ACEITAR);
     Vibration.vibrate([0, 400, 200, 400]);
-    avisarNoTelemovel('Novo pedido', `${p.origem.nome} → ${p.destino.nome} · recebes ${ganhoMotorista(p)} MT`);
+    avisarNoTelemovel(t('Novo pedido'), t('{origem} → {destino} · recebes {valor} MT', { origem: nomeLugar(p.origem), destino: nomeLugar(p.destino), valor: ganhoMotorista(p) }));
   }, []);
 
   // Reserva nova: fica logo na agenda do motorista (o cliente já pagou e o carro estava livre), com um toque curto e um aviso.
@@ -122,7 +123,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
     setAgendadas((l) => (l.some((x) => x.id === p.id) ? l : [...l, p].sort(porData)));
     tocarPedido(false);
     Vibration.vibrate([0, 300, 150, 300]);
-    avisarNoTelemovel('Nova reserva confirmada', `${p.recolhaEm ? `${formatarDia(new Date(p.recolhaEm), new Date())}, ${formatarHora(new Date(p.recolhaEm))} · ` : ''}${p.origem.nome} → ${p.destino.nome}`);
+    avisarNoTelemovel(t('Nova reserva confirmada'), `${p.recolhaEm ? `${formatarDia(new Date(p.recolhaEm), new Date())}, ${formatarHora(new Date(p.recolhaEm))} · ` : ''}${nomeLugar(p.origem)} → ${nomeLugar(p.destino)}`);
   }, []);
 
   // Pedidos e cancelamentos dos clientes.
@@ -142,7 +143,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
             setViagem(null);
             pararLocalizacaoFundo();
             Vibration.vibrate();
-            avisarNoTelemovel('Viagem cancelada', 'O cliente cancelou a viagem.');
+            avisarNoTelemovel(t('Viagem cancelada'), t('O cliente cancelou a viagem.'));
           }
           setAgendadas((l) => l.filter((p) => p.id !== e.id));
         }

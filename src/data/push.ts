@@ -3,6 +3,8 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { t } from '@/i18n';
+
 import { supabase } from './tempo-real';
 
 // Avisos push (remotos): o motorista recebe os pedidos novos mesmo com a app fechada ou o telemóvel bloqueado.
@@ -43,7 +45,7 @@ export async function registarPushMotorista(viaturaId: string, telefone: string)
     // No Android 13+, o pedido de autorização só aparece depois de existir um canal.
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CANAL_PEDIDOS, {
-        name: 'Pedidos novos',
+        name: t('Pedidos novos'),
         importance: Notifications.AndroidImportance.HIGH,
         sound: 'default',
         vibrationPattern: [0, 250, 250, 250],

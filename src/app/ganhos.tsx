@@ -9,7 +9,9 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { COMISSAO, formatarMzn } from '@/data/categorias';
+import { nomeLugar } from '@/data/lugares';
 import { ganhoMotorista, useModoMotorista } from '@/state/modo-motorista';
+import { t } from '@/i18n';
 
 const DIA = 86_400_000;
 
@@ -20,7 +22,8 @@ function inicioDaSemana(d: Date): Date {
   return x;
 }
 
-const LETRAS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+// Dias da semana; o gráfico mostra só a primeira letra, na língua da app.
+const LETRAS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
 /**
  * Ganhos do motorista, como na Uber: o total da semana, as barras por dia, o que já foi pago e o que falta receber.
@@ -51,28 +54,29 @@ export default function Ganhos() {
   const jaPago = m.feitas.filter((f) => new Date(f.concluidaEm).getTime() < semanaAtual).reduce((t, f) => t + ganhoMotorista(f.pedido), 0);
   const proximaSegunda = new Date(semanaAtual + 7 * DIA);
 
-  const titulo = semanasAtras === 0 ? 'Esta semana' : semanasAtras === 1 ? 'Semana passada' : `${inicio.getDate()}/${inicio.getMonth() + 1} a ${new Date(fim.getTime() - DIA).getDate()}/${new Date(fim.getTime() - DIA).getMonth() + 1}`;
+  const titulo = semanasAtras === 0 ? t('Esta semana') : semanasAtras === 1 ? t('Semana passada') : t('{inicio} a {fim}', { inicio: `${inicio.getDate()}/${inicio.getMonth() + 1}`, fim: `${new Date(fim.getTime() - DIA).getDate()}/${new Date(fim.getTime() - DIA).getMonth() + 1}` });
 
   return (
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Ganhos</Text>
+        <Text style={s.titulo}>{t('Ganhos')}</Text>
       </View>
       <ScrollView contentContainerStyle={s.conteudo}>
         <View style={s.cartao}>
           <View style={s.semana}>
-            <Pressable onPress={() => setSemanasAtras((n) => n + 1)} hitSlop={12} accessibilityLabel="Semana anterior">
+            <Pressable onPress={() => setSemanasAtras((n) => n + 1)} hitSlop={12} accessibilityLabel={t('Semana anterior')}>
               <Text style={s.seta}>‹</Text>
             </Pressable>
             <Text style={s.nomeSemana}>{titulo}</Text>
-            <Pressable onPress={() => setSemanasAtras((n) => Math.max(0, n - 1))} hitSlop={12} disabled={semanasAtras === 0} accessibilityLabel="Semana seguinte">
+            <Pressable onPress={() => setSemanasAtras((n) => Math.max(0, n - 1))} hitSlop={12} disabled={semanasAtras === 0} accessibilityLabel={t('Semana seguinte')}>
               <Text style={[s.seta, semanasAtras === 0 && { opacity: 0.25 }]}>›</Text>
             </Pressable>
           </View>
           <Text style={s.total}>{formatarMzn(liquido)}</Text>
           <Text style={s.secundario}>
-            {daSemana.length} {daSemana.length === 1 ? 'viagem' : 'viagens'} · clientes pagaram {formatarMzn(bruto)} · comissão {Math.round(COMISSAO * 100)}% {formatarMzn(bruto - liquido)}
+            {daSemana.length === 1 ? t('{n} viagem', { n: daSemana.length }) : t('{n} viagens', { n: daSemana.length })} ·{' '}
+            {t('clientes pagaram {bruto} · comissão {pct}% {comissao}', { bruto: formatarMzn(bruto), pct: Math.round(COMISSAO * 100), comissao: formatarMzn(bruto - liquido) })}
           </Text>
           <View style={s.barras}>
             {porDia.map((v, i) => {
@@ -82,7 +86,7 @@ export default function Ganhos() {
                   <View style={s.trilho}>
                     <View style={[s.barra, { height: `${Math.max(v > 0 ? 6 : 0, (v / maximo) * 100)}%`, backgroundColor: eHoje ? cores.go : cores.text }]} />
                   </View>
-                  <Text style={[s.letra, eHoje && { color: cores.text, fontWeight: '800' }]}>{LETRAS[i]}</Text>
+                  <Text style={[s.letra, eHoje && { color: cores.text, fontWeight: '800' }]}>{t(LETRAS[i]).charAt(0)}</Text>
                 </View>
               );
             })}
@@ -90,30 +94,30 @@ export default function Ganhos() {
         </View>
 
         <View style={s.cartao}>
-          <Text style={s.subtitulo}>Pagamentos</Text>
+          <Text style={s.subtitulo}>{t('Pagamentos')}</Text>
           <View style={s.linha}>
-            <Text style={s.texto}>Por receber</Text>
+            <Text style={s.texto}>{t('Por receber')}</Text>
             <Text style={s.valor}>{formatarMzn(porReceber)}</Text>
           </View>
           <Text style={s.secundario}>
-            Recebes na segunda-feira, {proximaSegunda.getDate()}/{proximaSegunda.getMonth() + 1}, por M-Pesa, já sem a comissão.
+            {t('Recebes na segunda-feira, {data}, por M-Pesa, já sem a comissão.', { data: `${proximaSegunda.getDate()}/${proximaSegunda.getMonth() + 1}` })}
           </Text>
           <View style={s.linha}>
-            <Text style={s.texto}>Já pago</Text>
+            <Text style={s.texto}>{t('Já pago')}</Text>
             <Text style={s.valor}>{formatarMzn(jaPago)}</Text>
           </View>
-          <Text style={s.nota}>Em testes: os pagamentos aos motoristas são simulados.</Text>
+          <Text style={s.nota}>{t('Em testes: os pagamentos aos motoristas são simulados.')}</Text>
         </View>
 
-        <Text style={s.subtitulo}>Viagens</Text>
-        {daSemana.length === 0 && <Text style={s.vazio}>Sem viagens nesta semana.</Text>}
+        <Text style={s.subtitulo}>{t('Viagens')}</Text>
+        {daSemana.length === 0 && <Text style={s.vazio}>{t('Sem viagens nesta semana.')}</Text>}
         {daSemana.map(({ pedido, concluidaEm }) => {
           const d = new Date(concluidaEm);
           return (
             <View key={pedido.id} style={s.viagem}>
               <View style={{ flex: 1 }}>
                 <Text style={s.texto} numberOfLines={1}>
-                  {pedido.destino.nome}
+                  {nomeLugar(pedido.destino)}
                 </Text>
                 <Text style={s.secundario}>
                   {formatarDia(d, hoje)}, {formatarHora(d)} · {pedido.km.toFixed(1).replace('.', ',')} km
@@ -121,7 +125,7 @@ export default function Ganhos() {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={s.valor}>{formatarMzn(ganhoMotorista(pedido))}</Text>
-                <Text style={s.secundario}>de {formatarMzn(pedido.precoMzn)}</Text>
+                <Text style={s.secundario}>{t('de {preco}', { preco: formatarMzn(pedido.precoMzn) })}</Text>
               </View>
             </View>
           );
