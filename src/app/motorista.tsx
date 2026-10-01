@@ -26,13 +26,13 @@ import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
 import { useAcompanharChat, useChat } from '@/state/chat';
-import { estadoDocumentos, telefoneCondutor, useInscricoes } from '@/state/inscricoes';
+import { telefoneCondutor, useInscricoes } from '@/state/inscricoes';
 import { ganhoMotorista, HORAS_ATE_DESCANSO, MAX_IR_PARA_CASA_POR_DIA, minutosPausa, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { useConta } from '@/state/conta';
 import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import { PercursoViagem } from '@/components/percurso-viagem';
-import { useSessao } from '@/state/sessao';
+import { MOTORISTA_ABERTO_EM_TESTES, useSessao } from '@/state/sessao';
 import { t } from '@/i18n';
 
 /** App do motorista, como a da Uber: ficar online, receber e aceitar pedidos, ir buscar, confirmar o código, levar e terminar. */
@@ -131,7 +131,9 @@ function EscolherCarro({ s }: { s: S }) {
   // A conta de demonstração usa a frota de exemplo.
   const minhas = inscricoes.filter((i) => telefoneCondutor(i) === perfil?.telefone);
   const aprovados = new Set(minhas.filter((i) => i.estado === 'aprovada').map((i) => i.id));
-  const carros = viaturas.filter((v) => !v.soCasamento && (perfil?.motoristaDemo ? !v.id.startsWith('insc-') : aprovados.has(v.id)));
+  // Enquanto o modo motorista estiver aberto em testes, quem ainda não tem carro aprovado usa a frota de exemplo.
+  const frotaExemplo = perfil?.motoristaDemo || (MOTORISTA_ABERTO_EM_TESTES && aprovados.size === 0);
+  const carros = viaturas.filter((v) => !v.soCasamento && (frotaExemplo ? !v.id.startsWith('insc-') : aprovados.has(v.id)));
   const pendentes = minhas.filter((i) => i.estado === 'pendente').length;
   return (
     <>
@@ -163,13 +165,6 @@ function EscolherCarro({ s }: { s: S }) {
 function Disponivel({ s }: { s: S }) {
   const cores = usePalette();
   const m = useModoMotorista();
-  const { inscricoes } = useInscricoes();
-  // Documentos do carro inscrito (os carros de exemplo da conta demo não têm).
-  const inscricao = inscricoes.find((i) => i.id === m.viatura?.id);
-  const documentos = inscricao ? estadoDocumentos(inscricao.validades) : [];
-  const expirados = documentos.filter((d) => d.estado === 'expirado' || d.estado === 'em_falta');
-  const aExpirar = documentos.filter((d) => d.estado === 'a_expirar');
-  const bloqueado = expirados.length > 0;
   const nota = useAvaliacoes().mediaMotorista(m.eu.telefone);
   function terminarTurno() {
     const resumo = m.terminarTurno();
@@ -210,27 +205,6 @@ function Disponivel({ s }: { s: S }) {
         )}
         <Text style={s.seta}>›</Text>
       </Pressable>
-
-      {inscricao && (
-        <Pressable
-          onPress={() => router.push({ pathname: '/documentos', params: { id: inscricao.id } })}
-          style={[s.caixa, s.linhaReserva, (bloqueado || aExpirar.length > 0) && { borderWidth: 1.5, borderColor: bloqueado ? '#DC2626' : '#F59E0B' }]}
-          accessibilityLabel={t('Documentos')}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.nomePequeno}>{t('Documentos')}</Text>
-            <Text style={s.secundarioPequeno}>
-              {bloqueado
-                ? expirados.some((d) => d.estado === 'em_falta')
-                  ? t('{docs}: falta a validade. Atualiza para ficares online.', { docs: expirados.map((d) => t(d.nome)).join(', ') })
-                  : t('{docs}: expirado. Atualiza para ficares online.', { docs: expirados.map((d) => t(d.nome)).join(', ') })
-                : aExpirar.length > 0
-                  ? aExpirar.map((d) => (d.dias === 1 ? t('{doc} expira em {n} dia', { doc: t(d.nome), n: d.dias }) : t('{doc} expira em {n} dias', { doc: t(d.nome), n: d.dias ?? 0 }))).join(' · ')
-                  : t('Carta, seguro e inspeção em dia.')}
-            </Text>
-          </View>
-          <Text style={s.seta}>›</Text>
-        </Pressable>
-      )}
 
       <Pressable onPress={() => router.push('/avaliacoes-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('As tuas avaliações')}>
         <View style={{ flex: 1 }}>
@@ -281,8 +255,7 @@ function Disponivel({ s }: { s: S }) {
         {!m.online ? (
           <>
             <BotaoPrincipal
-              texto={bloqueado ? t('Atualiza os documentos') : m.turno ? t('Continuar o turno') : t('Ficar online')}
-              desativado={bloqueado}
+              texto={m.turno ? t('Continuar o turno') : t('Ficar online')}
               onPress={() => m.setOnline(true)}
             />
             {m.turno ? <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} /> : <BotaoSecundario texto={t('Mudar de carro')} onPress={() => m.escolherViatura(null)} />}
