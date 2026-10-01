@@ -11,6 +11,8 @@ import { descricaoReserva, eReserva } from '@/data/recibo';
 import { textoDias } from '@/data/reserva';
 import { totalPago, useConta, type ViagemFeita } from '@/state/conta';
 import { Text } from '@/components/texto';
+import { t } from '@/i18n';
+import { nomeLugar } from '@/data/lugares';
 
 const ESTADOS: Record<ViagemFeita['estado'], string> = {
   agendada: 'Agendada',
@@ -34,10 +36,10 @@ export default function Viagens() {
         <Text style={s.data}>
           {formatarDia(v.recolhaEm, agora)}, {formatarHora(v.recolhaEm)}
         </Text>
-        <Text style={[s.estado, v.estado === 'cancelada' && { color: cores.textSecondary }]}>{ESTADOS[v.estado]}</Text>
+        <Text style={[s.estado, v.estado === 'cancelada' && { color: cores.textSecondary }]}>{t(ESTADOS[v.estado])}</Text>
       </View>
       <Text style={s.percurso} numberOfLines={1}>
-        {eReserva(v) ? `${descricaoReserva(v)} · ${textoDias(v.dias ?? 1)} · ${v.origem.nome}` : `${v.origem.nome} → ${v.destino.nome}`}
+        {eReserva(v) ? `${descricaoReserva(v)} · ${textoDias(v.dias ?? 1)} · ${nomeLugar(v.origem)}` : `${nomeLugar(v.origem)} → ${nomeLugar(v.destino)}`}
       </Text>
       <View style={s.linha}>
         <Text style={s.secundario}>
@@ -53,13 +55,13 @@ export default function Viagens() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>As tuas viagens</Text>
+        <Text style={s.titulo}>{t('As tuas viagens')}</Text>
       </View>
       <ScrollView contentContainerStyle={s.conteudo}>
-        {proximas.length > 0 && <Text style={s.secao}>Próximas</Text>}
+        {proximas.length > 0 && <Text style={s.secao}>{t('Próximas')}</Text>}
         {proximas.map(cartao)}
-        <Text style={s.secao}>Anteriores</Text>
-        {passadas.length === 0 && <Text style={s.secundario}>Ainda não fizeste nenhuma viagem.</Text>}
+        <Text style={s.secao}>{t('Anteriores')}</Text>
+        {passadas.length === 0 && <Text style={s.secundario}>{t('Ainda não fizeste nenhuma viagem.')}</Text>}
         {passadas.map(cartao)}
       </ScrollView>
     </SafeAreaView>

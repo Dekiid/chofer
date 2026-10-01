@@ -23,6 +23,8 @@ import { useAgenda, type ResultadoReserva } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
+import { idiomaAtual, t } from '@/i18n';
+import { nomeLugar } from '@/data/lugares';
 
 type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada' | 'falhou' | 'pago_no_fim';
 
@@ -30,6 +32,12 @@ const ponto = (p: Ponto): Ponto => ({ latitude: p.latitude, longitude: p.longitu
 
 // Tempo simulado até a operadora confirmar; o pagamento real virá do servidor.
 const TEMPO_CONFIRMACAO = 2500;
+
+/** O dia para o meio de uma frase: «hoje», «amanhã». Em inglês, só «today» e «tomorrow» ficam em minúsculas. */
+function diaNaFrase(d: Date): string {
+  const dia = formatarDia(d, new Date());
+  return idiomaAtual() === 'en' && !/^(Today|Tomorrow)$/.test(dia) ? dia : dia.toLowerCase();
+}
 
 export default function Pagamento() {
   const cores = usePalette();
@@ -50,8 +58,8 @@ export default function Pagamento() {
   // Aluguer e casamento pagam-se à diária; o resto do pagamento é igual ao das viagens.
   const casamento = reserva?.modo === 'casamento';
   // «na tua localização» ou «em Polana», para as frases lerem bem.
-  const noLocal = pedido.origem.id === 'atual' ? 'na tua localização' : `em ${pedido.origem.nome}`;
-  const nomeReserva = casamento ? `casamento${reserva?.decoracao === 'com' ? ' com decoração' : ''}` : 'aluguer';
+  const noLocal = pedido.origem.id === 'atual' ? t('na tua localização') : t('em {lugar}', { lugar: pedido.origem.nome });
+  const nomeReserva = casamento ? (reserva?.decoracao === 'com' ? t('casamento com decoração') : t('casamento')) : t('aluguer');
   // O mesmo km do resumo, para o valor pago ser o que o cliente viu.
   const km = pedido.rota?.km ?? 0;
   const duracao = pedido.rota?.minutos ?? 0;
@@ -68,9 +76,9 @@ export default function Pagamento() {
 
   function aplicarCodigo() {
     const promo = procurarPromo(codigoTexto);
-    if (!promo) return setErroCodigo('Este código não existe.');
-    if (promo.codigo === conta.codigoConvite) return setErroCodigo('Não podes usar o teu próprio código de convite.');
-    if (promo.codigo.startsWith('AMIGO-') && !primeiraViagem) return setErroCodigo('Os códigos de convite só valem na primeira viagem.');
+    if (!promo) return setErroCodigo(t('Este código não existe.'));
+    if (promo.codigo === conta.codigoConvite) return setErroCodigo(t('Não podes usar o teu próprio código de convite.'));
+    if (promo.codigo.startsWith('AMIGO-') && !primeiraViagem) return setErroCodigo(t('Os códigos de convite só valem na primeira viagem.'));
     conta.setPromo(promo);
     setErroCodigo('');
     setCodigoAberto(false);
@@ -81,12 +89,12 @@ export default function Pagamento() {
   // Só depois vem a cobrança, que no protótipo é simulada.
   async function processar() {
     setEstado('a_processar');
-    const nomeMetodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '';
+    const nomeMetodo = t(PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '');
     if (noFim) {
       if (!(await continuar({ ok: true }))) return;
       conta.atualizarViagem(noFim.id, { porPagar: false, descontoMzn: desconto, promo: conta.promo?.codigo, pagamento: pedido.pagamento });
       conta.setPromo(null);
-      conta.avisar('Pagamento confirmado', `${formatarMzn(aPagar)} por ${nomeMetodo}. Obrigado por viajares com a Chauffeur.`);
+      conta.avisar(t('Pagamento confirmado'), t('{valor} por {pagamento}. Obrigado por viajares com a Chauffeur.', { valor: formatarMzn(aPagar), pagamento: nomeMetodo }));
       setEstado('pago_no_fim');
       return;
     }
@@ -130,8 +138,14 @@ export default function Pagamento() {
         estado: 'agendada',
       });
       conta.setPromo(null);
-      conta.avisar('Reserva confirmada', `${nomeViatura(viatura)}, ${nomeReserva}, ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`);
-      agenda.notificar(casamento ? 'Reserva de casamento' : 'Novo aluguer', `${nomeViatura(viatura)} · ${textoDias(reserva.dias)} a partir de ${formatarDia(inicio, new Date())}, ${formatarHora(inicio)} · ${pedido.origem.nome} · pago ${formatarMzn(aPagar)}.`);
+      conta.avisar(
+        t('Reserva confirmada'),
+        t('{viatura}, {reserva}, {dias} a partir de {dia} às {hora}.', { viatura: nomeViatura(viatura), reserva: nomeReserva, dias: textoDias(reserva.dias), dia: diaNaFrase(inicio), hora: formatarHora(inicio) }),
+      );
+      agenda.notificar(
+        casamento ? t('Reserva de casamento') : t('Novo aluguer'),
+        t('{viatura} · {dias} a partir de {dia}, {hora} · {lugar} · pago {valor}.', { viatura: nomeViatura(viatura), dias: textoDias(reserva.dias), dia: formatarDia(inicio, new Date()), hora: formatarHora(inicio), lugar: nomeLugar(pedido.origem), valor: formatarMzn(aPagar) }),
+      );
       setEstado('agendada');
       return;
     }
@@ -197,13 +211,13 @@ export default function Pagamento() {
     }
     conta.setPromo(null);
     conta.avisar(
-      'Pagamento confirmado',
+      t('Pagamento confirmado'),
       agendada
-        ? `Viagem para ${destino.nome} marcada para ${formatarDia(inicio, new Date()).toLowerCase()} às ${formatarHora(inicio)}.`
-        : `${formatarMzn(aPagar)} por ${nomePagamento}. A chamar o teu ${nomeViatura(viatura)}.`,
+        ? t('Viagem para {destino} marcada para {dia} às {hora}.', { destino: destino.nome, dia: diaNaFrase(inicio), hora: formatarHora(inicio) })
+        : t('{valor} por {pagamento}. A chamar o teu {viatura}.', { valor: formatarMzn(aPagar), pagamento: t(nomePagamento), viatura: nomeViatura(viatura) }),
     );
     if (!agendada) {
-      agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, pago ${formatarMzn(aPagar)} com taxa de pedido imediato.`);
+      agenda.notificar(t('Pedido imediato'), t('{viatura} para {destino}, pago {valor} com taxa de pedido imediato.', { viatura: nomeViatura(viatura), destino: destino.nome, valor: formatarMzn(aPagar) }));
     }
     setEstado(agendada ? 'agendada' : 'pago');
   }
@@ -214,8 +228,8 @@ export default function Pagamento() {
     if (!resultado.ok) {
       setFalha(
         resultado.motivo === 'ocupado'
-          ? 'Outro cliente acabou de reservar este carro para uma hora que choca com a tua. Escolhe outra hora. Não foi cobrado nada.'
-          : `Não foi possível guardar a reserva (${resultado.detalhe ?? 'sem ligação'}). Não foi cobrado nada.`,
+          ? t('Outro cliente acabou de reservar este carro para uma hora que choca com a tua. Escolhe outra hora. Não foi cobrado nada.')
+          : t('Não foi possível guardar a reserva ({detalhe}). Não foi cobrado nada.', { detalhe: resultado.detalhe ?? t('sem ligação') }),
       );
       setEstado('falhou');
       return false;
@@ -242,12 +256,20 @@ export default function Pagamento() {
     return (
       <SafeAreaView style={[s.ecra, s.centro]}>
         <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
-        <Text style={s.titulo}>Reserva confirmada</Text>
+        <Text style={s.titulo}>{t('Reserva confirmada')}</Text>
         <Text style={s.secundarioCentro}>
           {casamento
-            ? `O ${nomeViatura(viatura)} ${reserva.decoracao === 'com' ? 'decorado ' : ''}e o motorista vão buscar os noivos ${noLocal} ${formatarDia(reserva.inicio, new Date()).toLowerCase()} às ${formatarHora(reserva.inicio)}, por ${textoDias(reserva.dias)}.`
-            : `Entregamos o ${nomeViatura(viatura)} ${noLocal} ${formatarDia(reserva.inicio, new Date()).toLowerCase()} às ${formatarHora(reserva.inicio)}. Devolução ${formatarDia(fimReserva(reserva.inicio, reserva.dias), new Date()).toLowerCase()} à mesma hora.`}{' '}
-          Os dias ficam reservados na agenda do carro.
+            ? reserva.decoracao === 'com'
+              ? t('O {viatura} decorado e o motorista vão buscar os noivos {local} {dia} às {hora}, por {dias}.', { viatura: nomeViatura(viatura), local: noLocal, dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), dias: textoDias(reserva.dias) })
+              : t('O {viatura} e o motorista vão buscar os noivos {local} {dia} às {hora}, por {dias}.', { viatura: nomeViatura(viatura), local: noLocal, dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), dias: textoDias(reserva.dias) })
+            : t('Entregamos o {viatura} {local} {dia} às {hora}. Devolução {devolucao} à mesma hora.', {
+                viatura: nomeViatura(viatura),
+                local: noLocal,
+                dia: diaNaFrase(reserva.inicio),
+                hora: formatarHora(reserva.inicio),
+                devolucao: diaNaFrase(fimReserva(reserva.inicio, reserva.dias)),
+              })}{' '}
+          {t('Os dias ficam reservados na agenda do carro.')}
         </Text>
         <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
           <BotaoPrincipal
@@ -266,9 +288,14 @@ export default function Pagamento() {
     return (
       <SafeAreaView style={[s.ecra, s.centro]}>
         <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
-        <Text style={s.titulo}>Viagem agendada</Text>
+        <Text style={s.titulo}>{t('Viagem agendada')}</Text>
         <Text style={s.secundarioCentro}>
-          O {nomeViatura(viatura)} vai buscar-te {formatarDia(quando.inicio, new Date()).toLowerCase()} às {formatarHora(quando.inicio)} e leva-te até {destino?.nome}. O horário fica reservado na agenda do carro.
+          {t('O {viatura} vai buscar-te {dia} às {hora} e leva-te até {destino}. O horário fica reservado na agenda do carro.', {
+            viatura: nomeViatura(viatura),
+            dia: diaNaFrase(quando.inicio),
+            hora: formatarHora(quando.inicio),
+            destino: destino?.nome ?? '',
+          })}
         </Text>
         <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
           <BotaoPrincipal
@@ -286,11 +313,11 @@ export default function Pagamento() {
   if (estado === 'falhou') {
     return (
       <SafeAreaView style={[s.ecra, s.centro]}>
-        <Text style={s.titulo}>Esse horário já não está livre</Text>
+        <Text style={s.titulo}>{t('Esse horário já não está livre')}</Text>
         <Text style={s.secundarioCentro}>{falha}</Text>
         <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
           <BotaoPrincipal
-            texto="Escolher outra hora"
+            texto={t('Escolher outra hora')}
             onPress={() => {
               if (reserva) pedido.setReserva({ ...reserva, inicio: null });
               else pedido.setQuando(null);
@@ -306,8 +333,8 @@ export default function Pagamento() {
     return (
       <SafeAreaView style={[s.ecra, s.centro]}>
         <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
-        <Text style={s.titulo}>Viagem paga</Text>
-        <Text style={s.secundarioCentro}>Obrigado por viajares com a Chauffeur. O recibo fica nas tuas viagens.</Text>
+        <Text style={s.titulo}>{t('Viagem paga')}</Text>
+        <Text style={s.secundarioCentro}>{t('Obrigado por viajares com a Chauffeur. O recibo fica nas tuas viagens.')}</Text>
         <View style={{ alignSelf: 'stretch', marginTop: Spacing.three, gap: Spacing.two }}>
           <BotaoPrincipal
             texto="Voltar ao início"
@@ -317,7 +344,7 @@ export default function Pagamento() {
             }}
           />
           <Text style={s.temCodigo} onPress={() => router.push({ pathname: '/recibo', params: { id: noFim.id } })}>
-            Ver recibo
+            {t('Ver recibo')}
           </Text>
         </View>
       </SafeAreaView>
@@ -338,18 +365,18 @@ export default function Pagamento() {
         {estado === 'a_processar' ? (
           <>
             <ActivityIndicator size="large" color={cores.text} />
-            <Text style={s.titulo}>{naFatura ? 'A juntar à fatura' : 'Confirma no teu telemóvel'}</Text>
+            <Text style={s.titulo}>{naFatura ? t('A juntar à fatura') : t('Confirma no teu telemóvel')}</Text>
             <Text style={s.secundarioCentro}>
               {naFatura
-                ? `${formatarMzn(aPagar)} vão para a fatura de ${conta.empresa?.nome} deste mês.`
-                : `Enviámos um pedido de ${formatarMzn(aPagar)} por ${metodo.nome} para o número ${digitos}. Introduz o teu PIN para autorizar.`}
+                ? t('{valor} vão para a fatura de {empresa} deste mês.', { valor: formatarMzn(aPagar), empresa: conta.empresa?.nome ?? '' })
+                : t('Enviámos um pedido de {valor} por {pagamento} para o número {numero}. Introduz o teu PIN para autorizar.', { valor: formatarMzn(aPagar), pagamento: t(metodo.nome), numero: digitos })}
             </Text>
           </>
         ) : (
           <>
             <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
-            <Text style={s.titulo}>Pagamento confirmado</Text>
-            <Text style={s.secundarioCentro}>A chamar o teu {nomeViatura(viatura)}.</Text>
+            <Text style={s.titulo}>{t('Pagamento confirmado')}</Text>
+            <Text style={s.secundarioCentro}>{t('A chamar o teu {viatura}.', { viatura: nomeViatura(viatura) })}</Text>
           </>
         )}
       </SafeAreaView>
@@ -361,32 +388,38 @@ export default function Pagamento() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.cabecalho}>
           <BotaoVoltar onPress={() => router.back()} />
-          <Text style={s.tituloCabecalho}>Pagamento</Text>
+          <Text style={s.tituloCabecalho}>{t('Pagamento')}</Text>
         </View>
 
         {/* Tocar fora do campo esconde o teclado (o teclado numérico do iPhone não tem tecla para fechar). */}
         <FecharTeclado style={s.corpo}>
-          <Text style={s.secundario}>Total a pagar</Text>
+          <Text style={s.secundario}>{t('Total a pagar')}</Text>
           <Text style={s.total}>{formatarMzn(aPagar)}</Text>
           {desconto > 0 && (
             <Text style={s.desconto}>
-              <Text style={s.riscado}>{formatarMzn(preco)}</Text> · {formatarMzn(desconto)} de desconto ({conta.promo?.codigo}){'  '}
+              <Text style={s.riscado}>{formatarMzn(preco)}</Text> · {t('{valor} de desconto ({codigo})', { valor: formatarMzn(desconto), codigo: conta.promo?.codigo ?? '' })}{'  '}
               <Text style={s.tirarCodigo} onPress={() => conta.setPromo(null)}>
-                Tirar
+                {t('Tirar')}
               </Text>
             </Text>
           )}
           <Text style={s.secundario}>
-            {noFim ? `${noFim.viatura} até ${noFim.destino.nome}` : reserva ? `${nomeViatura(viatura)} · ${nomeReserva}` : `${nomeViatura(viatura)} até ${destino?.nome}`}
+            {noFim
+              ? t('{viatura} até {destino}', { viatura: noFim.viatura, destino: noFim.destino.nome })
+              : reserva
+              ? `${nomeViatura(viatura)} · ${nomeReserva}`
+              : t('{viatura} até {destino}', { viatura: nomeViatura(viatura), destino: destino?.nome ?? '' })}
           </Text>
           <Text style={s.secundario}>
             {noFim
-              ? `Viagem concluída${noFim.gorjetaMzn > 0 ? `, com ${formatarMzn(noFim.gorjetaMzn)} de gorjeta para o motorista` : ''}`
+              ? noFim.gorjetaMzn > 0
+                ? t('Viagem concluída, com {valor} de gorjeta para o motorista', { valor: formatarMzn(noFim.gorjetaMzn) })
+                : t('Viagem concluída')
               : reserva?.inicio
-              ? `${textoDias(reserva.dias)} a partir de ${formatarDia(reserva.inicio, new Date()).toLowerCase()} às ${formatarHora(reserva.inicio)}`
+              ? t('{dias} a partir de {dia} às {hora}', { dias: textoDias(reserva.dias), dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio) })
               : quando?.tipo === 'agendado'
-              ? `Recolha ${formatarDia(quando.inicio, new Date()).toLowerCase()} às ${formatarHora(quando.inicio)}`
-              : 'Pedido imediato, com taxa extra'}
+              ? t('Recolha {dia} às {hora}', { dia: diaNaFrase(quando.inicio), hora: formatarHora(quando.inicio) })
+              : t('Pedido imediato, com taxa extra')}
           </Text>
 
           {!conta.promo &&
@@ -401,29 +434,29 @@ export default function Pagamento() {
                   autoCapitalize="characters"
                   autoCorrect={false}
                   autoFocus
-                  placeholder="Código promocional ou de convite"
+                  placeholder={t('Código promocional ou de convite')}
                   placeholderTextColor={cores.textSecondary}
                   onSubmitEditing={aplicarCodigo}
                   style={[s.input, { flex: 1, fontSize: 15 }]}
                 />
                 <Pressable onPress={aplicarCodigo} style={s.aplicar}>
-                  <Text style={s.aplicarTexto}>Aplicar</Text>
+                  <Text style={s.aplicarTexto}>{t('Aplicar')}</Text>
                 </Pressable>
               </View>
             ) : (
               <Pressable onPress={() => setCodigoAberto(true)} hitSlop={6} style={{ alignSelf: 'flex-start', marginTop: Spacing.three }}>
-                <Text style={s.temCodigo}>Tens um código promocional?</Text>
+                <Text style={s.temCodigo}>{t('Tens um código promocional?')}</Text>
               </Pressable>
             ))}
           {erroCodigo ? <Text style={s.erro}>{erroCodigo}</Text> : null}
 
-          <Text style={s.rotulo}>Método de pagamento</Text>
+          <Text style={s.rotulo}>{t('Método de pagamento')}</Text>
           <View style={s.metodos}>
             {PAGAMENTOS.filter((p) => p.id !== 'empresa' || conta.empresa).map((p) => {
               const ativo = p.id === pedido.pagamento;
               return (
                 <Pressable key={p.id} onPress={() => pedido.setPagamento(p.id)} style={[s.metodo, ativo && s.metodoAtivo]}>
-                  <Text style={[s.metodoTexto, ativo && s.metodoTextoAtivo]}>{p.nome}</Text>
+                  <Text style={[s.metodoTexto, ativo && s.metodoTextoAtivo]}>{t(p.nome)}</Text>
               </Pressable>
             );
           })}
@@ -431,11 +464,11 @@ export default function Pagamento() {
 
         {naFatura ? (
           <Text style={[s.secundario, { marginTop: Spacing.three }]}>
-            Vai para a fatura mensal de {conta.empresa?.nome} (NUIT {conta.empresa?.nuit}).
+            {t('Vai para a fatura mensal de {empresa} (NUIT {nuit}).', { empresa: conta.empresa?.nome ?? '', nuit: conta.empresa?.nuit ?? '' })}
           </Text>
         ) : (
         <>
-        <Text style={s.rotulo}>Número {metodo.nome}</Text>
+        <Text style={s.rotulo}>{t('Número {pagamento}', { pagamento: t(metodo.nome) })}</Text>
         <TextInput
           value={telefone}
           onChangeText={(t) => {
@@ -444,7 +477,7 @@ export default function Pagamento() {
             if (/^8[4-7]\d{7}$/.test(t.replace(/\D/g, ''))) Keyboard.dismiss();
           }}
           keyboardType="phone-pad"
-          placeholder={`Começa por ${metodo.prefixos}`}
+          placeholder={t('Começa por {prefixos}', { prefixos: metodo.prefixos.replace(' ou ', ` ${t('ou')} `) })}
           placeholderTextColor={cores.textSecondary}
           maxLength={12}
           returnKeyType="done"
@@ -458,7 +491,7 @@ export default function Pagamento() {
         <View style={s.rodape}>
           <NotaPagamento />
           <BotaoPrincipal
-            texto={naFatura ? `Pôr na fatura · ${formatarMzn(aPagar)}` : `Pagar ${formatarMzn(aPagar)}`}
+            texto={naFatura ? t('Pôr na fatura · {valor}', { valor: formatarMzn(aPagar) }) : t('Pagar {valor}', { valor: formatarMzn(aPagar) })}
             onPress={() => {
               Keyboard.dismiss();
               processar();

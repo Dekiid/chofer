@@ -1,3 +1,5 @@
+import { t } from '@/i18n';
+
 /** Códigos promocionais. No protótipo ficam aqui; no produto final vêm do Supabase e a gestão cria-os. */
 export type Promo = {
   codigo: string;
@@ -9,12 +11,33 @@ export type Promo = {
 };
 
 export const PROMOS: Promo[] = [
-  { codigo: 'BEMVINDO', descricao: '20% na primeira viagem, até 500 MT', percentagem: 0.2, maximoMzn: 500 },
-  { codigo: 'CHAUFFEUR10', descricao: '10% em qualquer viagem, até 300 MT', percentagem: 0.1, maximoMzn: 300 },
+  // A descrição traduz-se quando é lida (getter), não quando o módulo carrega.
+  {
+    codigo: 'BEMVINDO',
+    get descricao() {
+      return t('20% na primeira viagem, até 500 MT');
+    },
+    percentagem: 0.2,
+    maximoMzn: 500,
+  },
+  {
+    codigo: 'CHAUFFEUR10',
+    get descricao() {
+      return t('10% em qualquer viagem, até 300 MT');
+    },
+    percentagem: 0.1,
+    maximoMzn: 300,
+  },
 ];
 
 /** Quem entra com o código de convite de um amigo tem este desconto na primeira viagem. */
-export const DESCONTO_CONVIDADO: Promo = { codigo: '', descricao: '200 MT na primeira viagem, oferta de um amigo', valorMzn: 200 };
+export const DESCONTO_CONVIDADO: Promo = {
+  codigo: '',
+  get descricao() {
+    return t('200 MT na primeira viagem, oferta de um amigo');
+  },
+  valorMzn: 200,
+};
 /** O que quem convidou ganha em crédito quando o amigo faz a primeira viagem. */
 export const CREDITO_CONVITE_MZN = 200;
 

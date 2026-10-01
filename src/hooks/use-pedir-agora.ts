@@ -9,6 +9,7 @@ import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useAgenda } from '@/state/agenda';
 import { useConta } from '@/state/conta';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
+import { t } from '@/i18n';
 
 const ponto = (p: Ponto): Ponto => ({ latitude: p.latitude, longitude: p.longitude });
 
@@ -24,7 +25,7 @@ export function usePedirAgora(): () => Promise<string | null> {
 
   return async () => {
     const { destino, viatura, rota } = pedido;
-    if (!destino || !rota) return 'Falta o destino.';
+    if (!destino || !rota) return t('Falta o destino.');
     const id = `v-${Date.now()}`;
     const inicio = new Date();
     const resultado = await agenda.reservar({
@@ -37,7 +38,7 @@ export function usePedirAgora(): () => Promise<string | null> {
       pontoInicio: ponto(pedido.origem),
       pontoFim: ponto(destino),
     });
-    if (!resultado.ok) return resultado.motivo === 'ocupado' ? 'Este carro acabou de ficar ocupado. Escolhe outro ou agenda para mais tarde.' : `Não foi possível fazer o pedido (${resultado.detalhe}).`;
+    if (!resultado.ok) return resultado.motivo === 'ocupado' ? t('Este carro acabou de ficar ocupado. Escolhe outro ou agenda para mais tarde.') : t('Não foi possível fazer o pedido ({detalhe}).', { detalhe: resultado.detalhe ?? '' });
     const preco = calcularPreco(viatura, rota.km, true);
     conta.registarViagem({
       id,
@@ -58,8 +59,11 @@ export function usePedirAgora(): () => Promise<string | null> {
       estado: 'em_curso',
       porPagar: true,
     });
-    const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
-    agenda.notificar('Pedido imediato', `${nomeViatura(viatura)} para ${destino.nome}, ${formatarMzn(preco)} a pagar no fim por ${metodo}, com taxa de pedido imediato.`);
+    const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '';
+    agenda.notificar(
+      t('Pedido imediato'),
+      t('{viatura} para {destino}, {valor} a pagar no fim por {pagamento}, com taxa de pedido imediato.', { viatura: nomeViatura(viatura), destino: destino.nome, valor: formatarMzn(preco), pagamento: t(metodo) }),
+    );
     router.push('/viagem');
     return null;
   };

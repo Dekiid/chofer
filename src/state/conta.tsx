@@ -8,6 +8,7 @@ import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import type { Promo } from '@/data/promocoes';
 import type { Pagamento } from '@/state/pedido';
 import { useSessao } from '@/state/sessao';
+import { t } from '@/i18n';
 
 export type TipoLocal = 'casa' | 'trabalho' | 'aeroporto';
 export const LOCAIS: { tipo: TipoLocal; nome: string }[] = [
@@ -104,12 +105,14 @@ type Conta = {
 const ContaContext = createContext<Conta | null>(null);
 
 // Respostas simuladas do motorista, até haver chat pelo servidor.
+// Procura palavras em português e em inglês, porque as respostas rápidas do chat vão na língua da app.
 function respostaDoMotorista(texto: string): string {
-  const t = texto.toLowerCase();
-  if (t.includes('onde') || t.includes('demora')) return 'Estou a poucos minutos. Já te vejo no mapa.';
-  if (t.includes('porta') || t.includes('sair') || t.includes('desço')) return 'Perfeito, espero por ti à porta.';
-  if (t.includes('bagagem') || t.includes('mala')) return 'Sem problema, ajudo-te com a bagagem.';
-  return 'Recebido, obrigado!';
+  const m = texto.toLowerCase();
+  const tem = (...palavras: string[]) => palavras.some((p) => m.includes(p));
+  if (tem('onde', 'demora', 'where', 'how long')) return t('Estou a poucos minutos. Já te vejo no mapa.');
+  if (tem('porta', 'sair', 'desço', 'door', 'outside', 'heading out', 'coming down')) return t('Perfeito, espero por ti à porta.');
+  if (tem('bagagem', 'mala', 'luggage', 'bag')) return t('Sem problema, ajudo-te com a bagagem.');
+  return t('Recebido, obrigado!');
 }
 
 // Duas viagens antigas, para o histórico não aparecer vazio no protótipo.
@@ -179,11 +182,11 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       if (!v) return;
       if (e.tipo === 'aceite' && e.agendada) {
         setViagens((l) => l.map((x) => (x.id === v.id ? { ...x, motorista: e.motorista } : x)));
-        avisar('Motorista confirmado', `${e.motorista.nome} aceitou a tua viagem para ${v.destino.nome}.`);
+        avisar(t('Motorista confirmado'), t('{nome} aceitou a tua viagem para {destino}.', { nome: e.motorista.nome, destino: v.destino.nome }));
       }
-      if (e.tipo === 'recusado') avisar('Motorista indisponível', `O motorista não pode fazer a viagem para ${v.destino.nome}. Vamos contactar-te.`);
-      if (e.tipo === 'estado' && e.estado === 'a_caminho') avisar(`${v.motorista.nome.split(' ')[0]} vai a caminho`, `Código de recolha: ${v.codigoRecolha}.`);
-      if (e.tipo === 'estado' && e.estado === 'chegou') avisar('O teu chauffeur chegou', `Diz-lhe o código ${v.codigoRecolha}.`);
+      if (e.tipo === 'recusado') avisar(t('Motorista indisponível'), t('O motorista não pode fazer a viagem para {destino}. Vamos contactar-te.', { destino: v.destino.nome }));
+      if (e.tipo === 'estado' && e.estado === 'a_caminho') avisar(t('{nome} vai a caminho', { nome: v.motorista.nome.split(' ')[0] }), t('Código de recolha: {codigo}.', { codigo: v.codigoRecolha }));
+      if (e.tipo === 'estado' && e.estado === 'chegou') avisar(t('O teu chauffeur chegou'), t('Diz-lhe o código {codigo}.', { codigo: v.codigoRecolha }));
       if (e.tipo === 'estado' && e.estado === 'concluida') setViagens((l) => l.map((x) => (x.id === v.id ? { ...x, estado: 'concluida' } : x)));
     });
   }, [avisar, setViagens]);

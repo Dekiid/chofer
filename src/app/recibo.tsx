@@ -15,6 +15,8 @@ import { publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { useAgenda } from '@/state/agenda';
 import { totalPago, useConta, type ViagemFeita } from '@/state/conta';
 import { Text } from '@/components/texto';
+import { t } from '@/i18n';
+import { nomeLugar } from '@/data/lugares';
 
 export default function Recibo() {
   const cores = usePalette();
@@ -39,13 +41,13 @@ export default function Recibo() {
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>Recibo</Text>
+        <Text style={s.titulo}>{t('Recibo')}</Text>
       </View>
       <ScrollView contentContainerStyle={s.conteudo}>
         <Text style={s.secundario}>{numeroRecibo(v)}</Text>
         <Text style={s.total}>{formatarMzn(totalPago(v))}</Text>
         <Text style={s.secundario}>
-          {formatarDia(v.recolhaEm, new Date())}, {formatarHora(v.recolhaEm)} · pago por {nomePagamento(v)}
+          {formatarDia(v.recolhaEm, new Date())}, {formatarHora(v.recolhaEm)} · {t('pago por {pagamento}', { pagamento: nomePagamento(v) })}
         </Text>
 
         <View style={s.caixa}>
@@ -53,7 +55,7 @@ export default function Recibo() {
             <View key={`${l.id}-${i}`} style={s.paragem}>
               <View style={i === 0 ? s.pontoRecolha : i === percurso.length - 1 ? s.ponto : s.pontoParagem} />
               <Text style={s.lugar} numberOfLines={1}>
-                {l.nome}
+                {nomeLugar(l)}
               </Text>
             </View>
           ))}
@@ -76,35 +78,35 @@ export default function Recibo() {
           {v.estado === 'cancelada' && (v.taxaCancelamentoMzn ?? 0) + (v.reembolsoMzn ?? 0) > 0 && (
             <>
               <View style={s.linha}>
-                <Text style={s.secundario}>{v.motivoCancelamento === 'falta' ? 'Falta de comparência' : 'Taxa de cancelamento'}</Text>
+                <Text style={s.secundario}>{v.motivoCancelamento === 'falta' ? t('Falta de comparência') : t('Taxa de cancelamento')}</Text>
                 <Text style={s.valor}>{formatarMzn(v.taxaCancelamentoMzn ?? 0)}</Text>
               </View>
               {(v.reembolsoMzn ?? 0) > 0 && (
                 <View style={s.linha}>
-                  <Text style={s.secundario}>Devolvido</Text>
+                  <Text style={s.secundario}>{t('Devolvido')}</Text>
                   <Text style={s.valor}>{formatarMzn(v.reembolsoMzn ?? 0)}</Text>
                 </View>
               )}
             </>
           )}
           <View style={[s.linha, s.linhaTotal]}>
-            <Text style={s.totalLinha}>{v.estado === 'cancelada' ? 'Cancelada · pago' : 'Total pago'}</Text>
+            <Text style={s.totalLinha}>{v.estado === 'cancelada' ? t('Cancelada · pago') : t('Total pago')}</Text>
             <Text style={s.totalLinha}>{formatarMzn(totalPago(v))}</Text>
           </View>
         </View>
         {v.estado === 'agendada' && <CancelarReserva v={v} />}
         <Text style={[s.secundario, { textDecorationLine: 'underline', marginTop: Spacing.two }]} onPress={() => router.push({ pathname: '/ajuda', params: { viagem: v.id } })}>
-          Ajuda com esta viagem
+          {t('Ajuda com esta viagem')}
         </Text>
         {v.avaliacao && (
           <Text style={s.secundario}>
-            A tua avaliação: {'★'.repeat(v.avaliacao.estrelas)}
-            {v.avaliacao.elogios.length ? ` · ${v.avaliacao.elogios.join(', ')}` : ''}
+            {t('A tua avaliação:')} {'★'.repeat(v.avaliacao.estrelas)}
+            {v.avaliacao.elogios.length ? ` · ${v.avaliacao.elogios.map((e) => t(e)).join(', ')}` : ''}
           </Text>
         )}
       </ScrollView>
       <View style={s.rodape}>
-        <BotaoPrincipal texto={aGerar ? 'A preparar o PDF…' : 'Guardar ou partilhar PDF'} onPress={pdf} desativado={aGerar || v.estado === 'cancelada'} />
+        <BotaoPrincipal texto={aGerar ? t('A preparar o PDF…') : t('Guardar ou partilhar PDF')} onPress={pdf} desativado={aGerar || v.estado === 'cancelada'} />
       </View>
     </SafeAreaView>
   );
@@ -123,21 +125,21 @@ function CancelarReserva({ v }: { v: ViagemFeita }) {
     conta.atualizarViagem(v.id, { estado: 'cancelada', taxaCancelamentoMzn: c.taxaMzn, reembolsoMzn: c.reembolsoMzn, motivoCancelamento: 'cliente' });
     agenda.libertar(v.id);
     if (TEMPO_REAL_ATIVO) publicar({ tipo: 'cancelado', id: v.id, por: 'cliente' });
-    conta.avisar('Reserva cancelada', c.reembolsoMzn > 0 ? `Devolvemos ${formatarMzn(c.reembolsoMzn)} por ${nomePagamento(v)}.` : 'A reserva foi cancelada.');
+    conta.avisar(t('Reserva cancelada'), c.reembolsoMzn > 0 ? t('Devolvemos {valor} por {pagamento}.', { valor: formatarMzn(c.reembolsoMzn), pagamento: nomePagamento(v) }) : t('A reserva foi cancelada.'));
   }
 
   return (
     <View style={[s.caixa, { gap: Spacing.two }]}>
-      <Text style={s.valor}>Cancelar a reserva</Text>
+      <Text style={s.valor}>{t('Cancelar a reserva')}</Text>
       <Text style={s.secundario}>{c.texto}</Text>
-      {c.taxaMzn > 0 && <Text style={s.secundario}>Ficam {formatarMzn(c.taxaMzn)} como taxa de cancelamento.</Text>}
+      {c.taxaMzn > 0 && <Text style={s.secundario}>{t('Ficam {valor} como taxa de cancelamento.', { valor: formatarMzn(c.taxaMzn) })}</Text>}
       {confirmar ? (
         <>
-          <BotaoPrincipal escuro texto={c.reembolsoMzn > 0 ? `Cancelar e receber ${formatarMzn(c.reembolsoMzn)}` : 'Cancelar a reserva'} onPress={cancelar} />
-          <BotaoSecundario texto="Manter a reserva" onPress={() => setConfirmar(false)} />
+          <BotaoPrincipal escuro texto={c.reembolsoMzn > 0 ? t('Cancelar e receber {valor}', { valor: formatarMzn(c.reembolsoMzn) }) : t('Cancelar a reserva')} onPress={cancelar} />
+          <BotaoSecundario texto={t('Manter a reserva')} onPress={() => setConfirmar(false)} />
         </>
       ) : (
-        <BotaoSecundario texto="Cancelar a reserva" onPress={() => setConfirmar(true)} />
+        <BotaoSecundario texto={t('Cancelar a reserva')} onPress={() => setConfirmar(true)} />
       )}
     </View>
   );

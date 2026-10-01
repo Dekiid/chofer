@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { AppState, Platform } from 'react-native';
 
+import { t } from '@/i18n';
+
 // Notificações locais: o telemóvel avisa quando a app está em segundo plano.
 // Com a app aberta já aparece o aviso dentro da app; mostrar também o do sistema duplicava-o.
 // Os avisos enviados pelo servidor (push) chegam quando houver backend; no Expo Go
@@ -17,7 +19,7 @@ function configurar() {
     handleNotification: async () => ({ shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false }),
   });
   if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('viagens', { name: 'Viagens', importance: Notifications.AndroidImportance.HIGH }).catch(() => {});
+    Notifications.setNotificationChannelAsync('viagens', { name: t('Viagens'), importance: Notifications.AndroidImportance.HIGH }).catch(() => {});
   }
 }
 

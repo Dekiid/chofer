@@ -26,6 +26,7 @@ import { ELOGIOS, useConta } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
+import { t } from '@/i18n';
 
 type Fase = 'procurar' | 'sem_resposta' | 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';
 
@@ -83,7 +84,7 @@ export default function Viagem() {
         if (!e.agendada) setFase('a_caminho');
       }
       if (e.tipo === 'recusado') {
-        setMotivoSemResposta('O motorista não pode fazer esta viagem agora.');
+        setMotivoSemResposta(t('O motorista não pode fazer esta viagem agora.'));
         setFase((f) => (f === 'procurar' ? 'sem_resposta' : f));
       }
       if (e.tipo === 'posicao') setCarro(e.posicao);
@@ -97,7 +98,7 @@ export default function Viagem() {
         return;
       }
       if (e.tipo === 'cancelado' && e.por === 'motorista') {
-        setMotivoSemResposta('O motorista cancelou a viagem.');
+        setMotivoSemResposta(t('O motorista cancelou a viagem.'));
         setFase('sem_resposta');
       }
     });
@@ -128,11 +129,11 @@ export default function Viagem() {
     });
     // Com a app do motorista fechada, o aviso chega por push (precisa da versão de desenvolvimento).
     avisarMotoristaPorPush(v.id, 'Novo pedido para agora', `${origem.nome} → ${destino.nome}. Tens 1 minuto para aceitar.`, { id: idPedido });
-    const t = setTimeout(() => {
-      setMotivoSemResposta('O motorista não respondeu a tempo.');
+    const limite = setTimeout(() => {
+      setMotivoSemResposta(t('O motorista não respondeu a tempo.'));
       setFase((f) => (f === 'procurar' ? 'sem_resposta' : f));
     }, TEMPO_ESPERA_MOTORISTA);
-    return () => clearTimeout(t);
+    return () => clearTimeout(limite);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- o pedido sai uma vez de cada vez que se procura motorista.
   }, [fase]);
 
@@ -160,12 +161,12 @@ export default function Viagem() {
     if (TEMPO_REAL_ATIVO || (fase !== 'a_caminho' && fase !== 'em_viagem')) return;
     const pontos = fase === 'a_caminho' ? rotaMotorista?.pontos : pontosViagem;
     if (!pontos) return;
-    let t = 0;
+    let fracao = 0;
     const id = setInterval(() => {
-      t = Math.min(1, t + PASSO / TEMPO_DESLOCACAO);
-      setCarro(pontoNaRota(pontos, t));
-      setProgresso(t);
-      if (t >= 1) {
+      fracao = Math.min(1, fracao + PASSO / TEMPO_DESLOCACAO);
+      setCarro(pontoNaRota(pontos, fracao));
+      setProgresso(fracao);
+      if (fracao >= 1) {
         clearInterval(id);
         setFase(fase === 'a_caminho' ? 'chegou' : 'concluida');
       }
@@ -183,16 +184,17 @@ export default function Viagem() {
   useEffect(() => {
     if (fase === faseAvisada.current || !destino) return;
     faseAvisada.current = fase;
-    if (fase === 'a_caminho') avisar(`${primeiroNome} vai a caminho`, `${nomeViatura(viatura)} · ${motorista.matricula}. Código de recolha: ${codigo}.`);
-    if (fase === 'chegou') avisar('O teu chauffeur chegou', `${primeiroNome} está à porta num ${nomeViatura(viatura)}. Diz-lhe o código ${codigo}.`);
+    if (fase === 'a_caminho') avisar(t('{nome} vai a caminho', { nome: primeiroNome }), t('{viatura} · {matricula}. Código de recolha: {codigo}.', { viatura: nomeViatura(viatura), matricula: motorista.matricula, codigo }));
+    if (fase === 'chegou') avisar(t('O teu chauffeur chegou'), t('{nome} está à porta num {viatura}. Diz-lhe o código {codigo}.', { nome: primeiroNome, viatura: nomeViatura(viatura), codigo }));
     if (fase === 'em_viagem' && viagemConta) atualizarViagem(viagemConta.id, { estado: 'em_curso' });
-    if (fase === 'concluida') avisar('Chegaste ao destino', `Obrigado por viajares com a Chauffeur. Avalia ${primeiroNome} e vê o recibo.`);
+    if (fase === 'concluida') avisar(t('Chegaste ao destino'), t('Obrigado por viajares com a Chauffeur. Avalia {nome} e vê o recibo.', { nome: primeiroNome }));
   }, [fase, destino, avisar, atualizarViagem, viagemConta, primeiroNome, viatura, motorista.matricula, codigo]);
 
   if (!destino) return <Redirect href="/" />;
 
   const preco = viagemConta ? viagemConta.precoMzn - viagemConta.descontoMzn : calcularPreco(viatura, pedido.rota?.km ?? 0, pedido.quando?.tipo === 'imediato');
-  const pagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
+  const nomeMetodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome;
+  const pagamento = nomeMetodo && t(nomeMetodo);
   // Com o motorista real, o tempo que falta sai da distância até ao ponto seguinte.
   const minutosRestantes = TEMPO_REAL_ATIVO && carro ? duracaoMin(distanciaKm(carro, origem) * 1.3) : Math.max(1, Math.round(viatura.chegadaMin * (1 - progresso)));
   const minutosViagem = TEMPO_REAL_ATIVO && carro ? duracaoMin(distanciaKm(carro, destino) * 1.3) : Math.max(1, Math.round((pedido.rota?.minutos ?? 0) * (1 - progresso)));
@@ -217,7 +219,7 @@ export default function Viagem() {
       const c = custoFalta(viagemConta);
       atualizarViagem(viagemConta.id, { estado: 'cancelada', porPagar: false, taxaCancelamentoMzn: c.taxaMzn, reembolsoMzn: 0, motivoCancelamento: 'falta' });
       agenda.libertar(viagemConta.id);
-      avisar('Falta de comparência', `${c.texto} ${formatarMzn(c.taxaMzn)}.`);
+      avisar(t('Falta de comparência'), `${c.texto} ${formatarMzn(c.taxaMzn)}.`);
       sair();
     };
   });
@@ -238,8 +240,8 @@ export default function Viagem() {
         reembolsoMzn: c?.reembolsoMzn ?? 0,
         motivoCancelamento: 'cliente',
       });
-      if (c && c.taxaMzn > 0) avisar('Viagem cancelada', `Taxa de cancelamento: ${formatarMzn(c.taxaMzn)}, por ${pagamento}.`);
-      else if (c && c.reembolsoMzn > 0) avisar('Viagem cancelada', `Devolvemos ${formatarMzn(c.reembolsoMzn)} por ${pagamento}.`);
+      if (c && c.taxaMzn > 0) avisar(t('Viagem cancelada'), t('Taxa de cancelamento: {valor}, por {pagamento}.', { valor: formatarMzn(c.taxaMzn), pagamento: pagamento ?? '' }));
+      else if (c && c.reembolsoMzn > 0) avisar(t('Viagem cancelada'), t('Devolvemos {valor} por {pagamento}.', { valor: formatarMzn(c.reembolsoMzn), pagamento: pagamento ?? '' }));
       // O carro volta a ficar livre na agenda.
       agenda.libertar(viagemConta.id);
     }
@@ -251,18 +253,18 @@ export default function Viagem() {
     if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'concluida', gorjetaMzn: gorjeta, avaliacao });
     // Pedido para agora: paga-se agora, no fim, com a gorjeta incluída.
     if (porPagar && viagemConta) return router.replace({ pathname: '/pagamento', params: { viagem: viagemConta.id } });
-    if (gorjeta > 0) avisar('Gorjeta enviada', `${formatarMzn(gorjeta)} por ${pagamento} para ${primeiroNome}. Obrigado!`);
+    if (gorjeta > 0) avisar(t('Gorjeta enviada'), t('{valor} por {pagamento} para {nome}. Obrigado!', { valor: formatarMzn(gorjeta), pagamento: pagamento ?? '', nome: primeiroNome }));
     sair();
   }
 
   // Estados curtos, como no manual: «Chega em 4 min».
   const titulo: Record<Fase, string> = {
-    procurar: TEMPO_REAL_ATIVO ? `À espera de ${primeiroNome}` : 'A procurar motorista',
-    sem_resposta: 'Sem motorista',
-    a_caminho: `Chega em ${minutosRestantes} min`,
-    chegou: 'O teu chauffeur chegou',
-    em_viagem: `A caminho de ${destino.nome}`,
-    concluida: 'Chegaste ao destino',
+    procurar: TEMPO_REAL_ATIVO ? t('À espera de {nome}', { nome: primeiroNome }) : t('A procurar motorista'),
+    sem_resposta: t('Sem motorista'),
+    a_caminho: t('Chega em {n} min', { n: minutosRestantes }),
+    chegou: t('O teu chauffeur chegou'),
+    em_viagem: t('A caminho de {destino}', { destino: destino.nome }),
+    concluida: t('Chegaste ao destino'),
   };
   const ligar = () => Linking.openURL(`tel:${motorista.telefone}`);
 
@@ -271,10 +273,10 @@ export default function Viagem() {
     const chegada = formatarHora(somarMin(new Date(), fase === 'em_viagem' ? minutosViagem : minutosRestantes + (pedido.rota?.minutos ?? 0)));
     const onde = carro ?? origem;
     const texto =
-      `Estou numa viagem Chauffeur para ${destino!.nome}.\n` +
-      `Carro: ${nomeViatura(viatura)}, matrícula ${motorista.matricula}. Motorista: ${motorista.nome}.\n` +
-      `Chegada prevista às ${chegada}.\n` +
-      `Onde estou agora: ${ligacaoMapa(onde)}`;
+      t('Estou numa viagem Chauffeur para {destino}.', { destino: destino!.nome }) + '\n' +
+      t('Carro: {viatura}, matrícula {matricula}. Motorista: {motorista}.', { viatura: nomeViatura(viatura), matricula: motorista.matricula, motorista: motorista.nome }) + '\n' +
+      t('Chegada prevista às {hora}.', { hora: chegada }) + '\n' +
+      t('Onde estou agora: {ligacao}', { ligacao: ligacaoMapa(onde) });
     try {
       await Share.share({ message: texto });
     } catch {
@@ -284,7 +286,7 @@ export default function Viagem() {
 
   async function partilharLocalizacao() {
     try {
-      await Share.share({ message: `Preciso de ajuda. Estou num ${nomeViatura(viatura)} (${motorista.matricula}). A minha localização: ${ligacaoMapa(carro ?? origem)}` });
+      await Share.share({ message: t('Preciso de ajuda. Estou num {viatura} ({matricula}). A minha localização: {ligacao}', { viatura: nomeViatura(viatura), matricula: motorista.matricula, ligacao: ligacaoMapa(carro ?? origem) }) });
     } catch {}
   }
 
@@ -318,7 +320,7 @@ export default function Viagem() {
 
       {fase !== 'concluida' && (
         <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
-          <Pressable onPress={() => setSos(true)} style={s.sos} accessibilityLabel="Emergência" hitSlop={8}>
+          <Pressable onPress={() => setSos(true)} style={s.sos} accessibilityLabel={t('Emergência')} hitSlop={8}>
             <Text style={s.sosTexto}>SOS</Text>
           </Pressable>
         </SafeAreaView>
@@ -336,12 +338,12 @@ export default function Viagem() {
           </View>
         )}
         {fase === 'sem_resposta' ? (
-          <Text style={[s.secundario, { marginBottom: Spacing.three }]}>{motivoSemResposta} Podes tentar outra vez ou cancelar o pedido.</Text>
+          <Text style={[s.secundario, { marginBottom: Spacing.three }]}>{motivoSemResposta} {t('Podes tentar outra vez ou cancelar o pedido.')}</Text>
         ) : fase === 'procurar' ? (
           <View style={s.procura}>
             <ActivityIndicator color={cores.text} />
             <Text style={s.secundario}>
-              {nomeViatura(viatura)} · {formatarMzn(preco)} {porPagar ? `a pagar no fim por ${pagamento}` : `pago por ${pagamento}`}
+              {nomeViatura(viatura)} · {formatarMzn(preco)} {porPagar ? t('a pagar no fim por {pagamento}', { pagamento: pagamento ?? '' }) : t('pago por {pagamento}', { pagamento: pagamento ?? '' })}
             </Text>
           </View>
         ) : (
@@ -367,7 +369,7 @@ export default function Viagem() {
             paragens={pedido.paragens}
             destino={destino}
             etapa={fase === 'em_viagem' ? 'destino' : 'recolha'}
-            detalheRecolha={fase === 'a_caminho' ? `${minutosRestantes} min` : fase === 'chegou' ? 'Chegou' : undefined}
+            detalheRecolha={fase === 'a_caminho' ? `${minutosRestantes} min` : fase === 'chegou' ? t('Chegou') : undefined}
             detalheDestino={fase === 'em_viagem' ? `${minutosViagem} min` : undefined}
           />
         )}
@@ -375,10 +377,10 @@ export default function Viagem() {
         {(fase === 'a_caminho' || fase === 'chegou') && (
           <View style={s.codigo}>
             <View style={{ flex: 1 }}>
-              <Text style={s.codigoTitulo}>Código de recolha</Text>
-              <Text style={s.secundarioPequeno}>Diz este código ao motorista antes de entrares. Se ele não o souber, não entres.</Text>
+              <Text style={s.codigoTitulo}>{t('Código de recolha')}</Text>
+              <Text style={s.secundarioPequeno}>{t('Diz este código ao motorista antes de entrares. Se ele não o souber, não entres.')}</Text>
             </View>
-            <Text style={s.codigoNumero} accessibilityLabel={`Código ${codigo.split('').join(' ')}`}>
+            <Text style={s.codigoNumero} accessibilityLabel={t('Código {codigo}', { codigo: codigo.split('').join(' ') })}>
               {codigo}
             </Text>
           </View>
@@ -389,21 +391,21 @@ export default function Viagem() {
         {comMotorista && (
           <View style={s.acoes}>
             {/* Já dentro do carro não faz sentido ligar ao motorista. */}
-            {fase !== 'em_viagem' && <Acao texto="Ligar" onPress={ligar} s={s} />}
-            <Acao texto="Mensagem" onPress={() => router.push('/chat')} s={s} contador={conta.naoLidasChat} />
-            <Acao texto="Partilhar" onPress={partilhar} s={s} />
+            {fase !== 'em_viagem' && <Acao texto={t('Ligar')} onPress={ligar} s={s} />}
+            <Acao texto={t('Mensagem')} onPress={() => router.push('/chat')} s={s} contador={conta.naoLidasChat} />
+            <Acao texto={t('Partilhar')} onPress={partilhar} s={s} />
           </View>
         )}
 
         {fase === 'concluida' ? (
           <>
             <Text style={s.total}>
-              {formatarMzn(preco + gorjeta)} <Text style={s.secundario}>· {porPagar ? `a pagar por ${pagamento}` : `pago por ${pagamento}`}</Text>
+              {formatarMzn(preco + gorjeta)} <Text style={s.secundario}>· {porPagar ? t('a pagar por {pagamento}', { pagamento: pagamento ?? '' }) : t('pago por {pagamento}', { pagamento: pagamento ?? '' })}</Text>
             </Text>
-            <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Como foi a viagem com {primeiroNome}?</Text>
+            <Text style={[s.secundario, { marginBottom: Spacing.two }]}>{t('Como foi a viagem com {nome}?', { nome: primeiroNome })}</Text>
             <View style={s.estrelas}>
               {[1, 2, 3, 4, 5].map((n) => (
-                <Pressable key={n} onPress={() => setEstrelas(n)} accessibilityLabel={`${n} estrelas`}>
+                <Pressable key={n} onPress={() => setEstrelas(n)} accessibilityLabel={n === 1 ? t('{n} estrela', { n }) : t('{n} estrelas', { n })}>
                   <Text style={[s.estrela, { color: n <= estrelas ? cores.accent : cores.backgroundSelected }]}>★</Text>
                 </Pressable>
               ))}
@@ -415,17 +417,17 @@ export default function Viagem() {
                     const ativo = elogios.includes(e);
                     return (
                       <Pressable key={e} onPress={() => setElogios((a) => (ativo ? a.filter((x) => x !== e) : [...a, e]))} style={[s.chip, ativo && s.chipAtivo]}>
-                        <Text style={[s.chipTexto, ativo && s.chipTextoAtivo]}>{e}</Text>
+                        <Text style={[s.chipTexto, ativo && s.chipTextoAtivo]}>{t(e)}</Text>
                       </Pressable>
                     );
                   })}
                 </View>
-                <TextInput value={comentario} onChangeText={setComentario} placeholder="Comentário (opcional)" placeholderTextColor={cores.textSecondary} style={s.comentario} maxLength={200} />
-                <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Gorjeta para {primeiroNome}</Text>
+                <TextInput value={comentario} onChangeText={setComentario} placeholder={t('Comentário (opcional)')} placeholderTextColor={cores.textSecondary} style={s.comentario} maxLength={200} />
+                <Text style={[s.secundario, { marginBottom: Spacing.two }]}>{t('Gorjeta para {nome}', { nome: primeiroNome })}</Text>
                 <View style={s.chips}>
                   {GORJETAS.map((g) => (
                     <Pressable key={g} onPress={() => setGorjeta(g)} style={[s.chip, gorjeta === g && s.chipAtivo]}>
-                      <Text style={[s.chipTexto, gorjeta === g && s.chipTextoAtivo]}>{g === 0 ? 'Sem gorjeta' : formatarMzn(g)}</Text>
+                      <Text style={[s.chipTexto, gorjeta === g && s.chipTextoAtivo]}>{g === 0 ? t('Sem gorjeta') : formatarMzn(g)}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -433,32 +435,32 @@ export default function Viagem() {
             )}
             <View style={{ gap: Spacing.two }}>
               {porPagar ? (
-                <BotaoPrincipal texto={`Pagar ${formatarMzn(preco + gorjeta)}`} onPress={concluir} />
+                <BotaoPrincipal texto={t('Pagar {valor}', { valor: formatarMzn(preco + gorjeta) })} onPress={concluir} />
               ) : (
-                <BotaoPrincipal texto={gorjeta > 0 ? `Concluir e enviar ${formatarMzn(gorjeta)}` : 'Concluir'} onPress={concluir} desativado={estrelas === 0} />
+                <BotaoPrincipal texto={gorjeta > 0 ? t('Concluir e enviar {valor}', { valor: formatarMzn(gorjeta) }) : t('Concluir')} onPress={concluir} desativado={estrelas === 0} />
               )}
-              {viagemConta && <BotaoSecundario texto="Ver recibo" onPress={() => router.push({ pathname: '/recibo', params: { id: viagemConta.id } })} />}
+              {viagemConta && <BotaoSecundario texto={t('Ver recibo')} onPress={() => router.push({ pathname: '/recibo', params: { id: viagemConta.id } })} />}
             </View>
           </>
         ) : (
           <View style={{ gap: Spacing.two }}>
-            {fase === 'sem_resposta' && <BotaoPrincipal texto="Tentar outra vez" onPress={() => setFase('procurar')} />}
+            {fase === 'sem_resposta' && <BotaoPrincipal texto={t('Tentar outra vez')} onPress={() => setFase('procurar')} />}
             {/* Com o motorista real, é ele que começa a viagem quando o cliente lhe diz o código. */}
-            {fase === 'chegou' && !TEMPO_REAL_ATIVO && <BotaoPrincipal texto="Já estou no carro" onPress={() => setFase('em_viagem')} />}
-            {fase === 'chegou' && TEMPO_REAL_ATIVO && <Text style={[s.secundario, { textAlign: 'center' }]}>A viagem começa quando disseres o código a {primeiroNome}.</Text>}
+            {fase === 'chegou' && !TEMPO_REAL_ATIVO && <BotaoPrincipal texto={t('Já estou no carro')} onPress={() => setFase('em_viagem')} />}
+            {fase === 'chegou' && TEMPO_REAL_ATIVO && <Text style={[s.secundario, { textAlign: 'center' }]}>{t('A viagem começa quando disseres o código a {nome}.', { nome: primeiroNome })}</Text>}
             {(fase === 'procurar' || fase === 'sem_resposta' || fase === 'a_caminho' || fase === 'chegou') &&
               (confirmarCancelar ? (
                 <View style={{ gap: Spacing.two }}>
                   <Text style={s.secundario}>{confirmarCancelar.texto}</Text>
                   <BotaoPrincipal
                     escuro
-                    texto={confirmarCancelar.taxaMzn > 0 ? `Cancelar e pagar ${formatarMzn(confirmarCancelar.taxaMzn)}` : 'Cancelar pedido'}
+                    texto={confirmarCancelar.taxaMzn > 0 ? t('Cancelar e pagar {valor}', { valor: formatarMzn(confirmarCancelar.taxaMzn) }) : t('Cancelar pedido')}
                     onPress={() => cancelar(confirmarCancelar)}
                   />
-                  <BotaoSecundario texto="Manter a viagem" onPress={() => setConfirmarCancelar(null)} />
+                  <BotaoSecundario texto={t('Manter a viagem')} onPress={() => setConfirmarCancelar(null)} />
                 </View>
               ) : (
-                <BotaoSecundario texto="Cancelar pedido" onPress={pedirCancelar} />
+                <BotaoSecundario texto={t('Cancelar pedido')} onPress={pedirCancelar} />
               ))}
           </View>
         )}
@@ -467,22 +469,22 @@ export default function Viagem() {
       <Modal visible={sos} transparent animationType="fade" onRequestClose={() => setSos(false)} statusBarTranslucent>
         <Pressable style={s.fundoSos} onPress={() => setSos(false)}>
           <Pressable style={s.folhaSos} onPress={() => {}}>
-            <Text style={s.tituloSos}>Emergência</Text>
+            <Text style={s.tituloSos}>{t('Emergência')}</Text>
             <Text style={[s.secundario, { marginBottom: Spacing.three }]}>
               {nomeViatura(viatura)} · {motorista.matricula} · {motorista.nome}
             </Text>
             {EMERGENCIA.map((e) => (
               <Pressable key={e.numero} onPress={() => Linking.openURL(`tel:${e.numero}`)} style={s.linhaSos}>
-                <Text style={s.nome}>{e.nome}</Text>
+                <Text style={s.nome}>{t(e.nome)}</Text>
                 <Text style={s.numeroSos}>{e.numero}</Text>
               </Pressable>
             ))}
             <Pressable onPress={partilharLocalizacao} style={s.linhaSos}>
-              <Text style={s.nome}>Enviar a minha localização</Text>
+              <Text style={s.nome}>{t('Enviar a minha localização')}</Text>
               <Text style={s.secundario}>›</Text>
             </Pressable>
             <View style={{ marginTop: Spacing.three }}>
-              <BotaoSecundario texto="Fechar" onPress={() => setSos(false)} />
+              <BotaoSecundario texto={t('Fechar')} onPress={() => setSos(false)} />
             </View>
           </Pressable>
         </Pressable>

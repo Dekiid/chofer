@@ -11,6 +11,7 @@ import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { useConta } from '@/state/conta';
 import { usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
+import { t } from '@/i18n';
 
 // Respostas rápidas, para escrever pouco enquanto se espera pelo carro.
 const RAPIDAS = ['Já estou a sair', 'Estou à porta', 'Quanto tempo demora?', 'Tenho bagagem'];
@@ -29,8 +30,8 @@ export default function Chat() {
     marcarChatLido();
   }, [mensagens.length, marcarChatLido]);
 
-  function enviar(t: string) {
-    enviarMensagem(t);
+  function enviar(mensagem: string) {
+    enviarMensagem(mensagem);
     setTexto('');
   }
 
@@ -49,7 +50,7 @@ export default function Chat() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={rolo} contentContainerStyle={s.lista} onContentSizeChange={() => rolo.current?.scrollToEnd({ animated: true })}>
-          <Text style={s.aviso}>As mensagens ficam guardadas na viagem. O teu número não é partilhado com o motorista.</Text>
+          <Text style={s.aviso}>{t('As mensagens ficam guardadas na viagem. O teu número não é partilhado com o motorista.')}</Text>
           {mensagens.map((m) => (
             <View key={m.id} style={[s.balao, m.de === 'cliente' ? s.meu : s.dele]}>
               <Text style={[s.textoBalao, m.de === 'cliente' && { color: cores.onPrimary }]}>{m.texto}</Text>
@@ -60,8 +61,8 @@ export default function Chat() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={s.rapidas} keyboardShouldPersistTaps="handled">
           {RAPIDAS.map((r) => (
-            <Pressable key={r} onPress={() => enviar(r)} style={s.rapida}>
-              <Text style={s.rapidaTexto}>{r}</Text>
+            <Pressable key={r} onPress={() => enviar(t(r))} style={s.rapida}>
+              <Text style={s.rapidaTexto}>{t(r)}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -69,15 +70,15 @@ export default function Chat() {
           <TextInput
             value={texto}
             onChangeText={setTexto}
-            placeholder="Mensagem"
+            placeholder={t('Mensagem')}
             placeholderTextColor={cores.textSecondary}
             style={s.input}
             returnKeyType="send"
             onSubmitEditing={() => enviar(texto)}
             maxLength={300}
           />
-          <Pressable onPress={() => enviar(texto)} disabled={!texto.trim()} style={[s.enviar, !texto.trim() && { opacity: 0.4 }]} accessibilityLabel="Enviar">
-            <Text style={s.enviarTexto}>Enviar</Text>
+          <Pressable onPress={() => enviar(texto)} disabled={!texto.trim()} style={[s.enviar, !texto.trim() && { opacity: 0.4 }]} accessibilityLabel={t('Enviar')}>
+            <Text style={s.enviarTexto}>{t('Enviar')}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
