@@ -21,6 +21,7 @@ import { useConta } from '@/state/conta';
 import { useInscricoes } from '@/state/inscricoes';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
+import { t } from '@/i18n';
 
 export default function Inicio() {
   const cores = usePalette();
@@ -68,10 +69,10 @@ export default function Inicio() {
   }
 
   function preco(v: Viatura): { valor: number; unidade: string; descricao: string } {
-    if (modo === 'aluguer') return { valor: v.porDiaMzn ?? 0, unidade: '/dia', descricao: `${v.tipo} · ${v.lugares} lugares · sem motorista` };
+    if (modo === 'aluguer') return { valor: v.porDiaMzn ?? 0, unidade: t('/dia'), descricao: t('{tipo} · {n} lugares · sem motorista', { tipo: t(v.tipo), n: v.lugares }) };
     if (modo === 'casamento' && v.casamento)
-      return { valor: precoCasamento(v.casamento, decoracao), unidade: '/dia', descricao: `${v.tipo} · ${v.lugares} lugares` };
-    return { valor: v.porKmMzn, unidade: '/km', descricao: `${v.tipo} · ${v.lugares} lugares · chega em ${v.chegadaMin} min` };
+      return { valor: precoCasamento(v.casamento, decoracao), unidade: t('/dia'), descricao: t('{tipo} · {n} lugares', { tipo: t(v.tipo), n: v.lugares }) };
+    return { valor: v.porKmMzn, unidade: '/km', descricao: t('{tipo} · {n} lugares · chega em {min} min', { tipo: t(v.tipo), n: v.lugares, min: v.chegadaMin }) };
   }
 
   // Usa a localização real como ponto de recolha quando a pessoa autoriza.
@@ -95,18 +96,18 @@ export default function Inicio() {
       <View style={[s.ecraCarro, { backgroundColor: cores.backgroundElement, paddingTop: insets.top + ALTURA_TOPO, paddingBottom: alturaPainel }]}>
         <View style={s.legenda} pointerEvents="none">
           <Text style={s.nomeCarro}>{nomeViatura(pedido.viatura)}</Text>
-          <Text style={s.descricao}>{pedido.viatura.tipo}</Text>
+          <Text style={s.descricao}>{t(pedido.viatura.tipo)}</Text>
         </View>
-        <Pressable onPress={() => temGaleria && setGaleriaAberta(true)} disabled={!temGaleria} accessibilityLabel={temGaleria ? 'Ver mais fotos do carro' : undefined}>
+        <Pressable onPress={() => temGaleria && setGaleriaAberta(true)} disabled={!temGaleria} accessibilityLabel={temGaleria ? t('Ver mais fotos do carro') : undefined}>
           <FotoCarro
             viatura={pedido.viatura}
             style={[s.foto, { height: fotoDecorada ? alturaFoto * 0.82 : alturaFoto }]}
-            ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: decoracao === 'com' ? 'Decorado para casamento' : 'Exemplo com decoração' }}
+            ilustracao={fotoDecorada && { ...fotoDecorada, etiqueta: decoracao === 'com' ? t('Decorado para casamento') : t('Exemplo com decoração') }}
           />
         </Pressable>
         {temGaleria && (
           <Pressable onPress={() => setGaleriaAberta(true)} style={s.verFotos} hitSlop={8}>
-            <Text style={s.verFotosTexto}>Ver mais fotos</Text>
+            <Text style={s.verFotosTexto}>{t('Ver mais fotos')}</Text>
           </Pressable>
         )}
       </View>
@@ -116,9 +117,9 @@ export default function Inicio() {
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
         <Logo altura={30} />
         {/* Conta do cliente: viagens, recibos, locais guardados, convites e avisos. */}
-        <Pressable onPress={() => router.push('/conta')} style={[s.contaPosicao, { top: insets.top + Spacing.two }]} accessibilityLabel="A tua conta">
+        <Pressable onPress={() => router.push('/conta')} style={[s.contaPosicao, { top: insets.top + Spacing.two }]} accessibilityLabel={t('A tua conta')}>
           <Vidro interativo style={s.gestao}>
-            <Text style={s.textoGestao}>Conta</Text>
+            <Text style={s.textoGestao}>{t('Conta')}</Text>
             {avisosNaoLidos > 0 && (
               <View style={s.contador}>
                 <Text style={s.textoContador}>{avisosNaoLidos}</Text>
@@ -129,7 +130,7 @@ export default function Inicio() {
         {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
         <Pressable onPress={() => router.push('/gestao')} style={[s.gestaoPosicao, { top: insets.top + Spacing.two }]}>
           <Vidro interativo style={s.gestao}>
-            <Text style={s.textoGestao}>Gestão</Text>
+            <Text style={s.textoGestao}>{t('Gestão')}</Text>
             {avisos > 0 && (
               <View style={s.contador}>
                 <Text style={s.textoContador}>{avisos}</Text>
@@ -142,12 +143,12 @@ export default function Inicio() {
       <Painel onLayout={(e) => setAlturaPainel(e.nativeEvent.layout.height)}>
         {/* O conteúdo entra a deslizar do lado da opção escolhida. */}
         <Animated.View key={modo} entering={(direcao > 0 ? SlideInRight : SlideInLeft).duration(260)}>
-          <Text style={s.pergunta}>{MODOS.find((m) => m.id === modo)?.pergunta}</Text>
+          <Text style={s.pergunta}>{t(MODOS.find((m) => m.id === modo)?.pergunta ?? '')}</Text>
           {modo === 'casamento' && (
             <View style={s.decoracoes}>
               {(['com', 'sem'] as const).map((d) => (
                 <Pressable key={d} onPress={() => setDecoracao(d)} style={[s.decoracao, decoracao === d && s.opcaoModoAtiva]}>
-                  <Text style={[s.textoModo, decoracao === d && s.textoModoAtivo]}>{d === 'com' ? 'Com decoração' : 'Sem decoração'}</Text>
+                  <Text style={[s.textoModo, decoracao === d && s.textoModoAtivo]}>{d === 'com' ? t('Com decoração') : t('Sem decoração')}</Text>
                 </Pressable>
               ))}
             </View>
@@ -172,27 +173,27 @@ export default function Inicio() {
           </ScrollView>
           {modo === 'motorista' ? (
             <>
-              <CampoPesquisa texto="Para onde vamos?" onPress={() => router.push('/destino')} />
+              <CampoPesquisa texto={t('Para onde vamos?')} onPress={() => router.push('/destino')} />
               <Pressable onPress={() => router.push('/inscricao')} style={s.inscrever}>
                 <Text style={s.descricao}>
-                  Tens um carro premium? <Text style={s.textoInscrever}>Inscreve-te como motorista</Text>
+                  {t('Tens um carro premium?')} <Text style={s.textoInscrever}>{t('Inscreve-te como motorista')}</Text>
                 </Text>
               </Pressable>
             </>
           ) : modo === 'aluguer' ? (
-            <BotaoPrincipal texto={`Alugar ${nomeViatura(pedido.viatura)}`} onPress={() => reservar('aluguer')} />
+            <BotaoPrincipal texto={t('Alugar {carro}', { carro: nomeViatura(pedido.viatura) })} onPress={() => reservar('aluguer')} />
           ) : (
             <>
-              <BotaoPrincipal texto={`Reservar ${nomeViatura(pedido.viatura)}`} onPress={() => reservar('casamento')} />
+              <BotaoPrincipal texto={t('Reservar {carro}', { carro: nomeViatura(pedido.viatura) })} onPress={() => reservar('casamento')} />
               <Text style={[s.descricao, s.notaCasamento]}>
-                {decoracao === 'com' ? 'Com motorista e decoração de flores e fitas.' : 'Com motorista, sem decoração.'}
+                {decoracao === 'com' ? t('Com motorista e decoração de flores e fitas.') : t('Com motorista, sem decoração.')}
               </Text>
             </>
           )}
         </Animated.View>
 
         {/* Seletor em baixo, como na Uber; a marca preta desliza para a opção escolhida. */}
-        <AlternadorModos opcoes={MODOS} valor={modo} onMudar={mudarModo} style={s.alternador} />
+        <AlternadorModos opcoes={MODOS.map((m) => ({ ...m, nome: t(m.nome) }))} valor={modo} onMudar={mudarModo} style={s.alternador} />
       </Painel>
     </View>
   );

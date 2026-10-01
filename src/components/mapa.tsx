@@ -4,6 +4,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 
 import { MAPA_ESCURO } from './mapa-escuro';
 import type { MapaProps, Ponto } from './mapa-tipos';
+import { t } from '@/i18n';
 
 // Centro entre Maputo e Matola.
 export const REGIAO_INICIAL = {
@@ -61,7 +62,7 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
       {origem && (
         <Marker
           coordinate={origem}
-          title="Recolha"
+          title={t('Recolha')}
           anchor={{ x: 0.5, y: 0.5 }}
           draggable={!!onMoverOrigem}
           onDragEnd={(e) => onMoverOrigem?.(e.nativeEvent.coordinate)}>
@@ -73,7 +74,7 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
       {destino && (
         <Marker
           coordinate={destino}
-          title="Destino"
+          title={t('Destino')}
           anchor={{ x: 0.5, y: 0.5 }}
           draggable={!!onMoverDestino}
           onDragEnd={(e) => onMoverDestino?.(e.nativeEvent.coordinate)}>
@@ -84,7 +85,7 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
         <Marker
           key={`paragem-${i}`}
           coordinate={p}
-          title={`Paragem ${i + 1}`}
+          title={t('Paragem {n}', { n: i + 1 })}
           anchor={{ x: 0.5, y: 0.5 }}
           draggable={!!onMoverParagem}
           onDragEnd={(e) => onMoverParagem?.(i, e.nativeEvent.coordinate)}>
@@ -92,7 +93,7 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
         </Marker>
       ))}
       {carro && (
-        <Marker coordinate={carro} title="Motorista" anchor={{ x: 0.5, y: 0.5 }}>
+        <Marker coordinate={carro} title={t('Motorista')} anchor={{ x: 0.5, y: 0.5 }}>
           <View style={marcas.carro} />
         </Marker>
       )}

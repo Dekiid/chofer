@@ -1,3 +1,5 @@
+import { t } from '@/i18n';
+
 export type Lugar = {
   id: string;
   nome: string;
@@ -26,6 +28,16 @@ export const LUGARES: Lugar[] = [
   { id: 'matola-rio', nome: 'Matola Rio', zona: 'Matola', latitude: -25.9950, longitude: 32.4452 },
   { id: 'machava', nome: 'Estádio da Machava', zona: 'Machava, Matola', latitude: -25.9219, longitude: 32.5022 },
 ];
+
+/** Nome do lugar para mostrar: a localização do telemóvel aparece na língua escolhida. */
+export function nomeLugar(l: Lugar): string {
+  return l.id === LOCALIZACAO_PADRAO.id ? t(LOCALIZACAO_PADRAO.nome) : l.nome;
+}
+
+/** Zona do lugar para mostrar, com o mesmo cuidado para a localização atual. */
+export function zonaLugar(l: Lugar): string {
+  return l.id === LOCALIZACAO_PADRAO.id && l.zona === 'Localização atual' ? t('Localização atual') : l.zona;
+}
 
 export function pesquisarLugares(texto: string): Lugar[] {
   const t = normalizar(texto.trim());

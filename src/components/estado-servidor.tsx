@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/texto';
 import { usePalette } from '@/constants/use-palette';
 import { useLigacao } from '@/data/tempo-real';
+import { t } from '@/i18n';
 
 /** Linha pequena com o estado da ligação em tempo real: ajuda a perceber porque é que um pedido não chega. */
 export function EstadoServidor() {
@@ -11,12 +12,12 @@ export function EstadoServidor() {
   const cor = l.estado === 'ligado' ? c.go : l.estado === 'erro' ? '#DC2626' : c.textSecondary;
   const texto =
     l.estado === 'ligado'
-      ? 'Ligado ao servidor'
+      ? t('Ligado ao servidor')
       : l.estado === 'a_ligar'
-        ? 'A ligar ao servidor…'
+        ? t('A ligar ao servidor…')
         : l.estado === 'erro'
-          ? `Sem ligação ao servidor (${l.detalhe ?? 'erro'})`
-          : 'Modo de demonstração: sem servidor';
+          ? t('Sem ligação ao servidor ({detalhe})', { detalhe: l.detalhe ?? t('erro') })
+          : t('Modo de demonstração: sem servidor');
   return (
     <View style={estilos.linha}>
       <View style={[estilos.ponto, { backgroundColor: cor }]} />

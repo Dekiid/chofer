@@ -16,6 +16,7 @@ import {
 } from '@/data/agenda';
 import type { Ponto } from '@/components/mapa-tipos';
 import { Text } from '@/components/texto';
+import { t } from '@/i18n';
 
 type Props = {
   viaturaId: string;
@@ -46,18 +47,18 @@ export function EscolhaHorario({ viaturaId, duracaoMin, locais, conducao, reserv
     <View>
       <View style={s.alternador}>
         <Pressable onPress={() => imediato && onMudar(null)} style={[s.modo, !imediato && s.modoAtivo]}>
-          <Text style={[s.textoModo, !imediato && s.textoModoAtivo]}>Agendar</Text>
+          <Text style={[s.textoModo, !imediato && s.textoModoAtivo]}>{t('Agendar')}</Text>
         </Pressable>
         <Pressable onPress={() => onMudar({ tipo: 'imediato' })} style={[s.modo, imediato && s.modoAtivo]}>
-          <Text style={[s.textoModo, imediato && s.textoModoAtivo]}>Agora · +{Math.round(TAXA_IMEDIATO * 100)}%</Text>
+          <Text style={[s.textoModo, imediato && s.textoModoAtivo]}>{t('Agora · +{pct}%', { pct: Math.round(TAXA_IMEDIATO * 100) })}</Text>
         </Pressable>
       </View>
 
       {imediato ? (
         <Text style={[s.aviso, !livreAgora && s.avisoErro]}>
           {livreAgora
-            ? `Pedidos para já têm uma taxa extra de ${Math.round(TAXA_IMEDIATO * 100)}%. Avisamos o motorista de imediato.`
-            : 'Este carro está ocupado agora. Agenda para mais tarde ou escolhe outro carro.'}
+            ? t('Pedidos para já têm uma taxa extra de {pct}%. Avisamos o motorista de imediato.', { pct: Math.round(TAXA_IMEDIATO * 100) })
+            : t('Este carro está ocupado agora. Agenda para mais tarde ou escolhe outro carro.')}
         </Text>
       ) : (
         <>
@@ -85,14 +86,14 @@ export function EscolhaHorario({ viaturaId, duracaoMin, locais, conducao, reserv
                   key={inicio.getTime()}
                   disabled={!livre}
                   onPress={() => onMudar({ tipo: 'agendado', inicio })}
-                  accessibilityLabel={`${formatarHora(inicio)}${livre ? '' : ', ocupado'}`}
+                  accessibilityLabel={livre ? formatarHora(inicio) : t('{hora}, ocupado', { hora: formatarHora(inicio) })}
                   style={[s.chip, ativo && s.chipAtivo, !livre && s.chipOcupado]}>
                   <Text style={[s.textoChip, ativo && s.textoChipAtivo, !livre && s.textoOcupado]}>{formatarHora(inicio)}</Text>
                 </Pressable>
               );
             })}
           </ScrollView>
-          <Text style={s.legenda}>{semLivres ? 'Não há horários livres neste dia. Escolhe outro dia.' : 'Os horários riscados não dão: o carro tem outra reserva ou não chega a tempo da anterior.'}</Text>
+          <Text style={s.legenda}>{semLivres ? t('Não há horários livres neste dia. Escolhe outro dia.') : t('Os horários riscados não dão: o carro tem outra reserva ou não chega a tempo da anterior.')}</Text>
         </>
       )}
     </View>

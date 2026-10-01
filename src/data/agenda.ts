@@ -5,6 +5,7 @@ import type { Ponto } from '@/components/mapa-tipos';
 
 import type { PedidoMotorista } from './tempo-real';
 import { distanciaKm, duracaoMin } from './viagem';
+import { t } from '@/i18n';
 
 /** Intervalo entre horários que o cliente pode escolher. */
 export const INTERVALO_MIN = 30;
@@ -143,9 +144,9 @@ export function formatarHora(d: Date): string {
 
 /** "Hoje", "Amanhã" ou "Sex 3 out". */
 export function formatarDia(d: Date, agora: Date): string {
-  if (mesmoDia(d, agora)) return 'Hoje';
-  if (mesmoDia(d, somarMin(inicioDoDia(agora), 24 * 60))) return 'Amanhã';
-  return `${DIAS_SEMANA[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
+  if (mesmoDia(d, agora)) return t('Hoje');
+  if (mesmoDia(d, somarMin(inicioDoDia(agora), 24 * 60))) return t('Amanhã');
+  return `${t(DIAS_SEMANA[d.getDay()])} ${d.getDate()} ${t(MESES[d.getMonth()])}`;
 }
 
 /** Algumas viagens já marcadas nos carros de exemplo, para o calendário não aparecer vazio. */

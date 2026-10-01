@@ -3,17 +3,18 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
+import { t } from '@/i18n';
 
 /** Nota que aparece em todas as viagens: só se paga pela app (M-Pesa ou e-Mola), nunca em dinheiro. */
 export function NotaPagamento({ paraMotorista = false }: { paraMotorista?: boolean }) {
   const c = usePalette();
   return (
     <View style={[estilos.nota, { backgroundColor: c.backgroundElement }]} accessibilityRole="text">
-      <Text style={[estilos.titulo, { color: c.text }]}>Nota</Text>
+      <Text style={[estilos.titulo, { color: c.text }]}>{t('Nota')}</Text>
       <Text style={[estilos.texto, { color: c.textSecondary }]}>
         {paraMotorista
-          ? 'Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não aceites dinheiro do cliente.'
-          : 'Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não se paga em dinheiro ao motorista.'}
+          ? t('Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não aceites dinheiro do cliente.')
+          : t('Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não se paga em dinheiro ao motorista.')}
       </Text>
     </View>
   );

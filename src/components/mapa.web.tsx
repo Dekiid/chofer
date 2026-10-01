@@ -5,6 +5,7 @@ import { Text } from '@/components/texto';
 import { usePalette } from '@/constants/use-palette';
 
 import type { MapaProps, Ponto } from './mapa-tipos';
+import { t } from '@/i18n';
 
 // react-native-maps não funciona na web; esta vista só serve para pré-visualizar o layout.
 // Os pontos são projetados na parte de cima do ecrã (a de baixo fica tapada pelo painel),
@@ -36,7 +37,7 @@ export function Mapa({ origem, destino, paragens, carro, rota }: MapaProps) {
     <View
       style={[StyleSheet.absoluteFill, { backgroundColor: cores.mapa, alignItems: 'center', paddingTop: 60 }]}
       onLayout={(e) => setTamanho({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      <Text style={{ color: cores.textSecondary }}>Mapa de Maputo e Matola</Text>
+      <Text style={{ color: cores.textSecondary }}>{t('Mapa de Maputo e Matola')}</Text>
       {tamanho.w > 0 &&
         linha.slice(1).map((p, i) => {
           const a = xy(linha[i]);

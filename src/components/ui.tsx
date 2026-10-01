@@ -6,6 +6,7 @@ import { Radius, Spacing, VIDRO } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { Text } from '@/components/texto';
 import { Vidro } from '@/components/vidro';
+import { t } from '@/i18n';
 
 /** Painel que fica por cima do mapa, preso ao fundo do ecrã. */
 export function Painel({ children, style, onLayout }: { children: ReactNode; style?: StyleProp<ViewStyle>; onLayout?: ViewProps['onLayout'] }) {
@@ -112,7 +113,7 @@ export function BotaoVoltar({ onPress }: { onPress: () => void }) {
   const seta = <Text style={{ color: c.text, fontSize: 22, fontWeight: '700', marginTop: -2 }}>‹</Text>;
   if (VIDRO) {
     return (
-      <Pressable onPress={onPress} accessibilityLabel="Voltar" style={{ alignSelf: 'flex-start' }}>
+      <Pressable onPress={onPress} accessibilityLabel={t('Voltar')} style={{ alignSelf: 'flex-start' }}>
         <Vidro interativo style={[estilos.voltar, { shadowOpacity: 0.08 }]}>
           {seta}
         </Vidro>
@@ -120,7 +121,7 @@ export function BotaoVoltar({ onPress }: { onPress: () => void }) {
     );
   }
   return (
-    <Pressable onPress={onPress} accessibilityLabel="Voltar" style={[estilos.voltar, { backgroundColor: c.background }]}>
+    <Pressable onPress={onPress} accessibilityLabel={t('Voltar')} style={[estilos.voltar, { backgroundColor: c.background }]}>
       {seta}
     </Pressable>
   );

@@ -9,6 +9,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { pedirAutorizacao } from '@/data/avisos-telemovel';
 import { useSessao } from '@/state/sessao';
+import { t } from '@/i18n';
 
 /** Último passo do registo: dá as boas-vindas e pede a localização e os avisos. */
 export function BemVindo() {
@@ -36,21 +37,21 @@ export function BemVindo() {
               <View style={s.pino} />
             </View>
           </View>
-          <Text style={s.titulo}>Tudo pronto, {sessao.perfil?.nome}</Text>
-          <Text style={s.texto}>Permite a localização para o motorista te encontrar e para sugerirmos o ponto de recolha.</Text>
+          <Text style={s.titulo}>{t('Tudo pronto, {nome}', { nome: sessao.perfil?.nome ?? '' })}</Text>
+          <Text style={s.texto}>{t('Permite a localização para o motorista te encontrar e para sugerirmos o ponto de recolha.')}</Text>
           <View style={s.linha}>
             <Text style={s.icone}>📍</Text>
-            <Text style={s.ponto}>Recolha no sítio onde estás, sem escrever a morada.</Text>
+            <Text style={s.ponto}>{t('Recolha no sítio onde estás, sem escrever a morada.')}</Text>
           </View>
           <View style={s.linha}>
             <Text style={s.icone}>🔔</Text>
-            <Text style={s.ponto}>Avisos quando o motorista está a caminho e quando chega.</Text>
+            <Text style={s.ponto}>{t('Avisos quando o motorista está a caminho e quando chega.')}</Text>
           </View>
         </View>
         <View style={s.rodape}>
-          <BotaoPrincipal texto={aPedir ? 'Um momento…' : 'Permitir localização e avisos'} onPress={permitir} desativado={aPedir} />
+          <BotaoPrincipal texto={aPedir ? t('Um momento…') : t('Permitir localização e avisos')} onPress={permitir} desativado={aPedir} />
           <Text style={s.agoraNao} onPress={sessao.fecharBemVindo}>
-            Agora não
+            {t('Agora não')}
           </Text>
         </View>
       </SafeAreaView>

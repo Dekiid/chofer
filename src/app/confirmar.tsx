@@ -12,6 +12,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { conflito, formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
+import { nomeLugar } from '@/data/lugares';
 import { lugarNoPonto } from '@/data/moradas';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { usePedirAgora } from '@/hooks/use-pedir-agora';
@@ -19,6 +20,7 @@ import { useTempoConducao } from '@/hooks/use-tempo-conducao';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
+import { t } from '@/i18n';
 
 export default function Confirmar() {
   const cores = usePalette();
@@ -102,12 +104,12 @@ export default function Confirmar() {
       {!aberto && (
         <Painel>
           <View {...puxarParaCima.panHandlers}>
-            <Pressable onPress={() => setAberto(true)} accessibilityLabel="Mostrar os detalhes da viagem">
+            <Pressable onPress={() => setAberto(true)} accessibilityLabel={t('Mostrar os detalhes da viagem')}>
               <View style={s.mini}>
                 <View style={{ flex: 1 }}>
                   <View style={s.linhaMini}>
                     <View style={s.pontoRecolha} />
-                    <Text style={s.localMini} numberOfLines={1}>{origem.nome}</Text>
+                    <Text style={s.localMini} numberOfLines={1}>{nomeLugar(origem)}</Text>
                   </View>
                   <View style={s.linhaMini}>
                     <View style={s.ponto} />
@@ -116,11 +118,11 @@ export default function Confirmar() {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={s.totalMini}>{formatarMzn(preco)}</Text>
-                  <Text style={s.detalhes}>Ver detalhes</Text>
+                  <Text style={s.detalhes}>{t('Ver detalhes')}</Text>
                 </View>
               </View>
             </Pressable>
-            {Platform.OS !== 'web' && <Text style={s.dica}>Para acertar a recolha ou o destino, mantém o dedo no ponto e arrasta-o no mapa.</Text>}
+            {Platform.OS !== 'web' && <Text style={s.dica}>{t('Para acertar a recolha ou o destino, mantém o dedo no ponto e arrasta-o no mapa.')}</Text>}
           </View>
         </Painel>
       )}
@@ -130,7 +132,7 @@ export default function Confirmar() {
           <View {...puxarParaBaixo.panHandlers}>
             <Pressable onPress={() => router.replace({ pathname: '/destino', params: { campo: 'origem' } })} style={s.linha}>
               <View style={s.pontoRecolha} />
-              <Text style={s.local} numberOfLines={1}>{origem.nome}</Text>
+              <Text style={s.local} numberOfLines={1}>{nomeLugar(origem)}</Text>
             </Pressable>
             {paragens.map((p, i) => (
               <Pressable key={`${p.id}-${i}`} onPress={() => router.replace('/destino')} style={s.linha}>
@@ -143,7 +145,7 @@ export default function Confirmar() {
               <Text style={s.local} numberOfLines={1}>{destino.nome}</Text>
             </Pressable>
 
-            <Text style={s.pergunta}>Quando?</Text>
+            <Text style={s.pergunta}>{t('Quando?')}</Text>
             <EscolhaHorario
               viaturaId={viatura.id}
               duracaoMin={duracao}
@@ -157,48 +159,52 @@ export default function Confirmar() {
 
             <View style={s.resumo}>
               <View style={s.linhaResumo}>
-                <Text style={s.secundario}>Carro</Text>
+                <Text style={s.secundario}>{t('Carro')}</Text>
                 <Text style={s.valor}>{nomeViatura(viatura)}</Text>
               </View>
               <View style={s.linhaResumo}>
-                <Text style={s.secundario}>Recolha</Text>
+                <Text style={s.secundario}>{t('Recolha')}</Text>
                 <Text style={s.valor}>
                   {quando?.tipo === 'agendado'
                     ? `${formatarDia(quando.inicio, agora)}, ${formatarHora(quando.inicio)}`
                     : imediato
-                      ? `Agora · chega em ${viatura.chegadaMin} min`
-                      : 'Escolhe a hora'}
+                      ? t('Agora · chega em {n} min', { n: viatura.chegadaMin })
+                      : t('Escolhe a hora')}
                 </Text>
               </View>
               <View style={s.linhaResumo}>
-                <Text style={s.secundario}>{paragens.length ? `Distância (${paragens.length} ${paragens.length === 1 ? 'paragem' : 'paragens'})` : 'Distância'}</Text>
+                <Text style={s.secundario}>{paragens.length ? (paragens.length === 1 ? t('Distância ({n} paragem)', { n: 1 }) : t('Distância ({n} paragens)', { n: paragens.length })) : t('Distância')}</Text>
                 <Text style={s.valor}>
-                  {rotaACarregar ? 'A calcular a rota…' : `${km.toFixed(1).replace('.', ',')} km · cerca de ${duracao} min${rota.fonte === 'estimativa' ? ' (estimativa)' : ''}`}
+                  {rotaACarregar
+                    ? t('A calcular a rota…')
+                    : rota.fonte === 'estimativa'
+                      ? t('{km} km · cerca de {min} min (estimativa)', { km: km.toFixed(1).replace('.', ','), min: duracao })
+                      : t('{km} km · cerca de {min} min', { km: km.toFixed(1).replace('.', ','), min: duracao })}
                 </Text>
               </View>
               <View style={s.linhaResumo}>
-                <Text style={s.secundario}>Preço por km</Text>
+                <Text style={s.secundario}>{t('Preço por km')}</Text>
                 <Text style={s.valor}>{formatarMzn(viatura.porKmMzn)}</Text>
               </View>
               {imediato && (
                 <View style={s.linhaResumo}>
-                  <Text style={s.secundario}>Taxa de pedido imediato</Text>
+                  <Text style={s.secundario}>{t('Taxa de pedido imediato')}</Text>
                   <Text style={s.valor}>{formatarMzn(taxaImediato(viatura, km))}</Text>
                 </View>
               )}
               <View style={[s.linhaResumo, s.linhaTotal]}>
-                <Text style={s.total}>Total</Text>
+                <Text style={s.total}>{t('Total')}</Text>
                 <Text style={s.total}>{formatarMzn(preco)}</Text>
               </View>
             </View>
 
             {/* Reservas pagam-se já, para guardar o horário; pedidos para agora pagam-se no fim, como na Uber,
                 porque o motorista ainda pode recusar. */}
-            {quando && <Text style={s.quandoPaga}>{imediato ? 'Pagas no fim da viagem, por M-Pesa ou e-Mola.' : 'Pagas agora, para reservar o horário.'}</Text>}
+            {quando && <Text style={s.quandoPaga}>{imediato ? t('Pagas no fim da viagem, por M-Pesa ou e-Mola.') : t('Pagas agora, para reservar o horário.')}</Text>}
             <NotaPagamento />
             {erroPedido ? <Text style={s.avisoAgenda}>{erroPedido}</Text> : null}
             <BotaoPrincipal
-              texto={aPedir ? 'A pedir…' : 'Pedir chauffeur'}
+              texto={aPedir ? t('A pedir…') : t('Pedir chauffeur')}
               escuro
               onPress={async () => {
                 if (!imediato) return router.push('/pagamento');

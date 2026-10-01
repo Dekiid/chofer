@@ -7,6 +7,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { nomeViatura, type CreditoFoto, type Viatura } from '@/data/categorias';
 import { Text } from '@/components/texto';
+import { t } from '@/i18n';
 
 type Props = {
   viatura: Viatura;
@@ -36,7 +37,7 @@ export function FotoCarro({ viatura, style, ilustracao }: Props) {
           style={StyleSheet.absoluteFill}
           contentFit={solto ? 'contain' : 'cover'}
           transition={250}
-          accessibilityLabel={ilustracao ? ilustracao.etiqueta : `Foto de um ${nomeViatura(viatura)}`}
+          accessibilityLabel={ilustracao ? ilustracao.etiqueta : t('Foto do {carro}', { carro: nomeViatura(viatura) })}
           onError={() => setFalhou(viatura.id)}
         />
       )}
@@ -48,7 +49,7 @@ export function FotoCarro({ viatura, style, ilustracao }: Props) {
       {credito && (
         <Pressable onPress={() => WebBrowser.openBrowserAsync(credito.pagina)} style={[estilos.credito, solto && estilos.creditoSolto]}>
           <Text style={[estilos.creditoTexto, solto && { color: cores.textSecondary }]}>
-            Foto: {credito.autor} · {credito.licenca}
+            {t('Foto: {autor} · {licenca}', { autor: credito.autor, licenca: credito.licenca })}
           </Text>
         </Pressable>
       )}

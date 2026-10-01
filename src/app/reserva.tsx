@@ -9,10 +9,12 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora, mesmoDia, reservaQueOcupa } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { precoCasamento } from '@/data/casamento';
+import { nomeLugar } from '@/data/lugares';
 import { diaria, diasReservaveis, fimReserva, horasLivres, MAX_DIAS, textoDias, totalReserva } from '@/data/reserva';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
+import { t } from '@/i18n';
 
 /** Aluguer e casamento: o mesmo fluxo das viagens, mas pago à diária. Local, dia, hora, dias, pagamento. */
 export default function ReservaEcra() {
@@ -43,10 +45,10 @@ export default function ReservaEcra() {
         <BotaoVoltar onPress={() => router.back()} />
         <View style={{ flex: 1 }}>
           <Text style={s.titulo} numberOfLines={1}>
-            {casamento ? 'Reservar para casamento' : 'Alugar'}
+            {casamento ? t('Reservar para casamento') : t('Alugar')}
           </Text>
           <Text style={s.secundario} numberOfLines={1}>
-            {nomeViatura(viatura)} · {formatarMzn(diaria(viatura, reserva))}/dia
+            {nomeViatura(viatura)} · {t('{preco}/dia', { preco: formatarMzn(diaria(viatura, reserva)) })}
           </Text>
         </View>
       </View>
@@ -54,39 +56,39 @@ export default function ReservaEcra() {
       <ScrollView contentContainerStyle={s.conteudo}>
         {casamento && viatura.casamento && (
           <>
-            <Text style={s.pergunta}>Decoração</Text>
+            <Text style={s.pergunta}>{t('Decoração')}</Text>
             <View style={s.opcoes}>
               {(['com', 'sem'] as const).map((d) => (
                 <Pressable key={d} onPress={() => mudar({ decoracao: d })} style={[s.opcao, reserva.decoracao === d && s.opcaoAtiva]}>
-                  <Text style={[s.textoOpcao, reserva.decoracao === d && s.textoOpcaoAtiva]}>{d === 'com' ? 'Com decoração' : 'Sem decoração'}</Text>
-                  <Text style={[s.precoOpcao, reserva.decoracao === d && s.textoOpcaoAtiva]}>{formatarMzn(precoCasamento(viatura.casamento!, d))}/dia</Text>
+                  <Text style={[s.textoOpcao, reserva.decoracao === d && s.textoOpcaoAtiva]}>{d === 'com' ? t('Com decoração') : t('Sem decoração')}</Text>
+                  <Text style={[s.precoOpcao, reserva.decoracao === d && s.textoOpcaoAtiva]}>{t('{preco}/dia', { preco: formatarMzn(precoCasamento(viatura.casamento!, d)) })}</Text>
                 </Pressable>
               ))}
             </View>
           </>
         )}
 
-        <Text style={s.pergunta}>{casamento ? 'Onde o motorista vai buscar os noivos?' : 'Onde entregamos o carro?'}</Text>
+        <Text style={s.pergunta}>{casamento ? t('Onde o motorista vai buscar os noivos?') : t('Onde entregamos o carro?')}</Text>
         <Pressable onPress={() => router.push({ pathname: '/destino', params: { campo: 'origem', para: 'reserva' } })} style={s.linhaLocal}>
           <View style={s.pontoRecolha} />
           <Text style={s.local} numberOfLines={1}>
-            {origem.nome}
+            {nomeLugar(origem)}
           </Text>
-          <Text style={s.mudar}>Mudar</Text>
+          <Text style={s.mudar}>{t('Mudar')}</Text>
         </Pressable>
 
-        <Text style={s.pergunta}>Quantos dias?</Text>
+        <Text style={s.pergunta}>{t('Quantos dias?')}</Text>
         <View style={s.contador}>
-          <Pressable onPress={() => mudar({ dias: Math.max(1, reserva.dias - 1) })} style={s.botaoContador} disabled={reserva.dias <= 1} accessibilityLabel="Menos um dia">
+          <Pressable onPress={() => mudar({ dias: Math.max(1, reserva.dias - 1) })} style={s.botaoContador} disabled={reserva.dias <= 1} accessibilityLabel={t('Menos um dia')}>
             <Text style={[s.sinal, reserva.dias <= 1 && { opacity: 0.3 }]}>−</Text>
           </Pressable>
           <Text style={s.numeroDias}>{textoDias(reserva.dias)}</Text>
-          <Pressable onPress={() => mudar({ dias: Math.min(MAX_DIAS, reserva.dias + 1) })} style={s.botaoContador} disabled={reserva.dias >= MAX_DIAS} accessibilityLabel="Mais um dia">
+          <Pressable onPress={() => mudar({ dias: Math.min(MAX_DIAS, reserva.dias + 1) })} style={s.botaoContador} disabled={reserva.dias >= MAX_DIAS} accessibilityLabel={t('Mais um dia')}>
             <Text style={s.sinal}>+</Text>
           </Pressable>
         </View>
 
-        <Text style={s.pergunta}>{casamento ? 'Dia do casamento' : 'Dia da entrega'}</Text>
+        <Text style={s.pergunta}>{casamento ? t('Dia do casamento') : t('Dia da entrega')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fila} style={{ flexGrow: 0, flexShrink: 0 }}>
           {dias.map((d) => {
             // Um dia sem nenhuma hora livre fica riscado.
@@ -100,7 +102,7 @@ export default function ReservaEcra() {
           })}
         </ScrollView>
 
-        <Text style={s.pergunta}>{casamento ? 'Hora da recolha' : 'Hora da entrega'}</Text>
+        <Text style={s.pergunta}>{casamento ? t('Hora da recolha') : t('Hora da entrega')}</Text>
         <View style={s.horas}>
           {horas.map(({ inicio, livre }) => {
             const ativo = reserva.inicio?.getTime() === inicio.getTime();
@@ -111,29 +113,29 @@ export default function ReservaEcra() {
             );
           })}
         </View>
-        {!horas.some((h) => h.livre) && <Text style={s.aviso}>O carro não está livre neste dia para {textoDias(reserva.dias)}. Escolhe outro dia.</Text>}
+        {!horas.some((h) => h.livre) && <Text style={s.aviso}>{t('O carro não está livre neste dia para {dias}. Escolhe outro dia.', { dias: textoDias(reserva.dias) })}</Text>}
 
         <View style={s.resumo}>
-          <Linha s={s} nome={casamento ? 'Carro com motorista' : 'Carro sem motorista'} valor={nomeViatura(viatura)} />
-          {casamento && <Linha s={s} nome="Decoração" valor={reserva.decoracao === 'com' ? 'Com decoração' : 'Sem decoração'} />}
+          <Linha s={s} nome={casamento ? t('Carro com motorista') : t('Carro sem motorista')} valor={nomeViatura(viatura)} />
+          {casamento && <Linha s={s} nome={t('Decoração')} valor={reserva.decoracao === 'com' ? t('Com decoração') : t('Sem decoração')} />}
           <Linha
             s={s}
-            nome={casamento ? 'Recolha' : 'Entrega'}
-            valor={reserva.inicio && inicioValido ? `${formatarDia(reserva.inicio, agora)}, ${formatarHora(reserva.inicio)}` : 'Escolhe o dia e a hora'}
+            nome={casamento ? t('Recolha') : t('Entrega')}
+            valor={reserva.inicio && inicioValido ? `${formatarDia(reserva.inicio, agora)}, ${formatarHora(reserva.inicio)}` : t('Escolhe o dia e a hora')}
           />
           {reserva.inicio && inicioValido && (
-            <Linha s={s} nome={casamento ? 'Fim' : 'Devolução'} valor={`${formatarDia(fimReserva(reserva.inicio, reserva.dias), agora)}, ${formatarHora(reserva.inicio)}`} />
+            <Linha s={s} nome={casamento ? t('Fim') : t('Devolução')} valor={`${formatarDia(fimReserva(reserva.inicio, reserva.dias), agora)}, ${formatarHora(reserva.inicio)}`} />
           )}
-          <Linha s={s} nome="Diária" valor={`${formatarMzn(diaria(viatura, reserva))} × ${textoDias(reserva.dias)}`} />
+          <Linha s={s} nome={t('Diária')} valor={`${formatarMzn(diaria(viatura, reserva))} × ${textoDias(reserva.dias)}`} />
           <View style={[s.linhaResumo, s.linhaTotal]}>
-            <Text style={s.total}>Total</Text>
+            <Text style={s.total}>{t('Total')}</Text>
             <Text style={s.total}>{formatarMzn(total)}</Text>
           </View>
         </View>
       </ScrollView>
 
       <View style={s.rodape}>
-        <BotaoPrincipal texto={casamento ? 'Reservar e pagar' : 'Alugar e pagar'} escuro onPress={() => router.push('/pagamento')} desativado={!inicioValido} />
+        <BotaoPrincipal texto={casamento ? t('Reservar e pagar') : t('Alugar e pagar')} escuro onPress={() => router.push('/pagamento')} desativado={!inicioValido} />
       </View>
     </SafeAreaView>
   );

@@ -8,8 +8,9 @@ import { Text } from '@/components/texto';
 import { BotaoPrincipal, BotaoVoltar, Painel } from '@/components/ui';
 import { Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import type { Lugar } from '@/data/lugares';
+import { nomeLugar, zonaLugar, type Lugar } from '@/data/lugares';
 import { lugarNoPonto } from '@/data/moradas';
+import { t } from '@/i18n';
 
 export type TipoPin = 'origem' | 'destino' | 'paragem';
 
@@ -73,19 +74,19 @@ export function MarcarNoMapa({ tipo, inicial, onConfirmar, onVoltar }: { tipo: T
       </SafeAreaView>
 
       <Painel>
-        <Text style={s.titulo}>{texto.titulo}</Text>
-        <Text style={s.ajuda}>Arrasta o mapa até o pin ficar no sítio certo.</Text>
+        <Text style={s.titulo}>{t(texto.titulo)}</Text>
+        <Text style={s.ajuda}>{t('Arrasta o mapa até o pin ficar no sítio certo.')}</Text>
         <View style={s.morada}>
           <Text style={s.nome} numberOfLines={1}>
-            {lugar ? lugar.nome : aMexer ? 'A mover o mapa…' : 'A procurar a morada…'}
+            {lugar ? nomeLugar(lugar) : aMexer ? t('A mover o mapa…') : t('A procurar a morada…')}
           </Text>
           {lugar?.zona ? (
             <Text style={s.zona} numberOfLines={1}>
-              {lugar.zona}
+              {zonaLugar(lugar)}
             </Text>
           ) : null}
         </View>
-        <BotaoPrincipal texto={texto.botao} escuro desativado={!lugar} onPress={() => lugar && onConfirmar(lugar)} />
+        <BotaoPrincipal texto={t(texto.botao)} escuro desativado={!lugar} onPress={() => lugar && onConfirmar(lugar)} />
       </Painel>
     </View>
   );

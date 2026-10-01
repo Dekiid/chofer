@@ -7,10 +7,11 @@ import { MarcarNoMapa } from '@/components/marcar-no-mapa';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { pesquisarLugares, type Lugar } from '@/data/lugares';
+import { nomeLugar, pesquisarLugares, zonaLugar, type Lugar } from '@/data/lugares';
 import { LOCAIS, useConta, type TipoLocal } from '@/state/conta';
 import { MAX_PARAGENS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
+import { t } from '@/i18n';
 
 /** Campo que se está a preencher: a recolha, o destino ou uma das paragens pelo caminho. */
 type Campo = { tipo: 'origem' } | { tipo: 'destino' } | { tipo: 'paragem'; i: number };
@@ -46,7 +47,7 @@ export default function Destino() {
   function escolher(l: Lugar) {
     if (aGuardar) {
       const nome = LOCAIS.find((x) => x.tipo === aGuardar)!.nome;
-      conta.guardarLocal(aGuardar, { ...l, id: `local-${aGuardar}`, nome, zona: l.nome === 'A tua localização' ? l.zona : l.nome });
+      conta.guardarLocal(aGuardar, { ...l, id: `local-${aGuardar}`, nome, zona: l.id === 'atual' ? zonaLugar(l) : l.nome });
       setAGuardar(null);
       if (soGuardar) {
         router.back();
@@ -109,12 +110,12 @@ export default function Destino() {
       <SafeAreaView style={s.ecra}>
         <View style={s.cabecalho}>
           <BotaoVoltar onPress={() => router.back()} />
-          <Text style={s.titulo}>Morada de {nomeAGuardar ?? LOCAIS.find((x) => x.tipo === soGuardar)!.nome}</Text>
+          <Text style={s.titulo}>{t('Morada de {local}', { local: t(nomeAGuardar ?? LOCAIS.find((x) => x.tipo === soGuardar)!.nome) })}</Text>
         </View>
         <View style={s.campos}>
           <View style={[s.linhaCampo, s.campoAtivo]}>
             <View style={s.ponto} />
-            {campoInput('Procura a morada')}
+            {campoInput(t('Procura a morada'))}
           </View>
         </View>
         <ListaLugares resultados={resultados} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
@@ -126,20 +127,20 @@ export default function Destino() {
     <SafeAreaView style={s.ecra}>
       <View style={s.cabecalho}>
         <BotaoVoltar onPress={() => router.back()} />
-        <Text style={s.titulo}>{campo.tipo === 'origem' ? 'Onde te vamos buscar?' : campo.tipo === 'paragem' ? 'Onde paramos pelo caminho?' : 'Para onde vamos?'}</Text>
+        <Text style={s.titulo}>{campo.tipo === 'origem' ? t('Onde te vamos buscar?') : campo.tipo === 'paragem' ? t('Onde paramos pelo caminho?') : t('Para onde vamos?')}</Text>
       </View>
 
       <View style={s.campos}>
         <Pressable onPress={() => editar({ tipo: 'origem' })} style={[s.linhaCampo, campo.tipo === 'origem' && s.campoAtivo]}>
           <View style={s.pontoRecolha} />
           {campo.tipo === 'origem' ? (
-            campoInput('Ponto de recolha')
+            campoInput(t('Ponto de recolha'))
           ) : (
             <>
               <Text style={s.origem} numberOfLines={1}>
-                {pedido.origem.nome}
+                {nomeLugar(pedido.origem)}
               </Text>
-              <Text style={s.mudar}>Mudar</Text>
+              <Text style={s.mudar}>{t('Mudar')}</Text>
             </>
           )}
         </Pressable>
@@ -148,13 +149,13 @@ export default function Destino() {
           <Pressable key={`${p.id}-${i}`} onPress={() => editar({ tipo: 'paragem', i })} style={[s.linhaCampo, eParagem(i) && s.campoAtivo]}>
             <View style={s.pontoParagem} />
             {eParagem(i) ? (
-              campoInput(`Paragem ${i + 1}`)
+              campoInput(t('Paragem {n}', { n: i + 1 }))
             ) : (
               <Text style={s.origem} numberOfLines={1}>
                 {p.nome}
               </Text>
             )}
-            <Pressable onPress={() => pedido.removerParagem(i)} hitSlop={10} accessibilityLabel={`Tirar a paragem ${i + 1}`}>
+            <Pressable onPress={() => pedido.removerParagem(i)} hitSlop={10} accessibilityLabel={t('Tirar a paragem {n}', { n: i + 1 })}>
               <Text style={s.tirar}>×</Text>
             </Pressable>
           </Pressable>
@@ -162,8 +163,8 @@ export default function Destino() {
         {paragemNova && (
           <View style={[s.linhaCampo, s.campoAtivo]}>
             <View style={s.pontoParagem} />
-            {campoInput(`Paragem ${pedido.paragens.length + 1}`)}
-            <Pressable onPress={() => editar({ tipo: 'destino' })} hitSlop={10} accessibilityLabel="Não acrescentar paragem">
+            {campoInput(t('Paragem {n}', { n: pedido.paragens.length + 1 }))}
+            <Pressable onPress={() => editar({ tipo: 'destino' })} hitSlop={10} accessibilityLabel={t('Não acrescentar paragem')}>
               <Text style={s.tirar}>×</Text>
             </Pressable>
           </View>
@@ -172,20 +173,20 @@ export default function Destino() {
         <Pressable onPress={() => editar({ tipo: 'destino' })} style={[s.linhaCampo, campo.tipo === 'destino' && s.campoAtivo]}>
           <View style={s.ponto} />
           {campo.tipo === 'destino' ? (
-            campoInput('Destino')
+            campoInput(t('Destino'))
           ) : (
             <Text style={s.origem} numberOfLines={1}>
-              {pedido.destino?.nome ?? 'Para onde?'}
+              {pedido.destino ? nomeLugar(pedido.destino) : t('Para onde?')}
             </Text>
           )}
         </Pressable>
 
         {pedido.paragens.length < MAX_PARAGENS && !paragemNova && (
           <Pressable onPress={() => editar({ tipo: 'paragem', i: pedido.paragens.length })} style={s.acrescentar} hitSlop={6}>
-            <Text style={s.acrescentarTexto}>+ Acrescentar paragem</Text>
+            <Text style={s.acrescentarTexto}>{t('+ Acrescentar paragem')}</Text>
           </Pressable>
         )}
-        {campo.tipo === 'origem' && <Text style={s.ajuda}>Podes pedir para outra pessoa: escolhe onde o motorista a deve ir buscar.</Text>}
+        {campo.tipo === 'origem' && <Text style={s.ajuda}>{t('Podes pedir para outra pessoa: escolhe onde o motorista a deve ir buscar.')}</Text>}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.locais} style={{ flexGrow: 0, flexShrink: 0 }} keyboardShouldPersistTaps="handled">
@@ -193,15 +194,15 @@ export default function Destino() {
           const l = conta.locais[tipo];
           return (
             <Pressable key={tipo} onPress={() => usarLocal(tipo)} style={[s.local, aGuardar === tipo && s.campoAtivo]}>
-              <Text style={s.localNome}>{nome}</Text>
+              <Text style={s.localNome}>{t(nome)}</Text>
               <Text style={s.localZona} numberOfLines={1}>
-                {l ? l.zona : 'Guardar'}
+                {l ? l.zona : t('Guardar')}
               </Text>
             </Pressable>
           );
         })}
       </ScrollView>
-      {aGuardar && <Text style={[s.ajuda, { marginHorizontal: Spacing.three, marginBottom: Spacing.two }]}>Escolhe a morada de {nomeAGuardar}. Fica guardada para a próxima vez.</Text>}
+      {aGuardar && <Text style={[s.ajuda, { marginHorizontal: Spacing.three, marginBottom: Spacing.two }]}>{t('Escolhe a morada de {local}. Fica guardada para a próxima vez.', { local: t(nomeAGuardar ?? '') })}</Text>}
 
       <ListaLugares resultados={resultados} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
     </SafeAreaView>
@@ -219,19 +220,19 @@ function ListaLugares({ resultados, onEscolher, onMapa, s }: { resultados: Lugar
             <View style={s.hastePin} />
           </View>
           <View>
-            <Text style={s.nome}>Marcar no mapa</Text>
-            <Text style={s.zona}>Põe o pin no sítio exato</Text>
+            <Text style={s.nome}>{t('Marcar no mapa')}</Text>
+            <Text style={s.zona}>{t('Põe o pin no sítio exato')}</Text>
           </View>
         </Pressable>
       }
       keyExtractor={(l) => l.id}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-      ListEmptyComponent={<Text style={s.vazio}>Nenhum lugar encontrado.</Text>}
+      ListEmptyComponent={<Text style={s.vazio}>{t('Nenhum lugar encontrado.')}</Text>}
       renderItem={({ item }) => (
         <Pressable style={s.item} onPress={() => onEscolher(item)}>
-          <Text style={s.nome}>{item.nome}</Text>
-          <Text style={s.zona}>{item.zona}</Text>
+          <Text style={s.nome}>{nomeLugar(item)}</Text>
+          <Text style={s.zona}>{zonaLugar(item)}</Text>
         </Pressable>
       )}
     />

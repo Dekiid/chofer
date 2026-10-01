@@ -3,7 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import type { Lugar } from '@/data/lugares';
+import { nomeLugar, type Lugar } from '@/data/lugares';
+import { t } from '@/i18n';
 
 /**
  * Recolha, paragens e destino da viagem, como na Uber: o ponto para onde o carro vai agora fica em destaque,
@@ -49,16 +50,16 @@ export function PercursoViagem({
     </View>
   );
   return (
-    <View style={[estilos.caixa, { backgroundColor: c.backgroundElement }]} accessibilityLabel={`De ${origem.nome} para ${destino.nome}`}>
-      {linha('recolha', origem.nome, recolhido ? 'Recolha feita' : 'Recolha', detalheRecolha, !recolhido, recolhido)}
+    <View style={[estilos.caixa, { backgroundColor: c.backgroundElement }]} accessibilityLabel={t('De {origem} para {destino}', { origem: nomeLugar(origem), destino: nomeLugar(destino) })}>
+      {linha('recolha', nomeLugar(origem), recolhido ? t('Recolha feita') : t('Recolha'), detalheRecolha, !recolhido, recolhido)}
       <View style={[estilos.traco, { backgroundColor: c.backgroundSelected }]} />
       {paragens.map((p, i) => (
         <View key={`${p.id}-${i}`}>
-          {linha('paragem', p.nome, `Paragem ${i + 1}`, undefined, false)}
+          {linha('paragem', p.nome, t('Paragem {n}', { n: i + 1 }), undefined, false)}
           <View style={[estilos.traco, { backgroundColor: c.backgroundSelected }]} />
         </View>
       ))}
-      {linha('destino', destino.nome, 'Destino', detalheDestino, recolhido)}
+      {linha('destino', destino.nome, t('Destino'), detalheDestino, recolhido)}
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { ANTECEDENCIA_MIN, inicioDoDia, reservaQueOcupa, somarMin, type Reserva } from './agenda';
 import type { Viatura } from './categorias';
 import { precoCasamento, type Decoracao } from './casamento';
+import { t } from '@/i18n';
 
 /** Aluguer sem motorista ou carro de casamento com motorista, pagos à diária. */
 export type ReservaDias = {
@@ -41,4 +42,4 @@ export function horasLivres(dia: Date, viaturaId: string, dias: number, reservas
   });
 }
 
-export const textoDias = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+export const textoDias = (n: number) => (n === 1 ? t('{n} dia', { n }) : t('{n} dias', { n }));

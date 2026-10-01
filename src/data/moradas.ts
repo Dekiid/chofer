@@ -5,6 +5,7 @@ import type { Ponto } from '@/components/mapa-tipos';
 
 import { LUGARES, type Lugar } from './lugares';
 import { distanciaKm } from './viagem';
+import { t } from '@/i18n';
 
 // O mesmo token das rotas (.env.local). Sem ele usa-se o geocodificador do telemóvel.
 const TOKEN_MAPBOX = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
@@ -13,7 +14,7 @@ const TOKEN_MAPBOX = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 export async function lugarNoPonto(p: Ponto): Promise<Lugar> {
   const id = `pin-${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`;
   const nomeado = (await moradaMapbox(p)) ?? (await moradaTelemovel(p)) ?? lugarPerto(p);
-  return { id, latitude: p.latitude, longitude: p.longitude, ...(nomeado ?? { nome: 'Ponto no mapa', zona: `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}` }) };
+  return { id, latitude: p.latitude, longitude: p.longitude, ...(nomeado ?? { nome: t('Ponto no mapa'), zona: `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}` }) };
 }
 
 type Nome = { nome: string; zona: string };

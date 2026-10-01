@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
 import { nomeViatura, type FotoGaleria, type Viatura } from '@/data/categorias';
+import { t } from '@/i18n';
 
 type Props = {
   viatura: Viatura;
@@ -54,8 +55,8 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
   // fazia-a saltar de volta ao meio durante o fade, e isso via-se como um tremor.
   useEffect(() => {
     if (visivel) return;
-    const t = setTimeout(() => (arrasto.value = 0), 400);
-    return () => clearTimeout(t);
+    const espera = setTimeout(() => (arrasto.value = 0), 400);
+    return () => clearTimeout(espera);
   }, [visivel, arrasto]);
 
   // Arrastar para cima ou para baixo fecha a galeria; um arrasto curto volta ao lugar.
@@ -94,10 +95,10 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
                       {nomeViatura(viatura)}
                     </Text>
                     <Text style={estilos.subtitulo}>
-                      {atual.legenda} · {Math.min(pagina, fotos.length - 1) + 1} de {fotos.length}
+                      {t('{legenda} · {n} de {total}', { legenda: t(atual.legenda), n: Math.min(pagina, fotos.length - 1) + 1, total: fotos.length })}
                     </Text>
                   </View>
-                  <Pressable onPress={fechar} accessibilityLabel="Fechar" hitSlop={12} style={({ pressed }) => [estilos.fechar, pressed && { opacity: 0.6 }]}>
+                  <Pressable onPress={fechar} accessibilityLabel={t('Fechar')} hitSlop={12} style={({ pressed }) => [estilos.fechar, pressed && { opacity: 0.6 }]}>
                     {/* Um X desenhado com dois traços fica sempre no centro; o carácter × dependia da letra. */}
                     <View style={[estilos.traco, { transform: [{ rotate: '45deg' }] }]} />
                     <View style={[estilos.traco, { transform: [{ rotate: '-45deg' }] }]} />
@@ -128,7 +129,7 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
                               contentFit="contain"
                               transition={200}
                               onLoad={(e) => e.source.width > 0 && setProporcoes((p) => ({ ...p, [i]: e.source.width / e.source.height }))}
-                              accessibilityLabel={`${nomeViatura(viatura)}: ${f.legenda}`}
+                              accessibilityLabel={`${nomeViatura(viatura)}: ${t(f.legenda)}`}
                             />
                           </Pressable>
                         </Pressable>
@@ -136,12 +137,12 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
                     })}
                   </Rolo>
                   {pagina > 0 && (
-                    <Pressable onPress={() => irPara(pagina - 1)} accessibilityLabel="Foto anterior" style={[estilos.seta, { left: Spacing.two }]}>
+                    <Pressable onPress={() => irPara(pagina - 1)} accessibilityLabel={t('Foto anterior')} style={[estilos.seta, { left: Spacing.two }]}>
                       <Text style={estilos.setaTexto}>‹</Text>
                     </Pressable>
                   )}
                   {pagina < fotos.length - 1 && (
-                    <Pressable onPress={() => irPara(pagina + 1)} accessibilityLabel="Foto seguinte" style={[estilos.seta, { right: Spacing.two }]}>
+                    <Pressable onPress={() => irPara(pagina + 1)} accessibilityLabel={t('Foto seguinte')} style={[estilos.seta, { right: Spacing.two }]}>
                       <Text style={estilos.setaTexto}>›</Text>
                     </Pressable>
                   )}
@@ -156,13 +157,13 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
                   {atual.credito ? (
                     <Pressable onPress={() => WebBrowser.openBrowserAsync(atual.credito!.pagina)}>
                       <Text style={estilos.credito}>
-                        Foto: {atual.credito.autor} · {atual.credito.licenca}
+                        {t('Foto: {autor} · {licenca}', { autor: atual.credito.autor, licenca: atual.credito.licenca })}
                       </Text>
                     </Pressable>
                   ) : (
-                    <Text style={estilos.credito}>Foto enviada pelo motorista</Text>
+                    <Text style={estilos.credito}>{t('Foto enviada pelo motorista')}</Text>
                   )}
-                  {fotos.length > 1 && <Text style={estilos.dica}>Desliza para ver mais</Text>}
+                  {fotos.length > 1 && <Text style={estilos.dica}>{t('Desliza para ver mais')}</Text>}
                 </View>
               </Pressable>
             </Animated.View>
