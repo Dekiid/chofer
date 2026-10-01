@@ -81,7 +81,8 @@ export default function Painel() {
       sb.from('reservas').select('id, viatura_id, inicio, fim, tipo, destino').gte('fim', new Date().toISOString()).order('inicio'),
     ]);
     const falhou = [v, i, a, j, r].find((x) => x.error);
-    setErro(falhou ? `Não foi possível ler os dados: ${falhou.error!.message}. Correste o supabase/painel.sql?` : null);
+    const ficheiro = falhou === r ? 'supabase/reservas.sql' : 'supabase/painel.sql';
+    setErro(falhou ? `Não foi possível ler os dados: ${falhou.error!.message}. Correste o ${ficheiro}?` : null);
     setDados({ viagens: v.data ?? [], inscricoes: i.data ?? [], avaliacoes: a.data ?? [], ajuda: j.data ?? [], reservas: r.data ?? [] });
   }, [sb, admin, demo]);
 

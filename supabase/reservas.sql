@@ -40,11 +40,11 @@ create policy "prototipo criar" on public.reservas for insert to anon, authentic
 create policy "prototipo apagar" on public.reservas for delete to anon, authenticated using (true);
 
 -- As reservas novas chegam logo aos outros telemóveis (Realtime).
-do $$
+do $fn$
 begin
   if not exists (
     select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'reservas'
   ) then
     alter publication supabase_realtime add table public.reservas;
   end if;
-end $$;
+end $fn$;
