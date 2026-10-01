@@ -21,13 +21,13 @@ returns void
 language sql
 security definer
 set search_path = ''
-as $$
+as $fn$
   insert into public.partilhas (id, dono, dados, atualizada_em)
   values (p_id, auth.uid(), p_dados, now())
   on conflict (id) do update
     set dados = excluded.dados, atualizada_em = now()
     where public.partilhas.dono is not distinct from auth.uid();
-$$;
+$fn$;
 
 -- Quem tem o link lê a partilha, sem conta.
 create or replace function public.ver_partilha(p_id text)
@@ -36,10 +36,10 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$
+as $fn$
   select dados from public.partilhas
   where id = p_id and atualizada_em > now() - interval '2 hours';
-$$;
+$fn$;
 
 revoke all on function public.guardar_partilha(text, jsonb) from public;
 grant execute on function public.guardar_partilha(text, jsonb) to anon, authenticated;

@@ -6,9 +6,9 @@ returns void
 language sql
 security definer
 set search_path = ''
-as $$
+as $fn$
   delete from auth.users where id = auth.uid();
-$$;
+$fn$;
 
 revoke all on function public.apagar_conta() from public, anon;
 grant execute on function public.apagar_conta() to authenticated;

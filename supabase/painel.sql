@@ -21,9 +21,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$
+as $fn$
   select exists (select 1 from public.administradores where email = (auth.jwt() ->> 'email'));
-$$;
+$fn$;
 grant execute on function public.e_admin() to anon, authenticated;
 
 -- 2. Viagens (cada telemóvel de cliente envia as suas; atualiza quando muda o estado).
@@ -89,14 +89,14 @@ returns void
 language sql
 security definer
 set search_path = ''
-as $$
+as $fn$
   insert into public.viagens (id, cliente_telefone, estado, total_mzn, viatura, dados)
   values (p_id, p_cliente_telefone, p_estado, p_total_mzn, p_viatura, p_dados)
   on conflict (id) do update
     set estado = excluded.estado, total_mzn = excluded.total_mzn, dados = excluded.dados, atualizada_em = now()
     -- Protótipo: só o mesmo número pode atualizar a sua viagem.
     where public.viagens.cliente_telefone is not distinct from excluded.cliente_telefone;
-$$;
+$fn$;
 grant execute on function public.guardar_viagem(text, text, text, integer, text, jsonb) to anon, authenticated;
 
 -- Inscrições, avaliações e ajuda: a app só cria; só os administradores leem.
@@ -127,9 +127,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$
+as $fn$
   select id, estado, por_km_mzn from public.inscricoes where telefone = p_telefone;
-$$;
+$fn$;
 grant execute on function public.estado_inscricoes(text) to anon, authenticated;
 
 -- O cliente vê a resposta aos seus pedidos de ajuda.
@@ -139,9 +139,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$
+as $fn$
   select id, estado, resposta, reembolso_mzn, respondido_em from public.pedidos_ajuda where cliente_telefone = p_telefone;
-$$;
+$fn$;
 grant execute on function public.respostas_ajuda(text) to anon, authenticated;
 
 -- Resumo do dono: as viagens dos carros que inscreveu, dos últimos 35 dias.
@@ -152,10 +152,10 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$
+as $fn$
   select v.id, i.id, v.estado, v.total_mzn, v.dados, v.atualizada_em
   from public.viagens v
   join public.inscricoes i on i.id = v.dados ->> 'viaturaId'
   where i.telefone = p_telefone and v.criada_em > now() - interval '35 days';
-$$;
+$fn$;
 grant execute on function public.viagens_dos_carros(text) to anon, authenticated;
