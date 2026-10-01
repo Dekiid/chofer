@@ -21,7 +21,7 @@ import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import { PercursoViagem } from '@/components/percurso-viagem';
 import { useInscricoes } from '@/state/inscricoes';
-import { useSessao } from '@/state/sessao';
+import { MOTORISTA_ABERTO_EM_TESTES, MOTORISTAS_DE_TESTE, useSessao } from '@/state/sessao';
 
 /** App do motorista, como a da Uber: ficar online, receber e aceitar pedidos, ir buscar, confirmar o código, levar e terminar. */
 export default function MotoristaEcra() {
@@ -82,6 +82,7 @@ function EscolherCarro({ s }: { s: S }) {
   const { viaturas } = usePedido();
   const m = useModoMotorista();
   const { perfil } = useSessao();
+  const podeVerTodos = MOTORISTA_ABERTO_EM_TESTES || Boolean(perfil?.motoristaDemo) || MOTORISTAS_DE_TESTE.includes(perfil?.telefone ?? '');
   const { inscricoes } = useInscricoes();
   // A conta de demonstração pode conduzir qualquer carro; um motorista aprovado só os que inscreveu.
   const meus = new Set(inscricoes.filter((i) => i.estado === 'aprovada' && i.telefone === perfil?.telefone).map((i) => i.id));
@@ -91,7 +92,7 @@ function EscolherCarro({ s }: { s: S }) {
       <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Recebes os pedidos dos clientes que escolherem este carro.</Text>
       <ScrollView style={{ maxHeight: 320 }}>
         {viaturas
-          .filter((v) => !v.soCasamento && (perfil?.motoristaDemo || meus.has(v.id)))
+          .filter((v) => !v.soCasamento && (podeVerTodos || meus.has(v.id)))
           .map((v) => (
             <Pressable key={v.id} onPress={() => m.escolherViatura(v.id)} style={s.linhaCarro}>
               <Text style={s.nome}>{nomeViatura(v)}</Text>

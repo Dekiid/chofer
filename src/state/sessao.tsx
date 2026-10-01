@@ -247,10 +247,19 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 
+/**
+ * Em testes, qualquer conta entra no modo motorista e vê todos os carros (pedido do Flavio).
+ * Pôr a false para voltar a exigir inscrição aprovada.
+ */
+export const MOTORISTA_ABERTO_EM_TESTES = true;
+
+/** Números que já são motoristas, mesmo depois de fechar o modo de testes (pedido do Flavio). */
+export const MOTORISTAS_DE_TESTE = ['+258841234567'];
+
 /** Pode usar o modo motorista: a conta de demonstração, ou quem tem uma inscrição de motorista aprovada com o mesmo número. */
 export function podeConduzir(perfil: Perfil | null, inscricoes: { telefone: string; estado: string }[]): boolean {
   if (!perfil) return false;
-  if (perfil.motoristaDemo) return true;
+  if (MOTORISTA_ABERTO_EM_TESTES || perfil.motoristaDemo || MOTORISTAS_DE_TESTE.includes(perfil.telefone)) return true;
   return inscricoes.some((i) => i.estado === 'aprovada' && i.telefone === perfil.telefone);
 }
 

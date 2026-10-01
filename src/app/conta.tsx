@@ -13,7 +13,7 @@ import { CREDITO_CONVITE_MZN, DESCONTO_CONVIDADO, PROMOS } from '@/data/promocoe
 import { formatarNumero } from '@/data/telefone';
 import { LOCAIS, useConta } from '@/state/conta';
 import { useMotoristaAprovado } from '@/state/permissoes';
-import { useSessao } from '@/state/sessao';
+import { MOTORISTA_ABERTO_EM_TESTES, useSessao } from '@/state/sessao';
 import { Text } from '@/components/texto';
 
 /** A conta do cliente: viagens, locais guardados, convites, promoções e avisos. */
@@ -68,7 +68,7 @@ export default function Conta() {
           <Pressable onPress={() => router.push('/motorista')} style={s.entrada}>
             <Text style={s.nome}>Modo motorista</Text>
             <Text style={s.secundario}>
-              {sessao.perfil?.motoristaDemo ? 'Conta de demonstração · ' : ''}Fica online, recebe pedidos e conduz com a Chauffeur
+              {sessao.perfil?.motoristaDemo ? 'Conta de demonstração · ' : MOTORISTA_ABERTO_EM_TESTES ? 'Aberto a todos em testes · ' : ''}Fica online, recebe pedidos e conduz com a Chauffeur
             </Text>
           </Pressable>
         ) : motorista.inscricao === 'pendente' ? (
