@@ -4,6 +4,7 @@ import type { Dados } from '@/app/page';
 export function exemplo(): Dados {
   const h = (horas: number) => new Date(Date.now() - horas * 3_600_000).toISOString();
   const lugar = (nome: string) => ({ nome });
+  const f = (horas: number) => new Date(Date.now() + horas * 3_600_000).toISOString();
   return {
     viagens: [
       { id: 'v1', cliente_telefone: '+258841112233', estado: 'em_curso', total_mzn: 630, viatura: 'BMW Série 5', criada_em: h(0.2), dados: { origem: lugar('Baixa, Maputo'), destino: lugar('Aeroporto Internacional de Maputo'), pagamento: 'M-Pesa', motorista: { nome: 'Carlos M.' }, clienteNome: 'Flavio', km: 7 } },
@@ -24,6 +25,18 @@ export function exemplo(): Dados {
     ajuda: [
       { id: 'j1', cliente_telefone: '+258847654321', estado: 'aberto', resposta: null, reembolso_mzn: null, criado_em: h(2), dados: { tipo: 'objeto', texto: 'Esqueci-me dos óculos de sol no banco de trás.', viagemResumo: 'Baía Mall → Matola Shopping', clienteNome: 'Ana' } },
     ],
-    reservas: [{ id: 'v5', viatura_id: 'mercedes-s', inicio: new Date(Date.now() + 2 * 86_400_000).toISOString(), fim: new Date(Date.now() + 2 * 86_400_000 + 7_200_000).toISOString(), tipo: 'agendada', destino: 'Ponta do Ouro' }],
+    reservas: [
+      { id: 'v5', viatura_id: 'mercedes-classe-s', inicio: f(48), fim: f(50), tipo: 'agendada', destino: 'Ponta do Ouro', criada_em: h(5), pedido: { precoMzn: 2200, viaturaNome: 'Mercedes-Benz Classe S', clienteNome: 'Ana', clienteTelefone: '+258847654321', origem: lugar('Sommerschield'), pagamento: 'M-Pesa' } },
+      { id: 'r2', viatura_id: 'i2', inicio: f(20), fim: f(21.5), tipo: 'agendada', destino: 'Aeroporto Internacional de Maputo', criada_em: h(2), pedido: { precoMzn: 900, viaturaNome: 'BMW Série 5', clienteNome: 'Flavio', clienteTelefone: '+258841112233', origem: lugar('Baixa, Maputo'), pagamento: 'M-Pesa' } },
+      { id: 'r3', viatura_id: 'i2', inicio: f(0.8), fim: f(2), tipo: 'agendada', destino: 'Costa do Sol', criada_em: h(30), pedido: { precoMzn: 650, viaturaNome: 'BMW Série 5', clienteNome: 'Maria', clienteTelefone: '+258821234567', origem: lugar('Hotel Polana Serena'), pagamento: 'e-Mola' } },
+      { id: 'r4', viatura_id: 'i2', inicio: f(70), fim: f(74), tipo: 'bloqueio', destino: null, pedido: null },
+      { id: 'r5', viatura_id: 'mercedes-classe-s', inicio: h(48), fim: h(46), tipo: 'agendada', destino: 'Matola', criada_em: h(72), pedido: { precoMzn: 1800, viaturaNome: 'Mercedes-Benz Classe S', clienteNome: 'Rui', clienteTelefone: '+258849998877', origem: lugar('Polana'), pagamento: 'M-Pesa' } },
+    ],
+    pagamentos: [
+      { id: 'p1', estado: 'pago', metodo: 'mpesa', valor_mzn: 2200, comissao_mzn: 308, motorista_mzn: 1892, viatura_id: 'mercedes-classe-s', viagem: { tipo: 'viagem', id: 'v5' }, criado_em: h(5), pago_em: h(5) },
+      { id: 'p2', estado: 'pago', metodo: 'mpesa', valor_mzn: 900, comissao_mzn: 126, motorista_mzn: 774, viatura_id: 'i2', viagem: { tipo: 'viagem', id: 'r2' }, criado_em: h(2), pago_em: h(2) },
+      { id: 'p3', estado: 'pago', metodo: 'emola', valor_mzn: 990, comissao_mzn: 990, motorista_mzn: 0, viatura_id: 'club', viagem: { tipo: 'club' }, criado_em: h(8), pago_em: h(8) },
+      { id: 'p4', estado: 'falhou', metodo: 'mpesa', valor_mzn: 1000, comissao_mzn: 1000, motorista_mzn: 0, viatura_id: 'carteira', viagem: { tipo: 'carteira' }, criado_em: h(1), pago_em: null },
+    ],
   };
 }

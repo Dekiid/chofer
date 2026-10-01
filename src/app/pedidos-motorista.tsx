@@ -13,6 +13,7 @@ import { nomeLugar } from '@/data/lugares';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { ganhoMotorista, useModoMotorista } from '@/state/modo-motorista';
 import { t } from '@/i18n';
+import { etiquetaLembrete } from '@/state/vigia-agenda';
 
 type Separador = 'agendadas' | 'feitas';
 
@@ -65,6 +66,11 @@ export default function PedidosMotorista() {
                 </Pressable>
               </Cartao>
             ))}
+            {m.viatura && (
+              <Text style={s.ligacao} onPress={() => router.push({ pathname: '/agenda', params: { viatura: m.viatura!.id, meus: '1' } })}>
+                {t('Ver a agenda do carro')}
+              </Text>
+            )}
             {!TEMPO_REAL_ATIVO && m.viatura && (
               <Text style={s.ligacao} onPress={m.simularReserva}>
                 {t('Simular uma reserva (demonstração)')}
@@ -88,10 +94,15 @@ export default function PedidosMotorista() {
 
 function Cartao({ pedido, quando, s, children }: { pedido: PedidoMotorista; quando?: string; s: ReturnType<typeof estilos>; children?: ReactNode }) {
   const data = pedido.recolhaEm ? new Date(pedido.recolhaEm) : null;
+  // Faltando um dia ou menos, lembra quanto falta para a recolha.
+  const etiqueta = !quando && data ? etiquetaLembrete(data.getTime()) : null;
   return (
     <View style={s.cartao}>
       <View style={s.topoCartao}>
-        <Text style={s.quando}>{quando ?? (data ? `${formatarDia(data, new Date())}, ${formatarHora(data)}` : t('Para agora'))}</Text>
+        <Text style={s.quando}>
+          {quando ?? (data ? `${formatarDia(data, new Date())}, ${formatarHora(data)}` : t('Para agora'))}
+          {etiqueta ? <Text style={{ color: etiqueta.urgente ? '#DC2626' : '#B45309' }}>{` · ${etiqueta.texto}`}</Text> : null}
+        </Text>
         <Text style={s.ganho}>{formatarMzn(ganhoMotorista(pedido))}</Text>
       </View>
       <View style={s.linha}>

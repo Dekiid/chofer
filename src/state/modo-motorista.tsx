@@ -4,7 +4,6 @@ import { Platform, Vibration } from 'react-native';
 
 import type { Ponto } from '@/components/mapa-tipos';
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
-import { formatarDia, formatarHora } from '@/data/agenda';
 import { COMISSAO, nomeViatura, type Viatura } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
 import { LOCALIZACAO_PADRAO, LUGARES, nomeLugar, type Lugar } from '@/data/lugares';
@@ -173,12 +172,12 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
     avisarNoTelemovel(t('Novo pedido'), t('{origem} → {destino} · recebes {valor} MT', { origem: nomeLugar(p.origem), destino: nomeLugar(p.destino), valor: ganhoMotorista(p) }));
   }, []);
 
-  // Reserva nova: fica logo na agenda do motorista (o cliente já pagou e o carro estava livre), com um toque curto e um aviso.
+  // Reserva nova: fica logo na agenda do motorista (o cliente já pagou e o carro estava livre), com um toque curto.
   const receberReserva = useCallback((p: PedidoMotorista) => {
     setAgendadas((l) => (l.some((x) => x.id === p.id) ? l : [...l, p].sort(porData)));
     tocarPedido(false);
     Vibration.vibrate([0, 300, 150, 300]);
-    avisarNoTelemovel(t('Nova reserva confirmada'), `${p.recolhaEm ? `${formatarDia(new Date(p.recolhaEm), new Date())}, ${formatarHora(new Date(p.recolhaEm))} · ` : ''}${nomeLugar(p.origem)} → ${nomeLugar(p.destino)}`);
+    // O aviso (e os lembretes de um dia e de uma hora antes) vem de VigiaAgenda, para todos os carros da conta.
   }, []);
 
   // Pedidos e cancelamentos dos clientes.

@@ -35,10 +35,33 @@ export type PedidoAjuda = {
   criado_em: string;
   dados: { tipo: string; texto: string; viagemResumo?: string; clienteNome?: string };
 };
-export type Reserva = { id: string; viatura_id: string; inicio: string; fim: string; tipo: string; destino: string | null };
-export type Dados = { viagens: Viagem[]; inscricoes: Inscricao[]; avaliacoes: Avaliacao[]; ajuda: PedidoAjuda[]; reservas: Reserva[] };
+export type Reserva = {
+  id: string;
+  viatura_id: string;
+  inicio: string;
+  fim: string;
+  tipo: string;
+  destino: string | null;
+  criada_em?: string;
+  // O pedido que o cliente pagou (preço, carro, cliente). As reservas antigas ou os bloqueios não o têm.
+  pedido: { precoMzn?: number; viaturaNome?: string; clienteNome?: string; clienteTelefone?: string; origem?: Lugar; pagamento?: string } | null;
+};
+// Pagamentos da DebitoPay (supabase/migrations/..._pagamentos.sql); só aparecem com agendas-painel.sql.
+export type Pagamento = {
+  id: string;
+  estado: 'pendente' | 'pago' | 'falhou' | 'expirado';
+  metodo: 'mpesa' | 'emola';
+  valor_mzn: number;
+  comissao_mzn: number;
+  motorista_mzn: number;
+  viatura_id: string;
+  viagem: { tipo?: 'viagem' | 'carteira' | 'club'; id?: string };
+  criado_em: string;
+  pago_em: string | null;
+};
+export type Dados = { viagens: Viagem[]; inscricoes: Inscricao[]; avaliacoes: Avaliacao[]; ajuda: PedidoAjuda[]; reservas: Reserva[]; pagamentos: Pagamento[] | null };
 
-const ABAS = ['Resumo', 'Viagens', 'Motoristas', 'Reservas', 'Avaliações', 'Ajuda'] as const;
+const ABAS = ['Resumo', 'Agendas', 'Viagens', 'Motoristas', 'Avaliações', 'Ajuda'] as const;
 type Aba = (typeof ABAS)[number];
 
 const TIPOS_AJUDA: Record<string, string> = {
@@ -73,17 +96,21 @@ export default function Painel() {
   const carregar = useCallback(async () => {
     if (demo) return setDados(exemplo());
     if (!sb || !admin) return;
-    const [v, i, a, j, r] = await Promise.all([
+    // As reservas dos últimos 90 dias e as que estão por fazer: o valor recebido conta as duas.
+    const desde = new Date(Date.now() - 90 * DIA).toISOString();
+    const [v, i, a, j, r, p] = await Promise.all([
       sb.from('viagens').select('*').order('criada_em', { ascending: false }).limit(500),
       sb.from('inscricoes').select('*').order('enviada_em', { ascending: false }),
       sb.from('avaliacoes').select('*').order('em', { ascending: false }).limit(500),
       sb.from('pedidos_ajuda').select('*').order('criado_em', { ascending: false }),
-      sb.from('reservas').select('id, viatura_id, inicio, fim, tipo, destino').gte('fim', new Date().toISOString()).order('inicio'),
+      sb.from('reservas').select('id, viatura_id, inicio, fim, tipo, destino, criada_em, pedido').gte('fim', desde).order('inicio'),
+      sb.from('pagamentos').select('id, estado, metodo, valor_mzn, comissao_mzn, motorista_mzn, viatura_id, viagem, criado_em, pago_em').gte('criado_em', desde).order('criado_em', { ascending: false }),
     ]);
     const falhou = [v, i, a, j, r].find((x) => x.error);
     const ficheiro = falhou === r ? 'supabase/reservas.sql' : 'supabase/painel.sql';
     setErro(falhou ? `Não foi possível ler os dados: ${falhou.error!.message}. Correste o ${ficheiro}?` : null);
-    setDados({ viagens: v.data ?? [], inscricoes: i.data ?? [], avaliacoes: a.data ?? [], ajuda: j.data ?? [], reservas: r.data ?? [] });
+    // Os pagamentos são opcionais: sem a tabela ou sem agendas-painel.sql, o separador Agendas avisa e usa o valor das reservas.
+    setDados({ viagens: v.data ?? [], inscricoes: i.data ?? [], avaliacoes: a.data ?? [], ajuda: j.data ?? [], reservas: r.data ?? [], pagamentos: p.error ? null : (p.data ?? []) });
   }, [sb, admin, demo]);
 
   // Atualiza sozinho de 30 em 30 segundos.
@@ -99,6 +126,7 @@ export default function Painel() {
 
   const pendentes = dados?.inscricoes.filter((x) => x.estado === 'pendente').length ?? 0;
   const abertos = dados?.ajuda.filter((x) => x.estado === 'aberto').length ?? 0;
+  const porFazer = dados ? agendas(dados).porFazer.length : 0;
 
   return (
     <>
@@ -112,6 +140,7 @@ export default function Painel() {
               {x}
               {x === 'Motoristas' && pendentes > 0 && <span className="contador">{pendentes}</span>}
               {x === 'Ajuda' && abertos > 0 && <span className="contador">{abertos}</span>}
+              {x === 'Agendas' && porFazer > 0 && <span className="contador verde">{porFazer}</span>}
             </button>
           ))}
         </nav>
@@ -135,8 +164,8 @@ export default function Painel() {
           <Viagens d={dados} />
         ) : aba === 'Motoristas' ? (
           <Motoristas d={dados} demo={demo} mudar={setDados} recarregar={carregar} />
-        ) : aba === 'Reservas' ? (
-          <Reservas d={dados} />
+        ) : aba === 'Agendas' ? (
+          <Agendas d={dados} />
         ) : aba === 'Avaliações' ? (
           <Avaliacoes d={dados} />
         ) : (
@@ -207,6 +236,7 @@ function Resumo({ d }: { d: Dados }) {
   const hoje = periodo(1);
   const semana = periodo(7);
   const mediaMotoristas = media(d.avaliacoes.filter((a) => a.tipo === 'motorista'));
+  const ag = agendas(d);
   return (
     <>
       <h1>Resumo</h1>
@@ -224,10 +254,17 @@ function Resumo({ d }: { d: Dados }) {
         <Numero nome="Comissão (14%)" valor={mzn(semana.comissao)} />
         <Numero nome="Canceladas" valor={String(semana.canceladas)} />
       </div>
+      <h2>Agendas</h2>
+      <div className="grelha">
+        <Numero nome="Reservas por fazer" valor={String(ag.porFazer.length)} />
+        <Numero nome="Carros agendados" valor={String(ag.carrosAgendados)} />
+        <Numero nome="Recebido pelas reservas" valor={mzn(ag.total)} />
+        <Numero nome="Comissão (14%)" valor={mzn(ag.comissao)} />
+        <Numero nome="Para os donos" valor={mzn(ag.donos)} />
+      </div>
       <h2>Agora</h2>
       <div className="grelha">
         <Numero nome="Viagens em curso" valor={String(d.viagens.filter((x) => x.estado === 'em_curso').length)} />
-        <Numero nome="Reservas por fazer" valor={String(d.reservas.filter((x) => x.tipo !== 'bloqueio').length)} />
         <Numero nome="Inscrições à espera" valor={String(d.inscricoes.filter((x) => x.estado === 'pendente').length)} />
         <Numero nome="Pedidos de ajuda abertos" valor={String(d.ajuda.filter((x) => x.estado === 'aberto').length)} />
         <Numero nome="Motoristas aprovados" valor={String(d.inscricoes.filter((x) => x.estado === 'aprovada').length)} />
@@ -418,36 +455,196 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
   );
 }
 
-function Reservas({ d }: { d: Dados }) {
+/** Números das agendas: as reservas pagas na marcação, quanto entrou, a comissão de 14% e o que fica para os donos. */
+function agendas(d: Dados) {
+  const agora = Date.now();
+  const clientes = d.reservas.filter((r) => r.tipo !== 'bloqueio');
+  const porFazer = clientes.filter((r) => new Date(r.fim).getTime() > agora);
+  // As reservas agendadas pagam-se ao marcar; os pedidos para agora pagam-se no fim e entram nas viagens.
+  const pagas = clientes.filter((r) => r.tipo === 'agendada');
+  const valor = (r: Reserva) => r.pedido?.precoMzn ?? d.viagens.find((v) => v.id === r.id)?.total_mzn ?? 0;
+  const total = pagas.reduce((t, r) => t + valor(r), 0);
+  const comissao = Math.round(total * COMISSAO);
+  return { clientes, porFazer, pagas, valor, total, comissao, donos: total - comissao, carrosAgendados: new Set(porFazer.map((r) => r.viatura_id)).size };
+}
+
+const TIPOS_PAGAMENTO: Record<string, string> = { viagem: 'Viagens e reservas', carteira: 'Carregamentos da carteira', club: 'Chauffeur Club' };
+
+function Agendas({ d }: { d: Dados }) {
+  const [ver, setVer] = useState<'por_fazer' | 'feitas'>('por_fazer');
+  const ag = agendas(d);
+  const agora = Date.now();
+  const inscricao = (id: string) => d.inscricoes.find((i) => i.id === id);
+  const nomeCarro = (id: string) => {
+    const i = inscricao(id);
+    if (i) return `${i.dados.marca} ${i.dados.modelo}`;
+    return d.reservas.find((r) => r.viatura_id === id && r.pedido?.viaturaNome)?.pedido?.viaturaNome ?? id;
+  };
+  const dono = (id: string) => {
+    const i = inscricao(id);
+    return i ? `${i.dados.nome} · ${i.telefone}` : 'Frota de exemplo';
+  };
+
+  // Um resumo por carro: reservas por fazer, a próxima e o dinheiro.
+  const carros = [...new Set(ag.clientes.map((r) => r.viatura_id))]
+    .map((id) => {
+      const doCarro = ag.clientes.filter((r) => r.viatura_id === id);
+      const porFazer = doCarro.filter((r) => new Date(r.fim).getTime() > agora);
+      const recebido = doCarro.filter((r) => r.tipo === 'agendada').reduce((t, r) => t + ag.valor(r), 0);
+      return { id, porFazer, proxima: porFazer[0], recebido, comissao: Math.round(recebido * COMISSAO) };
+    })
+    .sort((a, b) => b.porFazer.length - a.porFazer.length || b.recebido - a.recebido);
+
+  const lista = d.reservas
+    .filter((r) => (ver === 'por_fazer' ? new Date(r.fim).getTime() > agora : new Date(r.fim).getTime() <= agora && r.tipo !== 'bloqueio'))
+    .sort((a, b) => (ver === 'por_fazer' ? 1 : -1) * (new Date(a.inicio).getTime() - new Date(b.inicio).getTime()));
+
+  // Pagamentos reais da DebitoPay, separados por tipo.
+  const pagos = (d.pagamentos ?? []).filter((p) => p.estado === 'pago');
+  const porTipo = Object.keys(TIPOS_PAGAMENTO).map((tipo) => {
+    const l = pagos.filter((p) => (p.viagem?.tipo ?? 'viagem') === tipo);
+    return { tipo, n: l.length, total: l.reduce((t, p) => t + Number(p.valor_mzn), 0), comissao: l.reduce((t, p) => t + Number(p.comissao_mzn), 0), donos: l.reduce((t, p) => t + Number(p.motorista_mzn), 0) };
+  });
+  const porConfirmar = (d.pagamentos ?? []).filter((p) => p.estado === 'pendente').length;
+  const falhados = (d.pagamentos ?? []).filter((p) => p.estado === 'falhou' || p.estado === 'expirado').length;
+
   return (
     <>
-      <h1>Reservas por fazer</h1>
+      <h1>Agendas</h1>
+      <p className="sec">As reservas agendadas pagam-se ao marcar, por isso o valor entra aqui logo. A comissão de 14% sai do valor do dono; o cliente não paga mais. Últimos 90 dias e tudo o que está por fazer.</p>
+      <div className="grelha">
+        <Numero nome="Reservas por fazer" valor={String(ag.porFazer.length)} />
+        <Numero nome="Carros agendados" valor={String(ag.carrosAgendados)} />
+        <Numero nome="Recebido pelas reservas" valor={mzn(ag.total)} />
+        <Numero nome="Comissão (14%)" valor={mzn(ag.comissao)} />
+        <Numero nome="Para os donos" valor={mzn(ag.donos)} />
+      </div>
+
+      <h2>Pagamentos confirmados pela DebitoPay</h2>
+      {d.pagamentos === null ? (
+        <p className="sec">Para ver aqui os pagamentos reais, corre no Supabase o ficheiro supabase/agendas-painel.sql (SQL Editor, colar, Run).</p>
+      ) : (
+        <>
+          <div className="rolar">
+            <table className="tabela">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Pagamentos</th>
+                  <th>Total</th>
+                  <th>Comissão</th>
+                  <th>Para os donos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {porTipo.map((x) => (
+                  <tr key={x.tipo}>
+                    <td>{TIPOS_PAGAMENTO[x.tipo]}</td>
+                    <td>{x.n}</td>
+                    <td>{mzn(x.total)}</td>
+                    <td>{mzn(x.comissao)}</td>
+                    <td>{x.tipo === 'viagem' ? mzn(x.donos) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="sec">
+            A carteira e o Club ficam inteiros para a plataforma. {porConfirmar > 0 && `À espera do PIN do cliente: ${porConfirmar}. `}
+            {falhados > 0 && `Pagamentos que não passaram: ${falhados}.`}
+          </p>
+        </>
+      )}
+
+      <h2>Por carro</h2>
       <div className="rolar">
         <table className="tabela">
           <thead>
             <tr>
-              <th>Recolha</th>
-              <th>Fim</th>
-              <th>Carro</th>
-              <th>Destino</th>
-              <th>Tipo</th>
+              <th>Carro e dono</th>
+              <th>Por fazer</th>
+              <th>Próxima</th>
+              <th>Recebido</th>
+              <th>Comissão</th>
+              <th>Para o dono</th>
             </tr>
           </thead>
           <tbody>
-            {d.reservas.map((r) => (
-              <tr key={r.id}>
-                <td>{dataHora(r.inicio)}</td>
-                <td>{dataHora(r.fim)}</td>
-                <td>{r.viatura_id}</td>
-                <td>{r.destino ?? '—'}</td>
+            {carros.map((c) => (
+              <tr key={c.id}>
                 <td>
-                  <span className="etiqueta">{r.tipo === 'bloqueio' ? 'Carro bloqueado' : r.tipo === 'imediata' ? 'Para agora' : 'Agendada'}</span>
+                  {nomeCarro(c.id)}
+                  <div className="sec">{dono(c.id)}</div>
                 </td>
+                <td>{c.porFazer.length > 0 ? <span className="etiqueta verde">{c.porFazer.length}</span> : '—'}</td>
+                <td>{c.proxima ? dataHora(c.proxima.inicio) : '—'}</td>
+                <td>{mzn(c.recebido)}</td>
+                <td>{mzn(c.comissao)}</td>
+                <td>{mzn(c.recebido - c.comissao)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {d.reservas.length === 0 && <p className="vazio">Sem reservas marcadas.</p>}
+        {carros.length === 0 && <p className="vazio">Ainda não há carros agendados.</p>}
+      </div>
+
+      <div className="linha" style={{ justifyContent: 'space-between', marginTop: 24 }}>
+        <h2 style={{ margin: 0 }}>Reservas</h2>
+        <div className="linha">
+          <button className={`aba ${ver === 'por_fazer' ? 'ativa' : ''}`} onClick={() => setVer('por_fazer')}>
+            Por fazer
+          </button>
+          <button className={`aba ${ver === 'feitas' ? 'ativa' : ''}`} onClick={() => setVer('feitas')}>
+            Feitas
+          </button>
+        </div>
+      </div>
+      <div className="rolar" style={{ marginTop: 12 }}>
+        <table className="tabela">
+          <thead>
+            <tr>
+              <th>Recolha</th>
+              <th>Carro</th>
+              <th>Cliente</th>
+              <th>Percurso</th>
+              <th>Valor</th>
+              <th>Comissão</th>
+              <th>Para o dono</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map((r) => {
+              const v = r.tipo === 'agendada' ? ag.valor(r) : 0;
+              return (
+                <tr key={r.id}>
+                  <td>
+                    {dataHora(r.inicio)}
+                    <div className="sec">até {dataHora(r.fim)}</div>
+                  </td>
+                  <td>
+                    {nomeCarro(r.viatura_id)}
+                    <div className="sec">{dono(r.viatura_id)}</div>
+                  </td>
+                  <td>
+                    {r.pedido?.clienteNome ?? '—'}
+                    <div className="sec">{r.pedido?.clienteTelefone}</div>
+                  </td>
+                  <td>
+                    {r.tipo === 'bloqueio' ? <span className="etiqueta">Carro bloqueado pelo dono</span> : `${r.pedido?.origem?.nome ?? ''}${r.pedido?.origem ? ' → ' : ''}${r.destino ?? '—'}`}
+                    {r.tipo === 'imediata' && <div className="sec">Pedido para agora: paga no fim da viagem</div>}
+                  </td>
+                  <td>
+                    {v ? mzn(v) : '—'}
+                    {r.pedido?.pagamento && <div className="sec">{r.pedido.pagamento}</div>}
+                  </td>
+                  <td>{v ? mzn(Math.round(v * COMISSAO)) : '—'}</td>
+                  <td>{v ? mzn(v - Math.round(v * COMISSAO)) : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {lista.length === 0 && <p className="vazio">{ver === 'por_fazer' ? 'Sem reservas marcadas.' : 'Ainda não há reservas feitas.'}</p>}
       </div>
     </>
   );

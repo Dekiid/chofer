@@ -23,6 +23,7 @@ import { PedidoProvider } from '@/state/pedido';
 import { useMotoristaAprovado } from '@/state/permissoes';
 import { SessaoProvider, useSessao } from '@/state/sessao';
 import { SuporteProvider } from '@/state/suporte';
+import { VigiaAgenda } from '@/state/vigia-agenda';
 
 // O ecrã de abertura (fundo preto com o logótipo) fica até a letra da marca carregar.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -60,6 +61,7 @@ export default function RootLayout() {
                     <Navegacao />
                     <AvisoTopo />
                     <BemVindo />
+                    <VigiaAgenda />
                   </SuporteProvider>
                 </ContaProvider>
               </ModoMotoristaProvider>

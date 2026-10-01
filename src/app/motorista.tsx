@@ -206,6 +206,14 @@ function Disponivel({ s }: { s: S }) {
         <Text style={s.seta}>›</Text>
       </Pressable>
 
+      <Pressable onPress={() => router.push({ pathname: '/agenda', params: { viatura: m.viatura!.id, meus: '1' } })} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('Agenda do carro')}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.nomePequeno}>{t('Agenda do carro')}</Text>
+          <Text style={s.secundarioPequeno}>{t('Os dias com reservas e os horários que bloqueaste')}</Text>
+        </View>
+        <Text style={s.seta}>›</Text>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/avaliacoes-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('As tuas avaliações')}>
         <View style={{ flex: 1 }}>
           <Text style={s.nomePequeno}>{t('As tuas avaliações')}</Text>

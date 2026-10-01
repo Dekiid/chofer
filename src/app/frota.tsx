@@ -17,6 +17,8 @@ import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
 import { estadoDocumentos, telefoneCondutor, useInscricoes, type Inscricao } from '@/state/inscricoes';
 import { ganhoMotorista } from '@/state/modo-motorista';
 import { useSessao } from '@/state/sessao';
+import { useAgenda } from '@/state/agenda';
+import { formatarDia, formatarHora } from '@/data/agenda';
 
 const DIA = 86_400_000;
 
@@ -135,6 +137,10 @@ function Carro({
   const mal = documentos.filter((d) => d.estado === 'expirado' || d.estado === 'em_falta');
   const aExpirar = documentos.filter((d) => d.estado === 'a_expirar');
   const estado = { pendente: [t('À espera de aprovação'), '#B45309'], aprovada: [t('Aprovado'), '#15803D'], rejeitada: [t('Não aprovado'), '#DC2626'] }[c.estado];
+  const agora = new Date();
+  const reservas = useAgenda()
+    .reservas.filter((r) => r.viaturaId === c.id && r.tipo !== 'bloqueio' && r.fim > agora)
+    .sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
   return (
     <View style={s.cartao}>
       <View style={s.linha}>
@@ -176,6 +182,15 @@ function Carro({
           </Text>
         </View>
       </View>
+
+      <Pressable onPress={() => router.push({ pathname: '/agenda', params: { viatura: c.id, meus: '1' } })} style={s.linha} accessibilityLabel={t('Agenda do carro')}>
+        <Text style={[s.secundario, { flex: 1 }]}>
+          {reservas.length === 0
+            ? t('Agenda: sem reservas marcadas.')
+            : t('Agenda: {n} por fazer · próxima {dia}, {hora}', { n: reservas.length, dia: formatarDia(reservas[0].inicio, agora).toLowerCase(), hora: formatarHora(reservas[0].inicio) })}
+        </Text>
+        <Text style={s.ligacao}>{t('Ver agenda')}</Text>
+      </Pressable>
 
       <Text style={[s.secundario, mal.length > 0 ? { color: '#DC2626', fontWeight: '700' } : aExpirar.length > 0 ? { color: '#B45309', fontWeight: '700' } : null]}>
         {mal.length > 0

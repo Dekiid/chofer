@@ -46,3 +46,24 @@ export async function avisarNoTelemovel(titulo: string, texto: string) {
     // Sem aviso do sistema fica o aviso dentro da app.
   }
 }
+
+/**
+ * Agenda um aviso do sistema para uma hora certa (lembretes das reservas). Chega mesmo com a app fechada.
+ * O mesmo identificador substitui o aviso anterior, por isso pode chamar-se várias vezes.
+ */
+export async function agendarNoTelemovel(identificador: string, quando: number, titulo: string, texto: string) {
+  if (quando <= Date.now() || !(await pedirAutorizacao())) return;
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: identificador,
+      content: { title: titulo, body: texto },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: quando, channelId: Platform.OS === 'android' ? 'viagens' : undefined },
+    });
+  } catch {}
+}
+
+/** Tira os avisos agendados com estes identificadores (por exemplo, quando a reserva é cancelada). */
+export async function cancelarNoTelemovel(identificadores: string[]) {
+  if (Platform.OS === 'web') return;
+  await Promise.all(identificadores.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
+}
