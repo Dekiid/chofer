@@ -1,6 +1,8 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
 import { useGuardado } from '@/data/guardar';
+import { enviarAjuda, lerRespostasAjuda } from '@/data/servidor-painel';
+import { useSessao } from '@/state/sessao';
 
 export const TIPOS_AJUDA = [
   { id: 'objeto', nome: 'Esqueci-me de um objeto no carro' },
@@ -40,10 +42,35 @@ const Contexto = createContext<Suporte | null>(null);
 // No produto final vão para o Supabase e a resposta chega ao cliente por aviso.
 export function SuporteProvider({ children }: { children: ReactNode }) {
   const [pedidos, setPedidos] = useGuardado<PedidoAjuda[]>('chauffeur.suporte', []);
+  const telefone = useSessao().perfil?.telefone;
+  const abertos = pedidos.some((p) => p.estado === 'aberto' && p.clienteTelefone === telefone);
+
+  // Com o servidor ligado, a resposta dada no painel web chega a este telemóvel.
+  useEffect(() => {
+    if (!telefone || !abertos) return;
+    const ler = () =>
+      lerRespostasAjuda(telefone).then((lista) =>
+        setPedidos((l) =>
+          l.map((p) => {
+            const r = lista.find((x) => x.id === p.id && x.estado === 'resolvido');
+            return r && p.estado === 'aberto'
+              ? { ...p, estado: 'resolvido', resposta: r.resposta ?? undefined, reembolsoMzn: r.reembolso_mzn ?? undefined, respondidoEm: r.respondido_em ? new Date(r.respondido_em) : new Date() }
+              : p;
+          }),
+        ),
+      );
+    ler();
+    const id = setInterval(ler, 60000);
+    return () => clearInterval(id);
+  }, [telefone, abertos, setPedidos]);
   const valor = useMemo<Suporte>(
     () => ({
       pedidos,
-      criar: (p) => setPedidos((l) => [{ ...p, id: `aj-${Date.now()}`, criadoEm: new Date(), estado: 'aberto' }, ...l]),
+      criar: (p) => {
+        const novo: PedidoAjuda = { ...p, id: `aj-${Date.now()}`, criadoEm: new Date(), estado: 'aberto' };
+        setPedidos((l) => [novo, ...l]);
+        enviarAjuda(novo, novo);
+      },
       responder: (id, resposta, reembolsoMzn) =>
         setPedidos((l) => l.map((p) => (p.id === id ? { ...p, estado: 'resolvido', resposta, reembolsoMzn, respondidoEm: new Date() } : p))),
     }),

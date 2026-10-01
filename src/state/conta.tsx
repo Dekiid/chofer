@@ -8,6 +8,7 @@ import { LUGARES, type Lugar } from '@/data/lugares';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import type { Promo } from '@/data/promocoes';
 import type { Pagamento } from '@/state/pedido';
+import { enviarViagem } from '@/data/servidor-painel';
 import { useSessao } from '@/state/sessao';
 import { t } from '@/i18n';
 
@@ -137,6 +138,19 @@ export function ContaProvider({ children }: { children: ReactNode }) {
     aeroporto: LUGARES.find((l) => l.id === 'aeroporto') ?? null,
   }));
   const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo);
+
+  // As viagens vão para o painel de gestão na web quando são criadas ou mudam (sem as de exemplo).
+  const enviadas = useRef(new Map<string, string>());
+  useEffect(() => {
+    if (!TEMPO_REAL_ATIVO) return;
+    for (const v of viagens) {
+      if (v.id.startsWith('v-ex-')) continue;
+      const json = JSON.stringify(v);
+      if (enviadas.current.get(v.id) === json) continue;
+      enviadas.current.set(v.id, json);
+      enviarViagem({ id: v.id, estado: v.estado, viatura: v.viatura, totalMzn: totalPago(v) }, perfil?.telefone, { ...v, clienteNome: perfil?.nome });
+    }
+  }, [viagens, perfil]);
   const [preferencias, setPreferencias] = useGuardado<Preferencias>(chave && `${chave}.preferencias`, PREFERENCIAS_PADRAO);
   const [contactosConfianca, setContactosConfianca] = useGuardado<ContactoConfianca[]>(chave && `${chave}.contactos`, []);
   const [partilhaAuto, setPartilhaAuto] = useGuardado<PartilhaAuto>(chave && `${chave}.partilha`, 'noite');

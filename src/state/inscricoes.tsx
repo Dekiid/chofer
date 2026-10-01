@@ -1,8 +1,10 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
 import type { PrecoCasamento, Viatura } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
 import type { Motorista } from '@/data/motorista';
+import { enviarInscricao, lerEstadoInscricoes } from '@/data/servidor-painel';
+import { useSessao } from '@/state/sessao';
 
 /** Fotos que pedimos a cada motorista; a de frente é a que aparece na app. */
 export const FOTOS_PEDIDAS = [
@@ -84,6 +86,26 @@ const InscricoesContext = createContext<Inscricoes | null>(null);
 // e a aprovação passa para o painel de gestão.
 export function InscricoesProvider({ children }: { children: ReactNode }) {
   const [inscricoes, setInscricoes] = useGuardado<Inscricao[]>('chauffeur.inscricoes', []);
+  const { perfil } = useSessao();
+
+  // Com o servidor ligado, a aprovação feita no painel web chega a este telemóvel.
+  const telefone = perfil?.telefone;
+  useEffect(() => {
+    if (!telefone) return;
+    const ler = () =>
+      lerEstadoInscricoes(telefone).then((lista) => {
+        if (lista.length === 0) return;
+        setInscricoes((atual) =>
+          atual.map((i) => {
+            const d = lista.find((x) => x.id === i.id);
+            return d && (d.estado !== i.estado || d.por_km_mzn !== i.porKmMzn) ? { ...i, estado: d.estado, porKmMzn: d.por_km_mzn } : i;
+          }),
+        );
+      });
+    ler();
+    const id = setInterval(ler, 60000);
+    return () => clearInterval(id);
+  }, [telefone, setInscricoes]);
 
   const valor = useMemo<Inscricoes>(() => {
     const mudarEstado = (id: string, estado: EstadoInscricao, porKmMzn?: number) =>
@@ -91,8 +113,13 @@ export function InscricoesProvider({ children }: { children: ReactNode }) {
 
     return {
       inscricoes,
-      submeter: (dados) =>
-        setInscricoes((atual) => [{ ...dados, id: `insc-${Date.now()}`, estado: 'pendente', enviadaEm: new Date() }, ...atual]),
+      submeter: (dados) => {
+        const nova: Inscricao = { ...dados, id: `insc-${Date.now()}`, estado: 'pendente', enviadaEm: new Date() };
+        setInscricoes((atual) => [nova, ...atual]);
+        // As fotos ficam no telemóvel por agora (falta o Supabase Storage); o painel recebe o resto.
+        const { fotos: _fotos, ...semFotos } = nova;
+        enviarInscricao(nova, semFotos);
+      },
       aprovar: (id, porKmMzn) => mudarEstado(id, 'aprovada', porKmMzn),
       rejeitar: (id) => mudarEstado(id, 'rejeitada'),
       renovarDocumento: (id, documento, validade) =>

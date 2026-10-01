@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
 import { useGuardado } from '@/data/guardar';
+import { enviarAvaliacao } from '@/data/servidor-painel';
 import { ouvir, publicar, TEMPO_REAL_ATIVO, type AvaliacaoCliente, type AvaliacaoMotorista } from '@/data/tempo-real';
 
 type Avaliacoes = {
@@ -65,12 +66,14 @@ export function AvaliacoesProvider({ children }: { children: ReactNode }) {
       avaliarCliente: (telefone, a) => {
         juntar(telefone, a);
         if (TEMPO_REAL_ATIVO) publicar({ tipo: 'avaliacao_cliente', telefone, avaliacao: a });
+        enviarAvaliacao({ id: `ac-${telefone}-${a.em}`, tipo: 'cliente', telefone, ...a });
       },
       mediaCliente: (telefone) => media(telefone ? (porCliente[telefone] ?? []) : []),
       doCliente: (telefone) => (telefone ? (porCliente[telefone] ?? []) : []),
       avaliarMotorista: (telefone, a) => {
         juntarMotorista(telefone, a);
         if (TEMPO_REAL_ATIVO) publicar({ tipo: 'avaliacao_motorista', telefone, avaliacao: a });
+        enviarAvaliacao({ id: `am-${a.viagemId}`, tipo: 'motorista', telefone, ...a });
       },
       mediaMotorista: (telefone) => media(telefone ? (porMotorista[telefone] ?? []) : []),
       doMotorista: (telefone) => (telefone ? (porMotorista[telefone] ?? []) : []),
