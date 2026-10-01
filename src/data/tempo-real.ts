@@ -50,6 +50,8 @@ export type PedidoMotorista = {
   criadoEm: string;
   /** Nome do cliente, para o motorista saber quem vai buscar. */
   clienteNome?: string;
+  /** Pedido para agora: o cliente paga pela app no fim da viagem. */
+  pagaNoFim?: boolean;
 };
 
 export type EstadoViagem = 'a_caminho' | 'chegou' | 'em_viagem' | 'concluida';

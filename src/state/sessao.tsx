@@ -3,6 +3,7 @@ import type { User } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/data/tempo-real';
+import { VERSAO_TERMOS } from '@/data/textos-legais';
 
 /** O que o cliente diz no registo. O telefone vem no formato +25884…. */
 export type Perfil = {
@@ -12,12 +13,23 @@ export type Perfil = {
   email?: string;
   /** Versão dos termos aceite. */
   termos?: string;
+  /** Conta de demonstração do motorista (pedido do Flavio, para testes). */
+  motoristaDemo?: boolean;
 };
 
 /** Código que entra sem SMS, no modo de teste. */
 export const CODIGO_TESTE = '123456';
 /** Dígitos do código por SMS (o Supabase manda 6). */
 export const DIGITOS_CODIGO = 6;
+
+/**
+ * Conta de demonstração do motorista, para testar o modo motorista sem inscrição aprovada.
+ * Entra com o número 84121212 e o código 0000, sem SMS. Sai quando houver motoristas reais no servidor.
+ */
+export const MOTORISTA_DEMO = { telefone: '+25884121212', codigo: '0000' };
+
+/** Quantos dígitos tem o código para este número. */
+export const digitosCodigo = (telefone: string) => (telefone === MOTORISTA_DEMO.telefone ? MOTORISTA_DEMO.codigo.length : DIGITOS_CODIGO);
 
 type Sessao = {
   estado: 'a_carregar' | 'fora' | 'dentro';
@@ -124,7 +136,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const pedirCodigo = useCallback(
     async (telefone: string) => {
       const sb = supabase();
-      if (semSms || !sb) {
+      if (semSms || !sb || telefone === MOTORISTA_DEMO.telefone) {
         await esperar(500);
         return null;
       }
@@ -137,6 +149,24 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const confirmarCodigo = useCallback(
     async (telefone: string, codigo: string) => {
       const sb = supabase();
+      if (telefone === MOTORISTA_DEMO.telefone) {
+        await esperar(400);
+        if (codigo !== MOTORISTA_DEMO.codigo) return 'Código errado.';
+        // Já vem com o registo feito, para entrar logo.
+        const p: Perfil = {
+          telefone,
+          nome: 'Motorista',
+          apelido: 'Demo',
+          email: 'motorista.demo@chauffeur.co.mz',
+          termos: VERSAO_TERMOS,
+          motoristaDemo: true,
+        };
+        await guardarLocal(p);
+        setSemSms(true);
+        setPerfil(p);
+        setEstado('dentro');
+        return null;
+      }
       if (semSms || !sb) {
         await esperar(400);
         if (codigo !== CODIGO_TESTE) return 'Código errado. No modo de teste o código é sempre 123456.';
@@ -215,6 +245,13 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
+}
+
+/** Pode usar o modo motorista: a conta de demonstração, ou quem tem uma inscrição de motorista aprovada com o mesmo número. */
+export function podeConduzir(perfil: Perfil | null, inscricoes: { telefone: string; estado: string }[]): boolean {
+  if (!perfil) return false;
+  if (perfil.motoristaDemo) return true;
+  return inscricoes.some((i) => i.estado === 'aprovada' && i.telefone === perfil.telefone);
 }
 
 export function useSessao(): Sessao {

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FecharTeclado } from '@/components/fechar-teclado';
 import { Text } from '@/components/texto';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -27,14 +28,14 @@ export function PassoRegisto({
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Tocar fora dos campos esconde o teclado. */}
-        <Pressable style={s.corpo} onPress={Keyboard.dismiss} accessible={false}>
+        <FecharTeclado style={s.corpo}>
           {onVoltar ? <BotaoVoltar onPress={onVoltar} /> : <View style={{ height: 40 }} />}
           <Text style={s.titulo} accessibilityRole="header">
             {titulo}
           </Text>
           {descricao ? <Text style={s.descricao}>{descricao}</Text> : null}
           {children}
-        </Pressable>
+        </FecharTeclado>
         {rodape ? <View style={s.rodape}>{rodape}</View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>

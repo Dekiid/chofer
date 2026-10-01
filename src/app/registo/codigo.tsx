@@ -7,7 +7,7 @@ import { Text, TextInput } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarNumero } from '@/data/telefone';
-import { DIGITOS_CODIGO, proximoPasso, useSessao } from '@/state/sessao';
+import { digitosCodigo, MOTORISTA_DEMO, proximoPasso, useSessao } from '@/state/sessao';
 
 // Tempo até se poder pedir outro código.
 const ESPERA_REENVIO = 30;
@@ -23,6 +23,8 @@ export default function Codigo() {
   const [segundos, setSegundos] = useState(ESPERA_REENVIO);
   const [confirmado, setConfirmado] = useState(false);
   const campo = useRef<RNTextInput>(null);
+  const digitos = digitosCodigo(telefone);
+  const demo = telefone === MOTORISTA_DEMO.telefone;
 
   useEffect(() => {
     if (segundos <= 0) return;
@@ -60,12 +62,12 @@ export default function Codigo() {
 
   return (
     <PassoRegisto
-      titulo={`Escreve o código de ${DIGITOS_CODIGO} dígitos`}
-      descricao={`Enviámos para +258 ${formatarNumero(telefone)}.`}
+      titulo={`Escreve o código de ${digitos} dígitos`}
+      descricao={demo ? 'Conta de demonstração do motorista: escreve o código de acesso.' : `Enviámos para +258 ${formatarNumero(telefone)}.`}
       onVoltar={() => router.back()}>
       {/* Um campo escondido recebe os dígitos (e o código da SMS, que o telemóvel sugere sozinho); as caixas só mostram. */}
       <Pressable onPress={() => campo.current?.focus()} style={estilos.caixas} accessibilityLabel="Código de confirmação">
-        {Array.from({ length: DIGITOS_CODIGO }, (_, i) => {
+        {Array.from({ length: digitos }, (_, i) => {
           const ativo = i === codigo.length && !aConfirmar;
           return (
             <View key={i} style={[estilos.caixa, { backgroundColor: ativo ? c.background : c.backgroundElement, borderColor: ativo ? c.text : 'transparent' }]}>
@@ -78,23 +80,23 @@ export default function Codigo() {
         ref={campo}
         value={codigo}
         onChangeText={(t) => {
-          const v = t.replace(/\D/g, '').slice(0, DIGITOS_CODIGO);
+          const v = t.replace(/\D/g, '').slice(0, digitos);
           setCodigo(v);
           setErro('');
-          if (v.length === DIGITOS_CODIGO) confirmar(v);
+          if (v.length === digitos) confirmar(v);
         }}
         keyboardType="number-pad"
         textContentType="oneTimeCode"
         autoComplete="sms-otp"
         autoFocus
-        maxLength={DIGITOS_CODIGO}
+        maxLength={digitos}
         editable={!aConfirmar}
         accessibilityLabel="Código"
         style={estilos.escondido}
       />
       {aConfirmar && <ActivityIndicator color={c.text} style={{ alignSelf: 'flex-start', marginBottom: Spacing.two }} />}
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
-      {segundos > 0 ? (
+      {demo ? null : segundos > 0 ? (
         <Text style={[s.ligacao, { color: c.textSecondary, textDecorationLine: 'none' }]}>Reenviar código em 0:{String(segundos).padStart(2, '0')}</Text>
       ) : (
         <Text style={s.ligacao} onPress={reenviar}>

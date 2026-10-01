@@ -8,7 +8,7 @@ import { BotaoPrincipal } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarNumero, NUMERO_VALIDO } from '@/data/telefone';
-import { CODIGO_TESTE, useSessao } from '@/state/sessao';
+import { CODIGO_TESTE, MOTORISTA_DEMO, useSessao } from '@/state/sessao';
 
 export default function Telefone() {
   const c = usePalette();
@@ -18,7 +18,9 @@ export default function Telefone() {
   const [aEnviar, setAEnviar] = useState(false);
   const [erro, setErro] = useState('');
   const [semSmsNoServidor, setSemSmsNoServidor] = useState(false);
-  const valido = NUMERO_VALIDO.test(digitos);
+  // O número da conta de demonstração do motorista tem 8 dígitos.
+  const demo = `+258${digitos}` === MOTORISTA_DEMO.telefone;
+  const valido = NUMERO_VALIDO.test(digitos) || demo;
 
   async function continuar() {
     setAEnviar(true);
@@ -80,7 +82,7 @@ export default function Telefone() {
           Continuar sem SMS (teste)
         </Text>
       )}
-      {sessao.semSms && (
+      {sessao.semSms && !demo && (
         <View style={[estilos.teste, { backgroundColor: c.backgroundElement }]}>
           <Text style={{ color: c.text, fontSize: 13, lineHeight: 19 }}>
             Modo de teste, sem SMS: o código é sempre {CODIGO_TESTE} e a conta fica só neste telemóvel.

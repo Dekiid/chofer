@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EstadoServidor } from '@/components/estado-servidor';
 import { Mapa } from '@/components/mapa';
+import { NotaPagamento } from '@/components/nota-pagamento';
 import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoSecundario, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -45,6 +46,7 @@ export default function Viagem() {
   const agenda = useAgenda();
   const { origem, destino } = pedido;
   const viagemConta = conta.viagemAtual;
+  const porPagar = viagemConta?.porPagar === true;
 
   const [fase, setFase] = useState<Fase>('procurar');
   const [carro, setCarro] = useState<Ponto | null>(null);
@@ -113,6 +115,7 @@ export default function Viagem() {
         pagamento: PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '',
         criadoEm: new Date().toISOString(),
         clienteNome: sessao.perfil?.nome,
+        pagaNoFim: viagemConta?.porPagar,
       },
     });
     const t = setTimeout(() => {
@@ -200,7 +203,10 @@ export default function Viagem() {
   }
 
   function concluir() {
-    if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'concluida', gorjetaMzn: gorjeta, avaliacao: { estrelas, elogios, comentario: comentario.trim() } });
+    const avaliacao = estrelas > 0 ? { estrelas, elogios, comentario: comentario.trim() } : undefined;
+    if (viagemConta) atualizarViagem(viagemConta.id, { estado: 'concluida', gorjetaMzn: gorjeta, avaliacao });
+    // Pedido para agora: paga-se agora, no fim, com a gorjeta incluída.
+    if (porPagar && viagemConta) return router.replace({ pathname: '/pagamento', params: { viagem: viagemConta.id } });
     if (gorjeta > 0) avisar('Gorjeta enviada', `${formatarMzn(gorjeta)} por ${pagamento} para ${primeiroNome}. Obrigado!`);
     sair();
   }
@@ -291,7 +297,7 @@ export default function Viagem() {
           <View style={s.procura}>
             <ActivityIndicator color={cores.text} />
             <Text style={s.secundario}>
-              {nomeViatura(viatura)} · {formatarMzn(preco)} pago por {pagamento}
+              {nomeViatura(viatura)} · {formatarMzn(preco)} {porPagar ? `a pagar no fim por ${pagamento}` : `pago por ${pagamento}`}
             </Text>
           </View>
         ) : (
@@ -322,6 +328,8 @@ export default function Viagem() {
           </View>
         )}
 
+        {(fase === 'a_caminho' || fase === 'chegou' || fase === 'em_viagem') && <NotaPagamento />}
+
         {comMotorista && (
           <View style={s.acoes}>
             {/* Já dentro do carro não faz sentido ligar ao motorista. */}
@@ -334,7 +342,7 @@ export default function Viagem() {
         {fase === 'concluida' ? (
           <>
             <Text style={s.total}>
-              {formatarMzn(preco + gorjeta)} <Text style={s.secundario}>· pago por {pagamento}</Text>
+              {formatarMzn(preco + gorjeta)} <Text style={s.secundario}>· {porPagar ? `a pagar por ${pagamento}` : `pago por ${pagamento}`}</Text>
             </Text>
             <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Como foi a viagem com {primeiroNome}?</Text>
             <View style={s.estrelas}>
@@ -368,7 +376,11 @@ export default function Viagem() {
               </>
             )}
             <View style={{ gap: Spacing.two }}>
-              <BotaoPrincipal texto={gorjeta > 0 ? `Concluir e enviar ${formatarMzn(gorjeta)}` : 'Concluir'} onPress={concluir} desativado={estrelas === 0} />
+              {porPagar ? (
+                <BotaoPrincipal texto={`Pagar ${formatarMzn(preco + gorjeta)}`} onPress={concluir} />
+              ) : (
+                <BotaoPrincipal texto={gorjeta > 0 ? `Concluir e enviar ${formatarMzn(gorjeta)}` : 'Concluir'} onPress={concluir} desativado={estrelas === 0} />
+              )}
               {viagemConta && <BotaoSecundario texto="Ver recibo" onPress={() => router.push({ pathname: '/recibo', params: { id: viagemConta.id } })} />}
             </View>
           </>

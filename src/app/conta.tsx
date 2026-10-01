@@ -12,6 +12,7 @@ import { formatarMzn } from '@/data/categorias';
 import { CREDITO_CONVITE_MZN, DESCONTO_CONVIDADO, PROMOS } from '@/data/promocoes';
 import { formatarNumero } from '@/data/telefone';
 import { LOCAIS, useConta } from '@/state/conta';
+import { useMotoristaAprovado } from '@/state/permissoes';
 import { useSessao } from '@/state/sessao';
 import { Text } from '@/components/texto';
 
@@ -21,6 +22,7 @@ export default function Conta() {
   const s = estilos(cores);
   const conta = useConta();
   const sessao = useSessao();
+  const motorista = useMotoristaAprovado();
   const { marcarAvisosLidos } = conta;
   const agora = new Date();
   const feitas = conta.viagens.filter((v) => v.estado === 'concluida').length;
@@ -61,10 +63,27 @@ export default function Conta() {
           <Text style={s.secundario}>Histórico, viagens marcadas e recibos</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/motorista')} style={s.entrada}>
-          <Text style={s.nome}>Modo motorista</Text>
-          <Text style={s.secundario}>Fica online, recebe pedidos e conduz com a Chauffeur</Text>
-        </Pressable>
+        {/* O modo motorista é só para motoristas aprovados; os outros veem como se inscrever. */}
+        {motorista.pode ? (
+          <Pressable onPress={() => router.push('/motorista')} style={s.entrada}>
+            <Text style={s.nome}>Modo motorista</Text>
+            <Text style={s.secundario}>
+              {sessao.perfil?.motoristaDemo ? 'Conta de demonstração · ' : ''}Fica online, recebe pedidos e conduz com a Chauffeur
+            </Text>
+          </Pressable>
+        ) : motorista.inscricao === 'pendente' ? (
+          <View style={s.entrada}>
+            <Text style={s.nome}>Inscrição de motorista em análise</Text>
+            <Text style={s.secundario}>O modo motorista abre quando a tua inscrição for aprovada.</Text>
+          </View>
+        ) : (
+          <Pressable onPress={() => router.push('/inscricao')} style={s.entrada}>
+            <Text style={s.nome}>Conduzir com a Chauffeur</Text>
+            <Text style={s.secundario}>
+              {motorista.inscricao === 'rejeitada' ? 'A tua inscrição não foi aprovada. Podes enviar outra.' : 'Inscreve o teu carro. Depois de aprovado, abres aqui o modo motorista.'}
+            </Text>
+          </Pressable>
+        )}
 
         <Text style={s.secao}>Locais guardados</Text>
         <View style={s.caixa}>

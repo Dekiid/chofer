@@ -18,6 +18,9 @@ import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { ganhoMotorista, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
 import { usePedido } from '@/state/pedido';
+import { NotaPagamento } from '@/components/nota-pagamento';
+import { useInscricoes } from '@/state/inscricoes';
+import { useSessao } from '@/state/sessao';
 
 /** App do motorista, como a da Uber: ficar online, receber e aceitar pedidos, ir buscar, confirmar o código, levar e terminar. */
 export default function MotoristaEcra() {
@@ -77,13 +80,17 @@ type S = ReturnType<typeof estilos>;
 function EscolherCarro({ s }: { s: S }) {
   const { viaturas } = usePedido();
   const m = useModoMotorista();
+  const { perfil } = useSessao();
+  const { inscricoes } = useInscricoes();
+  // A conta de demonstração pode conduzir qualquer carro; um motorista aprovado só os que inscreveu.
+  const meus = new Set(inscricoes.filter((i) => i.estado === 'aprovada' && i.telefone === perfil?.telefone).map((i) => i.id));
   return (
     <>
       <Text style={s.titulo}>Qual é o teu carro?</Text>
       <Text style={[s.secundario, { marginBottom: Spacing.two }]}>Recebes os pedidos dos clientes que escolherem este carro.</Text>
       <ScrollView style={{ maxHeight: 320 }}>
         {viaturas
-          .filter((v) => !v.soCasamento)
+          .filter((v) => !v.soCasamento && (perfil?.motoristaDemo || meus.has(v.id)))
           .map((v) => (
             <Pressable key={v.id} onPress={() => m.escolherViatura(v.id)} style={s.linhaCarro}>
               <Text style={s.nome}>{nomeViatura(v)}</Text>
@@ -170,8 +177,10 @@ function PedidoNovo({ pedido, s }: { pedido: PedidoMotorista; s: S }) {
       <Text style={s.etiqueta}>{pedido.recolhaEm ? `Reserva · ${formatarDia(new Date(pedido.recolhaEm), new Date())}, ${formatarHora(new Date(pedido.recolhaEm))}` : 'Pedido para agora'}</Text>
       <Text style={s.valorGrande}>{formatarMzn(ganhoMotorista(pedido))}</Text>
       <Text style={s.secundario}>
-        Recebes isto · {pedido.clienteNome ?? 'o cliente'} já pagou {formatarMzn(pedido.precoMzn)} por {pedido.pagamento}
+        Recebes isto · {pedido.clienteNome ?? 'o cliente'} {pedido.pagaNoFim ? 'paga' : 'já pagou'} {formatarMzn(pedido.precoMzn)} por {pedido.pagamento}
+        {pedido.pagaNoFim ? ' no fim da viagem' : ''}
       </Text>
+      <NotaPagamento paraMotorista />
 
       <View style={s.caixa}>
         <Linha ponto={<View style={s.pontoRecolha} />} titulo={pedido.origem.nome} texto={`${duracaoMin(kmRecolha)} min · ${formatarKm(kmRecolha)} de ti`} s={s} />

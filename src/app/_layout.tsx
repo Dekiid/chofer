@@ -15,6 +15,7 @@ import { ContaProvider } from '@/state/conta';
 import { InscricoesProvider } from '@/state/inscricoes';
 import { ModoMotoristaProvider } from '@/state/modo-motorista';
 import { PedidoProvider } from '@/state/pedido';
+import { useMotoristaAprovado } from '@/state/permissoes';
 import { SessaoProvider, useSessao } from '@/state/sessao';
 
 // O ecrã de abertura (fundo preto com o logótipo) fica até a letra da marca carregar.
@@ -73,6 +74,7 @@ function Abertura() {
 /** Sem conta (ou com o registo a meio) só se vê o registo; com conta, a app toda. */
 function Navegacao() {
   const sessao = useSessao();
+  const motorista = useMotoristaAprovado();
   if (sessao.estado === 'a_carregar') return <Abertura />;
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -91,9 +93,12 @@ function Navegacao() {
         <Stack.Screen name="aprovacoes" />
         <Stack.Screen name="gestao" />
         <Stack.Screen name="agenda" />
-        {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}
-        <Stack.Screen name="motorista" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
+        {/* Só para motoristas aprovados (ou a conta de demonstração). */}
+        <Stack.Protected guard={motorista.pode}>
+          {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}
+          <Stack.Screen name="motorista" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
+        </Stack.Protected>
       </Stack.Protected>
       <Stack.Protected guard={!sessao.completo}>
         <Stack.Screen name="registo" />

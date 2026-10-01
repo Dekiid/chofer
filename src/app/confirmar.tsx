@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EscolhaHorario } from '@/components/escolha-horario';
 import { Mapa } from '@/components/mapa';
+import { NotaPagamento } from '@/components/nota-pagamento';
 import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoVoltar, Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -13,6 +14,7 @@ import { conflito, formatarDia, formatarHora, minutosOcupado, somarMin } from '@
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { lugarNoPonto } from '@/data/moradas';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
+import { usePedirAgora } from '@/hooks/use-pedir-agora';
 import { useTempoConducao } from '@/hooks/use-tempo-conducao';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
@@ -36,6 +38,9 @@ export default function Confirmar() {
         ])
     : [];
   const conducao = useTempoConducao(pares);
+  const pedirAgora = usePedirAgora();
+  const [aPedir, setAPedir] = useState(false);
+  const [erroPedido, setErroPedido] = useState('');
   // Ao tocar no mapa o painel encolhe, para se ver bem o caminho e acertar os pontos.
   const [aberto, setAberto] = useState(true);
   const encolher = () => aberto && setAberto(false);
@@ -187,7 +192,22 @@ export default function Confirmar() {
               </View>
             </View>
 
-            <BotaoPrincipal texto="Pedir chauffeur" escuro onPress={() => router.push('/pagamento')} desativado={!quandoValido || rotaACarregar} />
+            {/* Reservas pagam-se já, para guardar o horário; pedidos para agora pagam-se no fim, como na Uber,
+                porque o motorista ainda pode recusar. */}
+            {quando && <Text style={s.quandoPaga}>{imediato ? 'Pagas no fim da viagem, por M-Pesa ou e-Mola.' : 'Pagas agora, para reservar o horário.'}</Text>}
+            <NotaPagamento />
+            {erroPedido ? <Text style={s.avisoAgenda}>{erroPedido}</Text> : null}
+            <BotaoPrincipal
+              texto={aPedir ? 'A pedir…' : 'Pedir chauffeur'}
+              escuro
+              onPress={async () => {
+                if (!imediato) return router.push('/pagamento');
+                setAPedir(true);
+                setErroPedido((await pedirAgora()) ?? '');
+                setAPedir(false);
+              }}
+              desativado={!quandoValido || rotaACarregar || aPedir}
+            />
           </View>
         </Painel>
       )}
@@ -197,6 +217,7 @@ export default function Confirmar() {
 
 function estilos(c: Palette) {
   return StyleSheet.create({
+    quandoPaga: { color: c.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: Spacing.two },
     avisoAgenda: { color: '#D93025', fontSize: 12, marginTop: Spacing.one },
     ecra: { flex: 1, backgroundColor: c.background },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.three, paddingTop: Spacing.two },

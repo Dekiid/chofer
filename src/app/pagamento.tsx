@@ -1,8 +1,10 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FecharTeclado } from '@/components/fechar-teclado';
+import { NotaPagamento } from '@/components/nota-pagamento';
 import type { Ponto } from '@/components/mapa-tipos';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -21,7 +23,7 @@ import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
 
-type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada' | 'falhou';
+type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada' | 'falhou' | 'pago_no_fim';
 
 const ponto = (p: Ponto): Ponto => ({ latitude: p.latitude, longitude: p.longitude });
 
@@ -53,11 +55,15 @@ export default function Pagamento() {
   const km = pedido.rota?.km ?? 0;
   const duracao = pedido.rota?.minutos ?? 0;
   const imediato = quando?.tipo === 'imediato';
-  const preco = reserva ? totalReserva(viatura, reserva) : calcularPreco(viatura, km, imediato);
+  // Pedido para agora: chega aqui no fim da viagem, com a viagem já feita (e a gorjeta escolhida).
+  const { viagem: idNoFim } = useLocalSearchParams<{ viagem?: string }>();
+  const noFim = idNoFim ? conta.viagens.find((v) => v.id === idNoFim) : undefined;
+  const preco = noFim ? noFim.precoMzn : reserva ? totalReserva(viatura, reserva) : calcularPreco(viatura, km, imediato);
   // Códigos de convite só valem na primeira viagem.
   const primeiraViagem = !conta.viagens.some((v) => v.estado === 'concluida');
   const desconto = descontoDe(conta.promo, preco);
-  const aPagar = preco - desconto;
+  // A gorjeta vai toda para o motorista e não leva desconto.
+  const aPagar = preco - desconto + (noFim?.gorjetaMzn ?? 0);
 
   function aplicarCodigo() {
     const promo = procurarPromo(codigoTexto);
@@ -74,6 +80,15 @@ export default function Pagamento() {
   // Só depois vem a cobrança, que no protótipo é simulada.
   async function processar() {
     setEstado('a_processar');
+    const nomeMetodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '';
+    if (noFim) {
+      if (!(await continuar({ ok: true }))) return;
+      conta.atualizarViagem(noFim.id, { porPagar: false, descontoMzn: desconto, promo: conta.promo?.codigo, pagamento: pedido.pagamento });
+      conta.setPromo(null);
+      conta.avisar('Pagamento confirmado', `${formatarMzn(aPagar)} por ${nomeMetodo}. Obrigado por viajares com a Chauffeur.`);
+      setEstado('pago_no_fim');
+      return;
+    }
     const idViagem = `v-${Date.now()}`;
     const codigoRecolha = gerarCodigoRecolha();
     const nomePagamento = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '';
@@ -283,7 +298,29 @@ export default function Pagamento() {
     );
   }
 
-  if (reserva ? !reserva.inicio : !destino || !quando) return <Redirect href="/" />;
+  if (estado === 'pago_no_fim' && noFim) {
+    return (
+      <SafeAreaView style={[s.ecra, s.centro]}>
+        <Text style={[s.visto, { color: cores.accent }]}>✓</Text>
+        <Text style={s.titulo}>Viagem paga</Text>
+        <Text style={s.secundarioCentro}>Obrigado por viajares com a Chauffeur. O recibo fica nas tuas viagens.</Text>
+        <View style={{ alignSelf: 'stretch', marginTop: Spacing.three, gap: Spacing.two }}>
+          <BotaoPrincipal
+            texto="Voltar ao início"
+            onPress={() => {
+              pedido.limpar();
+              router.dismissTo('/');
+            }}
+          />
+          <Text style={s.temCodigo} onPress={() => router.push({ pathname: '/recibo', params: { id: noFim.id } })}>
+            Ver recibo
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!noFim && (reserva ? !reserva.inicio : !destino || !quando)) return <Redirect href="/" />;
 
   const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento) ?? PAGAMENTOS[0];
   const digitos = telefone.replace(/\D/g, '');
@@ -320,7 +357,7 @@ export default function Pagamento() {
         </View>
 
         {/* Tocar fora do campo esconde o teclado (o teclado numérico do iPhone não tem tecla para fechar). */}
-        <Pressable style={s.corpo} onPress={Keyboard.dismiss} accessible={false}>
+        <FecharTeclado style={s.corpo}>
           <Text style={s.secundario}>Total a pagar</Text>
           <Text style={s.total}>{formatarMzn(aPagar)}</Text>
           {desconto > 0 && (
@@ -332,10 +369,12 @@ export default function Pagamento() {
             </Text>
           )}
           <Text style={s.secundario}>
-            {reserva ? `${nomeViatura(viatura)} · ${nomeReserva}` : `${nomeViatura(viatura)} até ${destino?.nome}`}
+            {noFim ? `${noFim.viatura} até ${noFim.destino.nome}` : reserva ? `${nomeViatura(viatura)} · ${nomeReserva}` : `${nomeViatura(viatura)} até ${destino?.nome}`}
           </Text>
           <Text style={s.secundario}>
-            {reserva?.inicio
+            {noFim
+              ? `Viagem concluída${noFim.gorjetaMzn > 0 ? `, com ${formatarMzn(noFim.gorjetaMzn)} de gorjeta para o motorista` : ''}`
+              : reserva?.inicio
               ? `${textoDias(reserva.dias)} a partir de ${formatarDia(reserva.inicio, new Date()).toLowerCase()} às ${formatarHora(reserva.inicio)}`
               : quando?.tipo === 'agendado'
               ? `Recolha ${formatarDia(quando.inicio, new Date()).toLowerCase()} às ${formatarHora(quando.inicio)}`
@@ -398,9 +437,10 @@ export default function Pagamento() {
           onSubmitEditing={Keyboard.dismiss}
           style={s.input}
         />
-        </Pressable>
+        </FecharTeclado>
 
         <View style={s.rodape}>
+          <NotaPagamento />
           <BotaoPrincipal
             texto={`Pagar ${formatarMzn(aPagar)}`}
             onPress={() => {

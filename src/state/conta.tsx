@@ -46,6 +46,8 @@ export type ViagemFeita = {
   codigoRecolha: string;
   estado: 'agendada' | 'em_curso' | 'concluida' | 'cancelada';
   avaliacao?: Avaliacao;
+  /** Pedido para agora: paga-se no fim da viagem, como na Uber. Fica true até o pagamento ser feito. */
+  porPagar?: boolean;
 };
 
 export const totalPago = (v: ViagemFeita) => v.precoMzn - v.descontoMzn + v.gorjetaMzn;
