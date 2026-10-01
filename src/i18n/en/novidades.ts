@@ -214,4 +214,12 @@ export const novidades: Record<string, string> = {
   "Dia do casamento (primeiro dia)": "Wedding day (first day)",
   "{dia}, o dia inteiro": "{dia}, all day",
   "{viatura}, {reserva}, {dias} a partir de {dia}.": "{viatura}, {reserva}, {dias} from {dia}.",
+  "Entrega {dia} às {hora} · devolução até {fim} às {hora}": "Delivery {dia} at {hora} · return by {fim} at {hora}",
+  "O {viatura}{decorado} e o motorista ficam reservados para o casamento a partir de {dia} às {hora}, até {devolucao} às {hora}. O motorista vai buscar os noivos {local}.": "The{decorado} {viatura} and the driver are booked for the wedding from {dia} at {hora} until {devolucao} at {hora}. The driver picks up the couple {local}.",
+  "Entregamos o {viatura} {local} {dia} às {hora}. Devolve-o até {devolucao} às {hora}.": "We deliver the {viatura} {local} {dia} at {hora}. Return it by {devolucao} at {hora}.",
+  "O carro é entregue às {hora} do primeiro dia e devolvido até às {hora} do dia seguinte ao último. Cada dia pago conta 24 horas.": "The car is delivered at {hora} on the first day and returned by {hora} the day after the last. Each paid day counts as 24 hours.",
+  "Início": "Start",
+  "{dia}, às {hora}": "{dia}, at {hora}",
+  "{dia}, até às {hora}": "{dia}, by {hora}",
+  "Devolução até às {hora} · {destino}": "Return by {hora} · {destino}",
 };

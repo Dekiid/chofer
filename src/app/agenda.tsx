@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { diasAgendaveis, formatarDia, type Reserva, formatarHora, horariosDoDia, INTERVALO_MIN, mesmoDia, ocupaODia, reservaDeDias, reservaNoIntervalo, somarMin } from '@/data/agenda';
+import { diasAgendaveis, formatarDia, type Reserva, formatarHora, horariosDoDia, INTERVALO_MIN, mesmoDia, ocupaODia, PREPARACAO_MIN, reservaDeDias, reservaNoIntervalo, somarMin } from '@/data/agenda';
 import { nomeViatura } from '@/data/categorias';
 import { t } from '@/i18n';
 import { useAgenda } from '@/state/agenda';
@@ -90,14 +90,31 @@ export default function Agenda() {
           <View style={s.blocoDia}>
             <Text style={[s.textoBloco, s.textoOcupado, { fontWeight: '800' }]}>{t('Reservado o dia inteiro')}</Text>
             <Text style={[s.textoBloco, s.textoOcupado]}>{diaInteiro.destino}</Text>
-            <Text style={[s.textoBloco, s.textoOcupado, { opacity: 0.7 }]}>
-              {mesmoDia(diaInteiro.inicio, somarMin(diaInteiro.fim, -1))
-                ? formatarDia(diaInteiro.inicio, agora)
-                : t('{inicio} a {fim}', { inicio: formatarDia(diaInteiro.inicio, agora), fim: formatarDia(somarMin(diaInteiro.fim, -1), agora) })}
+            <Text style={[s.textoBloco, s.textoOcupado, { opacity: 0.75 }]}>
+              {t('Entrega {dia} às {hora} · devolução até {fim} às {hora}', {
+                dia: formatarDia(diaInteiro.inicio, agora).toLowerCase(),
+                fim: formatarDia(somarMin(diaInteiro.fim, PREPARACAO_MIN), agora).toLowerCase(),
+                hora: formatarHora(diaInteiro.inicio),
+              })}
             </Text>
           </View>
-        ) : horariosDoDia(dia).map((inicio) => {
+        ) : horariosDoDia(dia).map((inicio, i, lista) => {
           const r = reservaNoIntervalo(todasReservas, viaturaId, inicio, somarMin(inicio, INTERVALO_MIN));
+          // Manhã da devolução de um aluguer ou casamento: uma só caixa até às 10:00, não uma por meia hora.
+          if (r && reservaDeDias(r)) {
+            const anterior = i > 0 ? reservaNoIntervalo(todasReservas, viaturaId, lista[i - 1], inicio) : undefined;
+            if (anterior?.id === r.id) return null;
+            return (
+              <View key={inicio.getTime()} style={s.linha}>
+                <Text style={s.hora}>{formatarHora(inicio)}</Text>
+                <View style={[s.bloco, s.ocupado]}>
+                  <Text style={[s.textoBloco, s.textoOcupado]} numberOfLines={2}>
+                    {t('Devolução até às {hora} · {destino}', { hora: formatarHora(somarMin(r.fim, PREPARACAO_MIN)), destino: r.destino ?? '' })}
+                  </Text>
+                </View>
+              </View>
+            );
+          }
           const passado = somarMin(inicio, INTERVALO_MIN) <= agora;
           const bloqueio = r?.tipo === 'bloqueio';
           const podeTocar = !passado && (!r || bloqueio);

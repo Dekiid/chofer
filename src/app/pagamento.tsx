@@ -15,7 +15,7 @@ import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
 import { descontoClub, descontoGratis, estadoViagensGratis } from '@/data/club';
 import { normalizarTelefone } from '@/data/motorista';
-import { fimReserva, textoDias, totalReserva, ultimoDia } from '@/data/reserva';
+import { devolucaoReserva, fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { avisarMotoristaPorPush } from '@/data/push';
 import { cobrarEsperar, pagamentosReais } from '@/data/pagamentos';
@@ -338,17 +338,14 @@ export default function Pagamento() {
         <Text style={s.titulo}>{t('Reserva confirmada')}</Text>
         <Text style={s.secundarioCentro}>
           {casamento
-            ? reserva.dias === 1
-              ? t('O {viatura}{decorado} e o motorista ficam reservados para o casamento {dia}, o dia inteiro. O motorista vai buscar os noivos {local}.', { viatura: nomeViatura(viatura), decorado: reserva.decoracao === 'com' ? t(' decorado') : '', dia: diaNaFrase(reserva.inicio), local: noLocal })
-              : t('O {viatura}{decorado} e o motorista ficam reservados para o casamento de {dia} até {ultimo}, os dias inteiros. O motorista vai buscar os noivos {local}.', { viatura: nomeViatura(viatura), decorado: reserva.decoracao === 'com' ? t(' decorado') : '', dia: diaNaFrase(reserva.inicio), ultimo: diaNaFrase(ultimoDia(reserva.inicio, reserva.dias)), local: noLocal })
-            : reserva.dias === 1
-              ? t('O {viatura} é teu {dia}, o dia inteiro. Entregamos o carro {local}.', { viatura: nomeViatura(viatura), dia: diaNaFrase(reserva.inicio), local: noLocal })
-              : t('O {viatura} é teu de {dia} até {ultimo}, os dias inteiros. Entregamos o carro {local}.', {
-                  viatura: nomeViatura(viatura),
-                  dia: diaNaFrase(reserva.inicio),
-                  ultimo: diaNaFrase(ultimoDia(reserva.inicio, reserva.dias)),
-                  local: noLocal,
-                })}{' '}
+            ? t('O {viatura}{decorado} e o motorista ficam reservados para o casamento a partir de {dia} às {hora}, até {devolucao} às {hora}. O motorista vai buscar os noivos {local}.', { viatura: nomeViatura(viatura), decorado: reserva.decoracao === 'com' ? t(' decorado') : '', dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), devolucao: diaNaFrase(devolucaoReserva(reserva.inicio, reserva.dias)), local: noLocal })
+            : t('Entregamos o {viatura} {local} {dia} às {hora}. Devolve-o até {devolucao} às {hora}.', {
+                viatura: nomeViatura(viatura),
+                local: noLocal,
+                dia: diaNaFrase(reserva.inicio),
+                hora: formatarHora(reserva.inicio),
+                devolucao: diaNaFrase(devolucaoReserva(reserva.inicio, reserva.dias)),
+              })}{' '}
           {t('Os dias ficam reservados na agenda do carro.')}
         </Text>
         <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>

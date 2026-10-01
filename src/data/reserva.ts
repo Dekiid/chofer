@@ -1,4 +1,4 @@
-import { ANTECEDENCIA_MIN, inicioDoDia, reservaQueOcupa, somarMin, type Reserva } from './agenda';
+import { ANTECEDENCIA_MIN, conflito, inicioDoDia, PREPARACAO_MIN, reservaDeDias, reservaQueOcupa, somarMin, type Reserva } from './agenda';
 import type { Viatura } from './categorias';
 import { precoCasamento, type Decoracao } from './casamento';
 import { t } from '@/i18n';
@@ -25,8 +25,26 @@ export function diaria(v: Viatura, r: Pick<ReservaDias, 'modo' | 'decoracao'>): 
 
 export const totalReserva = (v: Viatura, r: ReservaDias) => diaria(v, r) * r.dias;
 
-/** Fim do período: o carro fica ocupado 24 horas por cada dia pago. */
-export const fimReserva = (inicio: Date, dias: number) => somarMin(inicio, dias * 24 * 60);
+/** Aluguer e casamento: o carro é entregue às 10:00 e devolvido até às 10:00 do dia seguinte ao último (Flavio, 2026-10-01). */
+export const HORA_ENTREGA = 10;
+export const inicioDias = (dia: Date) => new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), HORA_ENTREGA);
+/** Até quando o carro tem de ser devolvido: 24 horas por cada dia pago. */
+export const devolucaoReserva = (inicio: Date, dias: number) => somarMin(inicio, dias * 24 * 60);
+/**
+ * Fim na agenda: a devolução menos a preparação. Assim o servidor, que junta a preparação ao fim,
+ * deixa outro aluguer começar às 10:00 do dia da devolução.
+ */
+export const fimReserva = (inicio: Date, dias: number) => somarMin(devolucaoReserva(inicio, dias), -PREPARACAO_MIN);
+
+/** O período está livre: entre alugueres basta não se sobreporem; as viagens mantêm a folga de condução. */
+export function periodoLivre(reservas: Reserva[], viaturaId: string, inicio: Date, dias: number): boolean {
+  const fim = fimReserva(inicio, dias);
+  return !reservas.some(
+    (r) =>
+      r.viaturaId === viaturaId &&
+      (reservaDeDias(r) ? inicio < somarMin(r.fim, PREPARACAO_MIN) && r.inicio < somarMin(fim, PREPARACAO_MIN) : conflito([r], viaturaId, { inicio, fim })),
+  );
+}
 
 export function diasReservaveis(agora: Date): Date[] {
   const hoje = inicioDoDia(agora);
@@ -48,8 +66,7 @@ export function diasAluguer(agora: Date): Date[] {
 }
 
 /** O carro está livre em todos os dias inteiros pedidos, a começar neste. */
-export const diasLivres = (dia: Date, viaturaId: string, dias: number, reservas: Reserva[]) =>
-  !reservaQueOcupa(reservas, viaturaId, inicioDoDia(dia), fimReserva(inicioDoDia(dia), dias));
+export const diasLivres = (dia: Date, viaturaId: string, dias: number, reservas: Reserva[]) => periodoLivre(reservas, viaturaId, inicioDias(dia), dias);
 
 /** O último dia de um aluguer (o dia antes de o período acabar à meia-noite). */
 export const ultimoDia = (inicio: Date, dias: number) => somarMin(inicio, (dias - 1) * 24 * 60);

@@ -6,15 +6,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { formatarDia, inicioDoDia, mesmoDia, reservaQueOcupa } from '@/data/agenda';
+import { formatarDia, mesmoDia } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { precoCasamento } from '@/data/casamento';
 import { nomeLugar } from '@/data/lugares';
-import { diaria, diasAluguer, diasLivres, fimReserva, MAX_DIAS, textoDias, totalReserva, ultimoDia } from '@/data/reserva';
+import { devolucaoReserva, diaria, diasAluguer, diasLivres, HORA_ENTREGA, inicioDias, MAX_DIAS, periodoLivre, textoDias, totalReserva } from '@/data/reserva';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
 import { t } from '@/i18n';
+
+const HORA = `${String(HORA_ENTREGA).padStart(2, '0')}:00`;
 
 /** Aluguer e casamento: o mesmo fluxo das viagens, mas pago à diária. Local, dia, hora, dias, pagamento. */
 export default function ReservaEcra() {
@@ -33,7 +35,7 @@ export default function ReservaEcra() {
   // O dia escolhido já é a reserva: o carro fica reservado desde o início desse dia.
   useEffect(() => {
     if (!reserva) return;
-    const inicio = inicioDoDia(dia);
+    const inicio = inicioDias(dia);
     if (reserva.inicio?.getTime() !== inicio.getTime()) pedido.setReserva({ ...reserva, inicio });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dia, reserva?.inicio]);
@@ -43,7 +45,7 @@ export default function ReservaEcra() {
   const mudar = (m: Partial<typeof reserva>) => pedido.setReserva({ ...reserva, ...m });
 
   // A hora escolhida pode deixar de estar livre ao mudar o número de dias.
-  const inicioValido = reserva.inicio != null && !reservaQueOcupa(reservas, viatura.id, reserva.inicio, fimReserva(reserva.inicio, reserva.dias)) && reserva.inicio > agora;
+  const inicioValido = reserva.inicio != null && periodoLivre(reservas, viatura.id, reserva.inicio, reserva.dias) && reserva.inicio > agora;
   const total = totalReserva(viatura, reserva);
 
   return (
@@ -114,20 +116,23 @@ export default function ReservaEcra() {
 
         {!diasLivres(dia, viatura.id, reserva.dias, reservas) && <Text style={s.aviso}>{t('O carro não está livre em todos estes dias. Escolhe outro dia ou menos dias.')}</Text>}
 
+        <View style={s.nota}>
+          <Text style={s.textoNota}>
+            {t('O carro é entregue às {hora} do primeiro dia e devolvido até às {hora} do dia seguinte ao último. Cada dia pago conta 24 horas.', { hora: HORA })}
+          </Text>
+        </View>
+
         <View style={s.resumo}>
           <Linha s={s} nome={casamento ? t('Carro com motorista') : t('Carro sem motorista')} valor={nomeViatura(viatura)} />
           {casamento && <Linha s={s} nome={t('Decoração')} valor={reserva.decoracao === 'com' ? t('Com decoração') : t('Sem decoração')} />}
           <Linha
             s={s}
-            nome={t('Dias')}
-            valor={
-              reserva.inicio && inicioValido
-                ? reserva.dias === 1
-                  ? t('{dia}, o dia inteiro', { dia: formatarDia(reserva.inicio, agora) })
-                  : t('{inicio} a {fim}', { inicio: formatarDia(reserva.inicio, agora), fim: formatarDia(ultimoDia(reserva.inicio, reserva.dias), agora) })
-                : t('Escolhe o primeiro dia')
-            }
+            nome={casamento ? t('Início') : t('Entrega')}
+            valor={reserva.inicio && inicioValido ? t('{dia}, às {hora}', { dia: formatarDia(reserva.inicio, agora), hora: HORA }) : t('Escolhe o primeiro dia')}
           />
+          {reserva.inicio && inicioValido && (
+            <Linha s={s} nome={t('Devolução')} valor={t('{dia}, até às {hora}', { dia: formatarDia(devolucaoReserva(reserva.inicio, reserva.dias), agora), hora: HORA })} />
+          )}
           <Linha s={s} nome={t('Diária')} valor={`${formatarMzn(diaria(viatura, reserva))} × ${textoDias(reserva.dias)}`} />
           <View style={[s.linhaResumo, s.linhaTotal]}>
             <Text style={s.total}>{t('Total')}</Text>
@@ -180,6 +185,8 @@ function estilos(c: Palette) {
     textoChip: { color: c.text, fontSize: 14, fontWeight: '600' },
     textoChipAtivo: { color: c.onPrimary, fontWeight: '800' },
     riscado: { textDecorationLine: 'line-through' },
+    nota: { borderRadius: Radius.card, padding: Spacing.three, backgroundColor: c.backgroundElement },
+    textoNota: { color: c.text, fontSize: 13, lineHeight: 18 },
     aviso: { color: c.textSecondary, fontSize: 13, marginTop: Spacing.two },
     resumo: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: Spacing.one, marginTop: Spacing.four },
     linhaResumo: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },

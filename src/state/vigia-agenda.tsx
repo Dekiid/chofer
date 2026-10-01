@@ -87,9 +87,8 @@ export function etiquetaLembrete(recolhaEm: number, agora = Date.now()): { texto
   return null;
 }
 
-// Aluguer e casamento são por dias inteiros: sem hora.
 const textoReserva = (r: ReservaMinha) =>
-  `${r.viaturaNome} · ${formatarDia(new Date(r.recolhaEm), new Date())}${/^(Aluguer|Casamento) ·/.test(r.destino) ? '' : `, ${formatarHora(new Date(r.recolhaEm))}`}${r.origem ? ` · ${r.origem}` : ''}${r.destino ? ` → ${r.destino}` : ''}`;
+  `${r.viaturaNome} · ${formatarDia(new Date(r.recolhaEm), new Date())}, ${formatarHora(new Date(r.recolhaEm))}${r.origem ? ` · ${r.origem}` : ''}${r.destino ? ` → ${r.destino}` : ''}`;
 
 /** Fica no fundo da app: avisa as reservas novas e agenda os lembretes de um dia e de uma hora antes. */
 export function VigiaAgenda() {
