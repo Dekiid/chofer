@@ -338,13 +338,14 @@ export default function Pagamento() {
         <Text style={s.titulo}>{t('Reserva confirmada')}</Text>
         <Text style={s.secundarioCentro}>
           {casamento
-            ? t('O {viatura}{decorado} e o motorista ficam reservados para o casamento a partir de {dia} às {hora}, até {devolucao} às {hora}. O motorista vai buscar os noivos {local}.', { viatura: nomeViatura(viatura), decorado: reserva.decoracao === 'com' ? t(' decorado') : '', dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), devolucao: diaNaFrase(devolucaoReserva(reserva.inicio, reserva.dias)), local: noLocal })
-            : t('Entregamos o {viatura} {local} {dia} às {hora}. Devolve-o até {devolucao} às {hora}.', {
+            ? t('O {viatura}{decorado} e o motorista ficam reservados para o casamento a partir de {dia} às {hora}, até {devolucao} às {horaFim}. O motorista vai buscar os noivos {local}.', { viatura: nomeViatura(viatura), decorado: reserva.decoracao === 'com' ? t(' decorado') : '', dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), devolucao: diaNaFrase(devolucaoReserva(reserva.inicio, reserva.dias)), horaFim: formatarHora(devolucaoReserva(reserva.inicio, reserva.dias)), local: noLocal })
+            : t('Entregamos o {viatura} {local} {dia} às {hora}. Devolve-o até {devolucao} às {horaFim}.', {
                 viatura: nomeViatura(viatura),
                 local: noLocal,
                 dia: diaNaFrase(reserva.inicio),
                 hora: formatarHora(reserva.inicio),
                 devolucao: diaNaFrase(devolucaoReserva(reserva.inicio, reserva.dias)),
+                horaFim: formatarHora(devolucaoReserva(reserva.inicio, reserva.dias)),
               })}{' '}
           {t('Os dias ficam reservados na agenda do carro.')}
         </Text>

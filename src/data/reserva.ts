@@ -25,11 +25,17 @@ export function diaria(v: Viatura, r: Pick<ReservaDias, 'modo' | 'decoracao'>): 
 
 export const totalReserva = (v: Viatura, r: ReservaDias) => diaria(v, r) * r.dias;
 
-/** Aluguer e casamento: o carro é entregue às 10:00 e devolvido até às 10:00 do dia seguinte ao último (Flavio, 2026-10-01). */
+/**
+ * Aluguer e casamento (Flavio, 2026-10-01): o carro é entregue às 10:00, ou mais tarde se o cliente pedir,
+ * e tem de ser devolvido até às 08:00 do dia seguinte ao último, sempre. As duas horas são para a limpeza e a lavagem.
+ */
 export const HORA_ENTREGA = 10;
-export const inicioDias = (dia: Date) => new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), HORA_ENTREGA);
-/** Até quando o carro tem de ser devolvido: 24 horas por cada dia pago. */
-export const devolucaoReserva = (inicio: Date, dias: number) => somarMin(inicio, dias * 24 * 60);
+export const HORA_DEVOLUCAO = 8;
+/** Horas de entrega que o cliente pode pedir: a partir das 10:00. */
+export const HORAS_ENTREGA_DIAS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
+export const inicioDias = (dia: Date, hora = HORA_ENTREGA) => new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), hora);
+/** Até quando o carro tem de ser devolvido: às 08:00 do dia seguinte ao último dia pago. */
+export const devolucaoReserva = (inicio: Date, dias: number) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + dias, HORA_DEVOLUCAO);
 /**
  * Fim na agenda: a devolução menos a preparação. Assim o servidor, que junta a preparação ao fim,
  * deixa outro aluguer começar às 10:00 do dia da devolução.
@@ -66,7 +72,8 @@ export function diasAluguer(agora: Date): Date[] {
 }
 
 /** O carro está livre em todos os dias inteiros pedidos, a começar neste. */
-export const diasLivres = (dia: Date, viaturaId: string, dias: number, reservas: Reserva[]) => periodoLivre(reservas, viaturaId, inicioDias(dia), dias);
+export const diasLivres = (dia: Date, viaturaId: string, dias: number, reservas: Reserva[], hora = HORA_ENTREGA) =>
+  periodoLivre(reservas, viaturaId, inicioDias(dia, hora), dias);
 
 /** O último dia de um aluguer (o dia antes de o período acabar à meia-noite). */
 export const ultimoDia = (inicio: Date, dias: number) => somarMin(inicio, (dias - 1) * 24 * 60);

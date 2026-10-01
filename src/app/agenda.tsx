@@ -91,10 +91,11 @@ export default function Agenda() {
             <Text style={[s.textoBloco, s.textoOcupado, { fontWeight: '800' }]}>{t('Reservado o dia inteiro')}</Text>
             <Text style={[s.textoBloco, s.textoOcupado]}>{diaInteiro.destino}</Text>
             <Text style={[s.textoBloco, s.textoOcupado, { opacity: 0.75 }]}>
-              {t('Entrega {dia} às {hora} · devolução até {fim} às {hora}', {
+              {t('Entrega {dia} às {hora} · devolução até {fim} às {horaFim}', {
                 dia: formatarDia(diaInteiro.inicio, agora).toLowerCase(),
                 fim: formatarDia(somarMin(diaInteiro.fim, PREPARACAO_MIN), agora).toLowerCase(),
                 hora: formatarHora(diaInteiro.inicio),
+                horaFim: formatarHora(somarMin(diaInteiro.fim, PREPARACAO_MIN)),
               })}
             </Text>
           </View>
