@@ -221,8 +221,5 @@ export const novidades: Record<string, string> = {
   "Entrega {dia} às {hora} · devolução até {fim} às {horaFim}": "Delivery {dia} at {hora} · return by {fim} at {horaFim}",
   "O {viatura}{decorado} e o motorista ficam reservados para o casamento a partir de {dia} às {hora}, até {devolucao} às {horaFim}. O motorista vai buscar os noivos {local}.": "The{decorado} {viatura} and the driver are booked for the wedding from {dia} at {hora} until {devolucao} at {horaFim}. The driver picks up the couple {local}.",
   "Entregamos o {viatura} {local} {dia} às {hora}. Devolve-o até {devolucao} às {horaFim}.": "We deliver the {viatura} {local} {dia} at {hora}. Return it by {devolucao} at {horaFim}.",
-  "Hora a que o motorista chega": "Time the driver arrives",
-  "Entrega às {hora}": "Delivery at {hora}",
-  "{hora} (normal)": "{hora} (standard)",
-  "O carro é entregue às {entrega} do primeiro dia e tem de ser devolvido até às {devolucao} do dia seguinte ao último, para a limpeza e a lavagem. Se precisares, pede a entrega mais tarde.": "The car is delivered at {entrega} on the first day and must be returned by {devolucao} the day after the last, for cleaning and washing. If you need, ask for a later delivery.",
+  "Todos os carros são entregues às {entrega} do primeiro dia e devolvidos às {devolucao} do dia seguinte ao último, para dar tempo à lavagem antes do próximo cliente.": "All cars are delivered at {entrega} on the first day and returned at {devolucao} the day after the last, to allow washing before the next customer.",
 };

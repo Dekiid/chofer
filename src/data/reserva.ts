@@ -26,13 +26,11 @@ export function diaria(v: Viatura, r: Pick<ReservaDias, 'modo' | 'decoracao'>): 
 export const totalReserva = (v: Viatura, r: ReservaDias) => diaria(v, r) * r.dias;
 
 /**
- * Aluguer e casamento (Flavio, 2026-10-01): o carro é entregue às 10:00, ou mais tarde se o cliente pedir,
- * e tem de ser devolvido até às 08:00 do dia seguinte ao último, sempre. As duas horas são para a limpeza e a lavagem.
+ * Aluguer e casamento, regra fixa para todos (Flavio, 2026-10-01): o carro é entregue às 10:00 do primeiro dia
+ * e devolvido às 08:00 do dia seguinte ao último. As duas horas são para a lavagem antes do cliente seguinte.
  */
 export const HORA_ENTREGA = 10;
 export const HORA_DEVOLUCAO = 8;
-/** Horas de entrega que o cliente pode pedir: a partir das 10:00. */
-export const HORAS_ENTREGA_DIAS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 export const inicioDias = (dia: Date, hora = HORA_ENTREGA) => new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), hora);
 /** Até quando o carro tem de ser devolvido: às 08:00 do dia seguinte ao último dia pago. */
 export const devolucaoReserva = (inicio: Date, dias: number) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + dias, HORA_DEVOLUCAO);

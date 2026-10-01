@@ -10,7 +10,7 @@ import { formatarDia, mesmoDia } from '@/data/agenda';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { precoCasamento } from '@/data/casamento';
 import { nomeLugar } from '@/data/lugares';
-import { devolucaoReserva, diaria, diasAluguer, diasLivres, HORA_DEVOLUCAO, HORA_ENTREGA, HORAS_ENTREGA_DIAS, inicioDias, MAX_DIAS, periodoLivre, textoDias, totalReserva } from '@/data/reserva';
+import { devolucaoReserva, diaria, diasAluguer, diasLivres, HORA_DEVOLUCAO, HORA_ENTREGA, inicioDias, MAX_DIAS, periodoLivre, textoDias, totalReserva } from '@/data/reserva';
 import { useAgenda } from '@/state/agenda';
 import { usePedido } from '@/state/pedido';
 import { Text } from '@/components/texto';
@@ -29,8 +29,8 @@ export default function ReservaEcra() {
   // Aluguer e casamento são por dias inteiros, a partir de amanhã, sem hora (Flavio, 2026-10-01).
   // Só as viagens com motorista são à hora, com a duração calculada pelo mapa.
   const dias = diasAluguer(agora);
-  // A entrega é às 10:00; o cliente pode pedir mais tarde (pedido especial).
-  const [hora, setHora] = useState(() => (reserva?.inicio && HORAS_ENTREGA_DIAS.includes(reserva.inicio.getHours()) ? reserva.inicio.getHours() : HORA_ENTREGA));
+  // Regra fixa para todos (Flavio, 2026-10-01): entrega às 10:00 e devolução às 08:00, sem escolha de hora.
+  const hora = HORA_ENTREGA;
   const livreNoDia = (d: Date) => diasLivres(d, viatura.id, reserva?.dias ?? 1, reservas, hora);
   // Abre no primeiro dia livre.
   const [dia, setDia] = useState(() => reserva?.inicio ?? dias.find(livreNoDia) ?? dias[0]);
@@ -116,20 +116,11 @@ export default function ReservaEcra() {
           })}
         </ScrollView>
 
-        <Text style={s.pergunta}>{casamento ? t('Hora a que o motorista chega') : t('Hora da entrega')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fila} style={{ flexGrow: 0, flexShrink: 0 }}>
-          {HORAS_ENTREGA_DIAS.map((h) => (
-            <Pressable key={h} onPress={() => setHora(h)} style={[s.chip, h === hora && s.chipAtivo]} accessibilityLabel={t('Entrega às {hora}', { hora: hh(h) })}>
-              <Text style={[s.textoChip, h === hora && s.textoChipAtivo]}>{h === HORA_ENTREGA ? t('{hora} (normal)', { hora: hh(h) }) : hh(h)}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
         {!diasLivres(dia, viatura.id, reserva.dias, reservas, hora) && <Text style={s.aviso}>{t('O carro não está livre em todos estes dias. Escolhe outro dia ou menos dias.')}</Text>}
 
         <View style={s.nota}>
           <Text style={s.textoNota}>
-            {t('O carro é entregue às {entrega} do primeiro dia e tem de ser devolvido até às {devolucao} do dia seguinte ao último, para a limpeza e a lavagem. Se precisares, pede a entrega mais tarde.', { entrega: hh(HORA_ENTREGA), devolucao: hh(HORA_DEVOLUCAO) })}
+            {t('Todos os carros são entregues às {entrega} do primeiro dia e devolvidos às {devolucao} do dia seguinte ao último, para dar tempo à lavagem antes do próximo cliente.', { entrega: hh(HORA_ENTREGA), devolucao: hh(HORA_DEVOLUCAO) })}
           </Text>
         </View>
 
@@ -142,7 +133,7 @@ export default function ReservaEcra() {
             valor={reserva.inicio && inicioValido ? t('{dia}, às {hora}', { dia: formatarDia(reserva.inicio, agora), hora: hh(hora) }) : t('Escolhe o primeiro dia')}
           />
           {reserva.inicio && inicioValido && (
-            <Linha s={s} nome={t('Devolução')} valor={t('{dia}, até às {hora}', { dia: formatarDia(devolucaoReserva(reserva.inicio, reserva.dias), agora), hora: hh(HORA_DEVOLUCAO) })} />
+            <Linha s={s} nome={t('Devolução')} valor={t('{dia}, às {hora}', { dia: formatarDia(devolucaoReserva(reserva.inicio, reserva.dias), agora), hora: hh(HORA_DEVOLUCAO) })} />
           )}
           <Linha s={s} nome={t('Diária')} valor={`${formatarMzn(diaria(viatura, reserva))} × ${textoDias(reserva.dias)}`} />
           <View style={[s.linhaResumo, s.linhaTotal]}>
