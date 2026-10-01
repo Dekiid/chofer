@@ -15,7 +15,7 @@ import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
 import { descontoClub, descontoGratis, estadoViagensGratis } from '@/data/club';
 import { normalizarTelefone } from '@/data/motorista';
-import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
+import { fimReserva, textoDias, totalReserva, ultimoDia } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { avisarMotoristaPorPush } from '@/data/push';
 import { cobrarEsperar, pagamentosReais } from '@/data/pagamentos';
@@ -341,13 +341,14 @@ export default function Pagamento() {
             ? reserva.decoracao === 'com'
               ? t('O {viatura} decorado e o motorista vão buscar os noivos {local} {dia} às {hora}, por {dias}.', { viatura: nomeViatura(viatura), local: noLocal, dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), dias: textoDias(reserva.dias) })
               : t('O {viatura} e o motorista vão buscar os noivos {local} {dia} às {hora}, por {dias}.', { viatura: nomeViatura(viatura), local: noLocal, dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio), dias: textoDias(reserva.dias) })
-            : t('Entregamos o {viatura} {local} {dia} às {hora}. Devolução {devolucao} à mesma hora.', {
-                viatura: nomeViatura(viatura),
-                local: noLocal,
-                dia: diaNaFrase(reserva.inicio),
-                hora: formatarHora(reserva.inicio),
-                devolucao: diaNaFrase(fimReserva(reserva.inicio, reserva.dias)),
-              })}{' '}
+            : reserva.dias === 1
+              ? t('O {viatura} é teu {dia}, o dia inteiro. Entregamos o carro {local}.', { viatura: nomeViatura(viatura), dia: diaNaFrase(reserva.inicio), local: noLocal })
+              : t('O {viatura} é teu de {dia} até {ultimo}, os dias inteiros. Entregamos o carro {local}.', {
+                  viatura: nomeViatura(viatura),
+                  dia: diaNaFrase(reserva.inicio),
+                  ultimo: diaNaFrase(ultimoDia(reserva.inicio, reserva.dias)),
+                  local: noLocal,
+                })}{' '}
           {t('Os dias ficam reservados na agenda do carro.')}
         </Text>
         <View style={{ alignSelf: 'stretch', marginTop: Spacing.three }}>
@@ -508,7 +509,9 @@ export default function Pagamento() {
                 ? t('Viagem concluída, com {valor} de gorjeta para o motorista', { valor: formatarMzn(noFim.gorjetaMzn) })
                 : t('Viagem concluída')
               : reserva?.inicio
-              ? t('{dias} a partir de {dia} às {hora}', { dias: textoDias(reserva.dias), dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio) })
+              ? reserva.modo === 'aluguer'
+                ? t('Aluguer de {dias} a partir de {dia}', { dias: textoDias(reserva.dias), dia: diaNaFrase(reserva.inicio) })
+                : t('{dias} a partir de {dia} às {hora}', { dias: textoDias(reserva.dias), dia: diaNaFrase(reserva.inicio), hora: formatarHora(reserva.inicio) })
               : quando?.tipo === 'agendado'
               ? t('Recolha {dia} às {hora}', { dia: diaNaFrase(quando.inicio), hora: formatarHora(quando.inicio) })
               : t('Pedido imediato, com taxa extra')}

@@ -198,4 +198,11 @@ export const novidades: Record<string, string> = {
   "Marcar no mapa": "Mark on the map",
   "Onde fica a tua casa?": "Where is your home?",
   "Confirmar casa": "Confirm home",
+  "O {viatura} é teu {dia}, o dia inteiro. Entregamos o carro {local}.": "The {viatura} is yours {dia}, all day. We deliver the car {local}.",
+  "O {viatura} é teu de {dia} até {ultimo}, os dias inteiros. Entregamos o carro {local}.": "The {viatura} is yours from {dia} to {ultimo}, full days. We deliver the car {local}.",
+  "Aluguer de {dias} a partir de {dia}": "Rental of {dias} from {dia}",
+  "Primeiro dia do aluguer": "First day of the rental",
+  "O carro não está livre em todos estes dias. Escolhe outro dia ou menos dias.": "The car isn't free on all these days. Choose another day or fewer days.",
+  Dias: "Days",
+  "Escolhe o primeiro dia": "Choose the first day",
 };

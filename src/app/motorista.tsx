@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
 import { EstadoServidor } from '@/components/estado-servidor';
@@ -455,10 +455,12 @@ function IrParaCasa({ s }: { s: S }) {
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
       {/* A escolha da casa abre num ecrã próprio, fora da caixa que desliza: assim o teclado, a lista e o mapa não dependem do gesto da caixa. */}
       <Modal visible={escolher} animationType="slide" presentationStyle="fullScreen" onRequestClose={cancelarEscolha}>
+        {/* O Modal abre fora da árvore da app: sem um SafeAreaProvider próprio, o iPhone dá margem zero e o título fica debaixo da barra de estado. */}
+        <SafeAreaProvider>
         {noMapa ? (
           <MarcarNoMapa tipo="casa" inicial={m.casa ?? casaDaConta ?? { id: 'posicao', nome: t('A tua localização'), zona: '', latitude: m.posicao.latitude, longitude: m.posicao.longitude }} onConfirmar={guardar} onVoltar={() => setNoMapa(false)} />
         ) : (
-          <SafeAreaView style={[s.ecraCasa, { backgroundColor: cores.background }]}>
+          <SafeAreaView edges={['top', 'bottom']} style={[s.ecraCasa, { backgroundColor: cores.background }]}>
             <View style={s.estado}>
               <Text style={[s.titulo, { flex: 1 }]}>{t('Onde fica a tua casa?')}</Text>
               <Pressable onPress={cancelarEscolha} hitSlop={12} accessibilityLabel={t('Fechar')}>
@@ -489,6 +491,7 @@ function IrParaCasa({ s }: { s: S }) {
             </ScrollView>
           </SafeAreaView>
         )}
+        </SafeAreaProvider>
       </Modal>
     </View>
   );
@@ -776,7 +779,7 @@ function estilos(c: Palette) {
     secundarioPequeno: { color: c.textSecondary, fontSize: 12, marginTop: 1 },
     elogios: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
     campoCasa: { backgroundColor: c.background, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, color: c.text, fontSize: 15 },
-    ecraCasa: { flex: 1, padding: Spacing.three, gap: Spacing.three },
+    ecraCasa: { flex: 1, paddingHorizontal: Spacing.three, paddingTop: Spacing.four, gap: Spacing.three },
     botaoMapaCasa: { alignItems: 'center', borderRadius: Radius.pill, paddingVertical: Spacing.two, borderWidth: 1.5, borderColor: c.text },
     elogio: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: c.backgroundElement },
     ligacao: { color: c.text, fontWeight: '800', textDecorationLine: 'underline' },

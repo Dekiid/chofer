@@ -42,4 +42,16 @@ export function horasLivres(dia: Date, viaturaId: string, dias: number, reservas
   });
 }
 
+/** Aluguer: o carro reserva-se por dias inteiros (Flavio, 2026-10-01), a partir de amanhã, sem escolher hora. */
+export function diasAluguer(agora: Date): Date[] {
+  return diasReservaveis(agora).slice(1);
+}
+
+/** O carro está livre em todos os dias inteiros pedidos, a começar neste. */
+export const diasLivres = (dia: Date, viaturaId: string, dias: number, reservas: Reserva[]) =>
+  !reservaQueOcupa(reservas, viaturaId, inicioDoDia(dia), fimReserva(inicioDoDia(dia), dias));
+
+/** O último dia de um aluguer (o dia antes de o período acabar à meia-noite). */
+export const ultimoDia = (inicio: Date, dias: number) => somarMin(inicio, (dias - 1) * 24 * 60);
+
 export const textoDias = (n: number) => (n === 1 ? t('{n} dia', { n }) : t('{n} dias', { n }));
