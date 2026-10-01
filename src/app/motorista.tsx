@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { Extrapolation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoDeslizar } from '@/components/botao-deslizar';
@@ -177,30 +177,20 @@ function Disponivel({ s }: { s: S }) {
   const [recolhido, setRecolhido] = useState(false);
   const progresso = useSharedValue(0); // 0 aberta, 1 recolhida
   const altura = useSharedValue(0);
-  const inicio = useSharedValue(0);
   function assentar(recolher: boolean) {
     setRecolhido(recolher);
     progresso.value = withSpring(recolher ? 1 : 0, MOLA);
   }
-  // O gesto corre no telemóvel (Gesture Handler), por isso acompanha o dedo sem atrasos e nunca se perde a meio.
+  // Basta um gesto curto para cima ou para baixo: a caixa abre ou fecha sozinha até ao fim, com uma mola suave.
   // Há dois sítios para agarrar: o topo (a barrinha e o título) e os botões; a lista do meio rola por si.
   const criarGesto = () =>
     Gesture.Pan()
-      .activeOffsetY([-8, 8])
+      .activeOffsetY([-10, 10])
       .failOffsetX([-24, 24])
-      .onBegin(() => {
-        inicio.value = progresso.value;
-      })
-      .onUpdate((e) => {
-        const h = altura.value || 300;
-        progresso.value = Math.min(1, Math.max(0, inicio.value + e.translationY / h));
-      })
+      .runOnJS(true)
       .onEnd((e) => {
-        const h = altura.value || 300;
-        // Basta um arrasto curto (ou rápido) para decidir pela direção.
-        const recolher = Math.abs(e.velocityY) > 300 || Math.abs(e.translationY) > 40 ? e.translationY > 0 : progresso.value > 0.5;
-        progresso.value = withSpring(recolher ? 1 : 0, { ...MOLA, velocity: e.velocityY / h });
-        runOnJS(setRecolhido)(recolher);
+        if (e.translationY > 15 || e.velocityY > 250) assentar(true);
+        else if (e.translationY < -15 || e.velocityY < -250) assentar(false);
       });
   const [gestoTopo] = useState(criarGesto);
   const [gestoBotoes] = useState(criarGesto);
@@ -250,7 +240,7 @@ function Disponivel({ s }: { s: S }) {
         {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
       </View>
-      <ScrollView style={{ maxHeight: 330 }} contentContainerStyle={{ paddingBottom: Spacing.one }}>
+      <ScrollView style={{ maxHeight: 320, marginBottom: Spacing.three }} contentContainerStyle={{ paddingBottom: Spacing.two }} showsVerticalScrollIndicator={false}>
       <ResumoTurnoAtual s={s} />
       {TEMPO_REAL_ATIVO && <EstadoServidor />}
       <IrParaCasa s={s} />
