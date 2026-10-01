@@ -23,7 +23,7 @@ export type Inscricao = {
   estado: 'pendente' | 'aprovada' | 'rejeitada';
   por_km_mzn: number;
   enviada_em: string;
-  dados: { nome: string; marca: string; modelo: string; ano: string; matricula: string; tipo: string; lugares: number; documento: string; cartaConducao: string; validades?: Record<string, string>; motorista?: { nome: string; telefone: string } };
+  dados: { nome: string; marca: string; modelo: string; ano: string; matricula: string; tipo: string; lugares: number; documento: string; cartaConducao: string; validades?: Record<string, string>; motorista?: { nome: string; telefone: string }; convite?: string };
 };
 export type Avaliacao = { id: string; tipo: 'motorista' | 'cliente'; telefone: string; estrelas: number; elogios: string[]; comentario: string; em: string };
 export type PedidoAjuda = {
@@ -358,6 +358,7 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
                         <div className="sec">{i.dados.motorista.telefone}</div>
                       </div>
                     )}
+                    {i.dados.convite && <div className="sec">Convidado com {i.dados.convite}</div>}
                     <div className="sec">Enviada {dataHora(i.enviada_em)}</div>
                   </td>
                   <td>

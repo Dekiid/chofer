@@ -4,6 +4,7 @@ import { comum } from '@/i18n/en/comum';
 import { conta } from '@/i18n/en/conta';
 import { extras } from '@/i18n/en/extras';
 import { motorista } from '@/i18n/en/motorista';
+import { novidades } from '@/i18n/en/novidades';
 import { viagem } from '@/i18n/en/viagem';
 
 export const en: Record<string, string> = {
@@ -13,4 +14,5 @@ export const en: Record<string, string> = {
   ...motorista,
   ...viagem,
   ...extras,
+  ...novidades,
 };

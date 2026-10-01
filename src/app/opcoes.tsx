@@ -8,7 +8,7 @@ import { Text, TextInput } from '@/components/texto';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { eAeroporto, ESPERA_AEROPORTO_MIN, normalizarVoo, VOO_VALIDO, type Preferencias } from '@/data/extras-viagem';
+import { eAeroporto, ESPERA_AEROPORTO_MIN, MAX_CADEIRINHAS, normalizarVoo, VOO_VALIDO, type Preferencias } from '@/data/extras-viagem';
 import { normalizarTelefone } from '@/data/motorista';
 import { t } from '@/i18n';
 import { useConta } from '@/state/conta';
@@ -104,6 +104,23 @@ export default function Opcoes() {
               {!vooValido && <Text style={s.erro}>{t('Escreve as letras da companhia e o número, ex.: TM 101.')}</Text>}
             </>
           )}
+
+          <Text style={s.secao}>{t('Crianças e acessibilidade')}</Text>
+          <Text style={s.ajuda}>{t('O motorista vê isto no pedido e traz o que precisas.')}</Text>
+          <Text style={s.rotulo}>{t('Cadeirinhas de criança')}</Text>
+          <View style={s.segmentos}>
+            {Array.from({ length: MAX_CADEIRINHAS + 1 }, (_, n) => {
+              const ativo = (pref.cadeirinhas ?? 0) === n;
+              return (
+                <Pressable key={n} onPress={() => setPref((p) => ({ ...p, cadeirinhas: n }))} style={[s.segmento, ativo && s.segmentoAtivo]} accessibilityState={{ selected: ativo }}>
+                  <Text style={[s.textoSegmento, ativo && s.textoSegmentoAtivo]}>{n === 0 ? t('Nenhuma') : String(n)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Linha s={s} titulo={t('Cadeira de rodas')} texto={t('Dobrável. O motorista ajuda a entrar e guarda-a na bagageira')}>
+            <Switch value={pref.cadeiraRodas === true} onValueChange={(v) => setPref((p) => ({ ...p, cadeiraRodas: v }))} />
+          </Linha>
 
           <Text style={s.secao}>{t('Preferências')}</Text>
           <Text style={s.ajuda}>{t('Ficam guardadas para as próximas viagens. O motorista vê-as no pedido.')}</Text>

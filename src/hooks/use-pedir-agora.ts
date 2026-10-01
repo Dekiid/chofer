@@ -62,6 +62,7 @@ export function usePedirAgora(): () => Promise<string | null> {
       codigoRecolha: gerarCodigoRecolha(),
       estado: 'em_curso',
       porPagar: true,
+      favorito: conta.eFavorito(viatura.motorista?.telefone),
     });
     const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '';
     agenda.notificar(

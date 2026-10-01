@@ -1,6 +1,6 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FecharTeclado } from '@/components/fechar-teclado';
@@ -13,12 +13,14 @@ import { formatarDia, formatarHora, minutosOcupado, somarMin } from '@/data/agen
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { MOTORISTA_EXEMPLO } from '@/data/motorista';
 import { descontoDe, procurarPromo } from '@/data/promocoes';
+import { CLUB, descontoClub } from '@/data/club';
+import { normalizarTelefone } from '@/data/motorista';
 import { fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { avisarMotoristaPorPush } from '@/data/push';
 import { publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
-import { useConta } from '@/state/conta';
+import { useConta, type ParteDivisao } from '@/state/conta';
 import { useAgenda, type ResultadoReserva } from '@/state/agenda';
 import { PAGAMENTOS, usePedido } from '@/state/pedido';
 import { useSessao } from '@/state/sessao';
@@ -32,6 +34,8 @@ const ponto = (p: Ponto): Ponto => ({ latitude: p.latitude, longitude: p.longitu
 
 // Tempo simulado até a operadora confirmar; o pagamento real virá do servidor.
 const TEMPO_CONFIRMACAO = 2500;
+/** Até 3 amigos, 4 pessoas no total. */
+const MAX_AMIGOS = 3;
 
 /** O dia para o meio de uma frase: «hoje», «amanhã». Em inglês, só «today» e «tomorrow» ficam em minúsculas. */
 function diaNaFrase(d: Date): string {
@@ -70,9 +74,28 @@ export default function Pagamento() {
   const preco = noFim ? noFim.precoMzn : reserva ? totalReserva(viatura, reserva) : calcularPreco(viatura, km, imediato);
   // Códigos de convite só valem na primeira viagem.
   const primeiraViagem = !conta.viagens.some((v) => v.estado === 'concluida');
-  const desconto = descontoDe(conta.promo, preco);
+  const descontoPromo = descontoDe(conta.promo, preco);
+  // Chauffeur Club: mais 10% sobre o que fica depois do código promocional.
+  const descontoClubMzn = conta.clubAtivo ? descontoClub(preco - descontoPromo) : 0;
+  const desconto = descontoPromo + descontoClubMzn;
   // A gorjeta vai toda para o motorista e não leva desconto.
   const aPagar = preco - desconto + (noFim?.gorjetaMzn ?? 0);
+  // Conta dividida: cada amigo paga uma parte igual (arredondada a 10 MT); o cliente paga o resto.
+  const [dividir, setDividir] = useState(false);
+  const [amigos, setAmigos] = useState<{ nome: string; telefone: string }[]>([{ nome: '', telefone: '' }]);
+  const amigosValidos = dividir ? amigos.filter((a) => a.nome.trim().length >= 2 && normalizarTelefone(a.telefone)) : [];
+  const parteAmigo = amigosValidos.length > 0 ? Math.floor(aPagar / (amigosValidos.length + 1) / 10) * 10 : 0;
+  const minhaParte = aPagar - parteAmigo * amigosValidos.length;
+  const partes: ParteDivisao[] = amigosValidos.map((a) => ({ nome: a.nome.trim(), telefone: normalizarTelefone(a.telefone)!, valorMzn: parteAmigo, paga: false }));
+  // Carteira: o saldo paga primeiro; o resto vai por M-Pesa ou e-Mola.
+  const [usarSaldo, setUsarSaldo] = useState(true);
+  const daCarteira = usarSaldo ? Math.min(conta.saldoMzn, minhaParte) : 0;
+  const aCobrar = minhaParte - daCarteira;
+  /** O que sai da carteira e o que fica dividido, registado na viagem e na carteira. */
+  function registarExtras(id: string, destinoNome: string) {
+    if (daCarteira > 0) conta.movimentar(-daCarteira, 'viagem', destinoNome);
+    if (partes.length > 0) conta.dividirViagem(id, partes);
+  }
 
   function aplicarCodigo() {
     const promo = procurarPromo(codigoTexto);
@@ -92,9 +115,15 @@ export default function Pagamento() {
     const nomeMetodo = t(PAGAMENTOS.find((p) => p.id === pedido.pagamento)?.nome ?? '');
     if (noFim) {
       if (!(await continuar({ ok: true }))) return;
-      conta.atualizarViagem(noFim.id, { porPagar: false, descontoMzn: desconto, promo: conta.promo?.codigo, pagamento: pedido.pagamento });
+      conta.atualizarViagem(noFim.id, { porPagar: false, descontoMzn: desconto, descontoClubMzn, carteiraMzn: daCarteira, promo: conta.promo?.codigo, pagamento: pedido.pagamento });
+      registarExtras(noFim.id, noFim.destino.nome);
       conta.setPromo(null);
-      conta.avisar(t('Pagamento confirmado'), t('{valor} por {pagamento}. Obrigado por viajares com a Chauffeur.', { valor: formatarMzn(aPagar), pagamento: nomeMetodo }));
+      conta.avisar(
+        t('Pagamento confirmado'),
+        aCobrar > 0
+          ? t('{valor} por {pagamento}. Obrigado por viajares com a Chauffeur.', { valor: formatarMzn(aCobrar), pagamento: nomeMetodo })
+          : t('Pago com a carteira. Obrigado por viajares com a Chauffeur.'),
+      );
       setEstado('pago_no_fim');
       return;
     }
@@ -133,12 +162,15 @@ export default function Pagamento() {
         precoMzn: preco,
         taxaImediatoMzn: 0,
         descontoMzn: desconto,
+        descontoClubMzn,
+        carteiraMzn: daCarteira,
         promo: conta.promo?.codigo,
         gorjetaMzn: 0,
         pagamento: pedido.pagamento,
         codigoRecolha,
         estado: 'agendada',
       });
+      registarExtras(idViagem, nomeReserva);
       conta.setPromo(null);
       conta.avisar(
         t('Reserva confirmada'),
@@ -207,12 +239,16 @@ export default function Pagamento() {
       precoMzn: preco,
       taxaImediatoMzn: agendada ? 0 : taxaImediato(viatura, km),
       descontoMzn: desconto,
+      descontoClubMzn,
+      carteiraMzn: daCarteira,
       promo: conta.promo?.codigo,
       gorjetaMzn: 0,
       pagamento: pedido.pagamento,
       codigoRecolha,
       estado: agendada ? 'agendada' : 'em_curso',
+      favorito: conta.eFavorito(viatura.motorista?.telefone),
     });
+    registarExtras(idViagem, destino.nome);
     // Viagem marcada: vai já para a agenda do motorista do carro, com um aviso.
     // Os pedidos para agora saem do ecrã da viagem.
     if (TEMPO_REAL_ATIVO && agendada) {
@@ -224,7 +260,7 @@ export default function Pagamento() {
       t('Pagamento confirmado'),
       agendada
         ? t('Viagem para {destino} marcada para {dia} às {hora}.', { destino: destino.nome, dia: diaNaFrase(inicio), hora: formatarHora(inicio) })
-        : t('{valor} por {pagamento}. A chamar o teu {viatura}.', { valor: formatarMzn(aPagar), pagamento: t(nomePagamento), viatura: nomeViatura(viatura) }),
+        : t('{valor} por {pagamento}. A chamar o teu {viatura}.', { valor: formatarMzn(aCobrar), pagamento: t(nomePagamento), viatura: nomeViatura(viatura) }),
     );
     if (!agendada) {
       agenda.notificar(t('Pedido imediato'), t('{viatura} para {destino}, pago {valor} com taxa de pedido imediato.', { viatura: nomeViatura(viatura), destino: destino.nome, valor: formatarMzn(aPagar) }));
@@ -367,7 +403,8 @@ export default function Pagamento() {
   const digitos = telefone.replace(/\D/g, '');
   // Com a fatura da empresa não há número de telefone para cobrar.
   const naFatura = metodo.id === 'empresa' && conta.empresa != null;
-  const telefoneValido = naFatura || /^8[4-7]\d{7}$/.test(digitos);
+  // Tudo pago pela carteira ou pelos amigos: não há nada para cobrar por M-Pesa ou e-Mola.
+  const telefoneValido = naFatura || aCobrar === 0 || /^8[4-7]\d{7}$/.test(digitos);
 
   if (estado !== 'preencher') {
     return (
@@ -378,8 +415,10 @@ export default function Pagamento() {
             <Text style={s.titulo}>{naFatura ? t('A juntar à fatura') : t('Confirma no teu telemóvel')}</Text>
             <Text style={s.secundarioCentro}>
               {naFatura
-                ? t('{valor} vão para a fatura de {empresa} deste mês.', { valor: formatarMzn(aPagar), empresa: conta.empresa?.nome ?? '' })
-                : t('Enviámos um pedido de {valor} por {pagamento} para o número {numero}. Introduz o teu PIN para autorizar.', { valor: formatarMzn(aPagar), pagamento: t(metodo.nome), numero: digitos })}
+                ? t('{valor} vão para a fatura de {empresa} deste mês.', { valor: formatarMzn(aCobrar), empresa: conta.empresa?.nome ?? '' })
+                : aCobrar === 0
+                  ? t('A pagar com o saldo da tua carteira.')
+                  : t('Enviámos um pedido de {valor} por {pagamento} para o número {numero}. Introduz o teu PIN para autorizar.', { valor: formatarMzn(aCobrar), pagamento: t(metodo.nome), numero: digitos })}
             </Text>
           </>
         ) : (
@@ -403,14 +442,22 @@ export default function Pagamento() {
 
         {/* Tocar fora do campo esconde o teclado (o teclado numérico do iPhone não tem tecla para fechar). */}
         <FecharTeclado style={s.corpo}>
-          <Text style={s.secundario}>{t('Total a pagar')}</Text>
-          <Text style={s.total}>{formatarMzn(aPagar)}</Text>
-          {desconto > 0 && (
+        <ScrollView contentContainerStyle={{ paddingBottom: Spacing.three }} keyboardShouldPersistTaps="handled">
+          <Text style={s.secundario}>{aCobrar !== aPagar ? t('Pagas agora') : t('Total a pagar')}</Text>
+          <Text style={s.total}>{formatarMzn(aCobrar)}</Text>
+          {aCobrar !== aPagar && <Text style={s.desconto}>{t('Total da viagem: {valor}', { valor: formatarMzn(aPagar) })}</Text>}
+          {descontoPromo > 0 && (
             <Text style={s.desconto}>
-              <Text style={s.riscado}>{formatarMzn(preco)}</Text> · {t('{valor} de desconto ({codigo})', { valor: formatarMzn(desconto), codigo: conta.promo?.codigo ?? '' })}{'  '}
+              <Text style={s.riscado}>{formatarMzn(preco)}</Text> · {t('{valor} de desconto ({codigo})', { valor: formatarMzn(descontoPromo), codigo: conta.promo?.codigo ?? '' })}{'  '}
               <Text style={s.tirarCodigo} onPress={() => conta.setPromo(null)}>
                 {t('Tirar')}
               </Text>
+            </Text>
+          )}
+          {descontoClubMzn > 0 && <Text style={s.desconto}>{t('Chauffeur Club: −{valor}', { valor: formatarMzn(descontoClubMzn) })}</Text>}
+          {!conta.clubAtivo && descontoClub(preco - descontoPromo) > 0 && (
+            <Text style={s.desconto} onPress={() => router.push('/club')}>
+              {t('Com o Chauffeur Club pagavas menos {valor}.', { valor: formatarMzn(descontoClub(preco - descontoPromo)) })} <Text style={s.tirarCodigo}>{t('Ver')}</Text>
             </Text>
           )}
           <Text style={s.secundario}>
@@ -460,6 +507,66 @@ export default function Pagamento() {
             ))}
           {erroCodigo ? <Text style={s.erro}>{erroCodigo}</Text> : null}
 
+          {conta.saldoMzn > 0 && (
+            <View style={s.linhaOpcao}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.metodoTexto}>{t('Usar o saldo da carteira')}</Text>
+                <Text style={s.secundarioPequeno}>
+                  {usarSaldo ? t('{valor} saem da carteira', { valor: formatarMzn(daCarteira) }) : t('Tens {valor} na carteira', { valor: formatarMzn(conta.saldoMzn) })}
+                </Text>
+              </View>
+              <Switch value={usarSaldo} onValueChange={setUsarSaldo} accessibilityLabel={t('Usar o saldo da carteira')} />
+            </View>
+          )}
+
+          {!naFatura && (
+            <View style={[s.linhaOpcao, { flexDirection: 'column', alignItems: 'stretch' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.metodoTexto}>{t('Dividir com amigos')}</Text>
+                  <Text style={s.secundarioPequeno}>
+                    {partes.length > 0
+                      ? t('Cada um paga {valor}. Os amigos recebem o pedido de pagamento no telemóvel.', { valor: formatarMzn(parteAmigo) })
+                      : t('Cada amigo paga a sua parte por M-Pesa ou e-Mola.')}
+                  </Text>
+                </View>
+                <Switch value={dividir} onValueChange={setDividir} accessibilityLabel={t('Dividir com amigos')} />
+              </View>
+              {dividir &&
+                amigos.map((a, i) => (
+                  <View key={i} style={s.linhaAmigo}>
+                    <TextInput
+                      value={a.nome}
+                      onChangeText={(v) => setAmigos((l) => l.map((x, j) => (j === i ? { ...x, nome: v } : x)))}
+                      placeholder={t('Nome')}
+                      placeholderTextColor={cores.textSecondary}
+                      style={[s.inputPequeno, { flex: 1 }]}
+                    />
+                    <TextInput
+                      value={a.telefone}
+                      onChangeText={(v) => setAmigos((l) => l.map((x, j) => (j === i ? { ...x, telefone: v } : x)))}
+                      keyboardType="phone-pad"
+                      placeholder={t('84 123 4567')}
+                      placeholderTextColor={cores.textSecondary}
+                      style={[s.inputPequeno, { flex: 1.2 }]}
+                    />
+                    {amigos.length > 1 && (
+                      <Text style={s.tirarCodigo} onPress={() => setAmigos((l) => l.filter((_, j) => j !== i))} accessibilityLabel={t('Tirar')}>
+                        ✕
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              {dividir && amigos.length < MAX_AMIGOS && (
+                <Text style={[s.tirarCodigo, { marginTop: Spacing.two }]} onPress={() => setAmigos((l) => [...l, { nome: '', telefone: '' }])}>
+                  {t('Juntar outro amigo')}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {aCobrar > 0 && (
+          <>
           <Text style={s.rotulo}>{t('Método de pagamento')}</Text>
           <View style={s.metodos}>
             {PAGAMENTOS.filter((p) => p.id !== 'empresa' || conta.empresa).map((p) => {
@@ -496,12 +603,15 @@ export default function Pagamento() {
         />
         </>
         )}
+        </>
+        )}
+        </ScrollView>
         </FecharTeclado>
 
         <View style={s.rodape}>
           <NotaPagamento />
           <BotaoPrincipal
-            texto={naFatura ? t('Pôr na fatura · {valor}', { valor: formatarMzn(aPagar) }) : t('Pagar {valor}', { valor: formatarMzn(aPagar) })}
+            texto={naFatura ? t('Pôr na fatura · {valor}', { valor: formatarMzn(aCobrar) }) : aCobrar === 0 ? t('Pagar com a carteira') : t('Pagar {valor}', { valor: formatarMzn(aCobrar) })}
             onPress={() => {
               Keyboard.dismiss();
               processar();
@@ -539,6 +649,10 @@ function estilos(c: Palette) {
     aplicar: { backgroundColor: c.primary, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three },
     aplicarTexto: { color: c.onPrimary, fontWeight: '700' },
     erro: { color: '#DC2626', fontSize: 13, marginTop: Spacing.one },
+    linhaOpcao: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, marginTop: Spacing.three },
+    linhaAmigo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.two },
+    inputPequeno: { minWidth: 0, backgroundColor: c.background, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, color: c.text, fontSize: 15 },
+    secundarioPequeno: { color: c.textSecondary, fontSize: 13, marginTop: 2 },
     titulo: { color: c.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
     secundarioCentro: { color: c.textSecondary, fontSize: 15, textAlign: 'center' },
     visto: { fontSize: 56, fontWeight: '800' },

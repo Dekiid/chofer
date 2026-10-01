@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FecharTeclado } from '@/components/fechar-teclado';
@@ -12,6 +12,7 @@ import { formatarDia, formatarHora } from '@/data/agenda';
 import { ESPERA_MIN, HORAS_CANCELAR_GRATIS, MINUTOS_CANCELAR_GRATIS, TAXA_CANCELAMENTO_MZN } from '@/data/cancelamento';
 import { formatarMzn } from '@/data/categorias';
 import { t } from '@/i18n';
+import { ligarProtegido } from '@/data/chamadas';
 import { useConta, type ViagemFeita } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
 import { TIPOS_AJUDA, useSuporte, type TipoAjuda } from '@/state/suporte';
@@ -119,7 +120,7 @@ export default function Ajuda() {
                 </Pressable>
               ))}
               {tipo === 'objeto' && viagem?.motorista.telefone && (
-                <Pressable onPress={() => Linking.openURL(`tel:${viagem.motorista.telefone}`)} style={[s.opcao, { alignItems: 'center' }]}>
+                <Pressable onPress={() => ligarProtegido(viagem.motorista.telefone, viagem.id)} style={[s.opcao, { alignItems: 'center' }]}>
                   <Text style={[s.texto, { fontWeight: '800' }]}>{t('Ligar a {nome}', { nome: viagem.motorista.nome.split(' ')[0] })}</Text>
                 </Pressable>
               )}

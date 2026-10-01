@@ -105,6 +105,7 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
             </Pressable>
           </>
         )}
+        {i.convite && <Text style={[s.secundario, { marginTop: Spacing.two }]}>{t('Convidado com o código {codigo}', { codigo: i.convite })}</Text>}
       </View>
 
       {i.casamento?.foto && <Image source={i.casamento.foto} style={[s.fotoGrande, { marginBottom: Spacing.one }]} contentFit="cover" />}

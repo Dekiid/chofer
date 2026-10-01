@@ -10,11 +10,11 @@ import { t } from '@/i18n';
 // react-native-maps não funciona na web; esta vista só serve para pré-visualizar o layout.
 // Os pontos são projetados na parte de cima do ecrã (a de baixo fica tapada pelo painel),
 // com os marcadores do manual de identidade.
-export function Mapa({ origem, destino, paragens, carro, rota }: MapaProps) {
+export function Mapa({ origem, destino, paragens, carro, rota, zonas }: MapaProps) {
   const cores = usePalette();
   const [tamanho, setTamanho] = useState({ w: 0, h: 0 });
   const linha = rota ?? (origem && destino ? [origem, destino] : []);
-  const todos = [origem, destino, carro, ...(paragens ?? []), ...linha].filter((p): p is Ponto => p != null);
+  const todos = [origem, destino, carro, ...(paragens ?? []), ...linha, ...(zonas ?? []).map((z) => z.ponto)].filter((p): p is Ponto => p != null);
 
   // A área só cresce, para os marcadores não saltarem enquanto o carro se aproxima.
   const caixa = useRef({ minLat: Infinity, maxLat: -Infinity, minLng: Infinity, maxLng: -Infinity });
@@ -38,6 +38,19 @@ export function Mapa({ origem, destino, paragens, carro, rota }: MapaProps) {
       style={[StyleSheet.absoluteFill, { backgroundColor: cores.mapa, alignItems: 'center', paddingTop: 60 }]}
       onLayout={(e) => setTamanho({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <Text style={{ color: cores.textSecondary }}>{t('Mapa de Maputo e Matola')}</Text>
+      {tamanho.w > 0 &&
+        zonas?.map((z, i) => {
+          const c = xy(z.ponto);
+          // Raio em píxeis com a mesma escala do eixo das longitudes.
+          const grausLng = maxLng === minLng ? 0.05 : maxLng - minLng;
+          const r = Math.max(10, ((z.raioM / 111320 / Math.cos((z.ponto.latitude * Math.PI) / 180)) / grausLng) * tamanho.w * 0.6);
+          return (
+            <View
+              key={`zona-${i}`}
+              style={{ position: 'absolute', left: c.x - r, top: c.y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: `rgba(34,197,94,${0.12 + z.nivel * 0.08})`, borderWidth: 1, borderColor: 'rgba(34,197,94,0.6)' }}
+            />
+          );
+        })}
       {tamanho.w > 0 &&
         linha.slice(1).map((p, i) => {
           const a = xy(linha[i]);

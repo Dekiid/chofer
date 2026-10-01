@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 
 import { MAPA_ESCURO } from './mapa-escuro';
 import type { MapaProps, Ponto } from './mapa-tipos';
@@ -14,7 +14,7 @@ export const REGIAO_INICIAL = {
   longitudeDelta: 0.12,
 };
 
-export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, margemInferior = 0, onMoverOrigem, onMoverDestino, onMoverParagem }: MapaProps) {
+export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, margemInferior = 0, onMoverOrigem, onMoverDestino, onMoverParagem, zonas }: MapaProps) {
   const ref = useRef<MapView>(null);
   const escuro = useColorScheme() === 'dark';
   const corLinha = escuro ? '#FFFFFF' : '#000000';
@@ -58,6 +58,9 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
       showsMyLocationButton={false}
       userInterfaceStyle={escuro ? 'dark' : 'light'}
       customMapStyle={escuro ? MAPA_ESCURO : []}>
+      {zonas?.map((z, i) => (
+        <Circle key={`zona-${i}`} center={z.ponto} radius={z.raioM} fillColor={`rgba(34,197,94,${0.12 + z.nivel * 0.08})`} strokeColor="rgba(34,197,94,0.6)" strokeWidth={1} />
+      ))}
       {linha.length > 1 && <Polyline coordinates={linha} strokeWidth={4} strokeColor={corLinha} />}
       {origem && (
         <Marker

@@ -156,7 +156,7 @@ export default function Confirmar() {
                 </Text>
                 <Text style={s.opcoesTexto} numberOfLines={1}>
                   {textoPreferencias(conta.preferencias).join(' · ') ||
-                    (eAeroporto(origem) && !pedido.voo ? t('Junta o número do voo e as tuas preferências') : t('Preferências: silêncio, temperatura, música, malas'))}
+                    (eAeroporto(origem) && !pedido.voo ? t('Junta o número do voo e as tuas preferências') : t('Cadeirinha, cadeira de rodas, silêncio, música e malas'))}
                 </Text>
               </View>
               <Text style={s.opcoesMudar}>{t('Mudar')}</Text>

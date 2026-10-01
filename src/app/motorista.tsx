@@ -15,15 +15,20 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { duracaoTexto } from '@/data/datas';
 import { ESPERA_MIN } from '@/data/cancelamento';
-import { ELOGIOS_CLIENTE, ESPERA_AEROPORTO_MIN, ligacaoVoo, textoPreferencias } from '@/data/extras-viagem';
+import { ELOGIOS_CLIENTE, ESPERA_AEROPORTO_MIN, ligacaoVoo, textoNecessidades, textoPreferencias } from '@/data/extras-viagem';
+import { nomeNivel, zonasProcura } from '@/data/procura';
+import { LUGARES } from '@/data/lugares';
+import { PREMIO_CONVITE_MOTORISTA_MZN } from '@/data/convite-motorista';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
+import { ligarProtegido } from '@/data/chamadas';
 import { distanciaKm, duracaoMin } from '@/data/viagem';
 import { TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { formatarNota, useAvaliacoes } from '@/state/avaliacoes';
 import { useAcompanharChat, useChat } from '@/state/chat';
 import { estadoDocumentos, telefoneCondutor, useInscricoes } from '@/state/inscricoes';
-import { ganhoMotorista, HORAS_ATE_DESCANSO, minutosPausa, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
+import { ganhoMotorista, HORAS_ATE_DESCANSO, MAX_IR_PARA_CASA_POR_DIA, minutosPausa, TEMPO_PARA_ACEITAR, useModoMotorista } from '@/state/modo-motorista';
+import { useConta } from '@/state/conta';
 import { usePedido } from '@/state/pedido';
 import { NotaPagamento } from '@/components/nota-pagamento';
 import { PercursoViagem } from '@/components/percurso-viagem';
@@ -42,6 +47,9 @@ export default function MotoristaEcra() {
   const p = viagem?.pedido ?? pedidoNovo;
   const origem = p && (!viagem || fase === 'a_recolha' || fase === 'chegou') ? p.origem : undefined;
   const destino = p && (!viagem || fase === 'em_viagem' || fase === 'concluida') ? p.destino : undefined;
+  // Online e livre: o mapa mostra onde há mais pedidos agora.
+  const livre = m.viatura != null && m.online && !viagem && !pedidoNovo;
+  const zonas = livre ? zonasProcura(new Date(), m.feitas.slice(0, 30).map((f) => f.pedido.origem)).map((z) => ({ ponto: z.lugar, raioM: z.raioM, nivel: z.nivel })) : undefined;
 
   return (
     <View style={s.ecra}>
@@ -53,6 +61,7 @@ export default function MotoristaEcra() {
         rota={viagem?.rota?.pontos ?? (pedidoNovo ? [posicao, pedidoNovo.origem, pedidoNovo.destino] : [])}
         seguirCarro={!pedidoNovo && fase !== 'concluida'}
         margemInferior={380}
+        zonas={zonas}
       />
 
       <SafeAreaView edges={['top']} style={s.topo} pointerEvents="box-none">
@@ -180,8 +189,11 @@ function Disponivel({ s }: { s: S }) {
             : t('À procura de pedidos para o teu carro…')}{' '}
         {nomeViatura(m.viatura!)} · {m.eu.nome}
       </Text>
+      <ScrollView style={{ maxHeight: 330 }} contentContainerStyle={{ paddingBottom: Spacing.one }}>
       <ResumoTurnoAtual s={s} />
       {TEMPO_REAL_ATIVO && <EstadoServidor />}
+      <IrParaCasa s={s} />
+      {m.online && !m.emPausa && <ZonasProcura s={s} />}
 
       <Pressable onPress={() => router.push('/pedidos-motorista')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('Pedidos e reservas')}>
         <View style={{ flex: 1 }}>
@@ -238,6 +250,14 @@ function Disponivel({ s }: { s: S }) {
         <Text style={s.seta}>›</Text>
       </Pressable>
 
+      <Pressable onPress={() => router.push('/convidar-motoristas')} style={[s.caixa, s.linhaReserva]} accessibilityLabel={t('Convidar motoristas')}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.nomePequeno}>{t('Convidar motoristas')}</Text>
+          <Text style={s.secundarioPequeno}>{t('Ganhas {valor} por cada motorista que entrar com o teu código.', { valor: formatarMzn(PREMIO_CONVITE_MOTORISTA_MZN) })}</Text>
+        </View>
+        <Text style={s.seta}>›</Text>
+      </Pressable>
+
       <View style={s.linhaDefinicao}>
         <View style={{ flex: 1 }}>
           <Text style={s.nomePequeno}>{t('Simular a condução')}</Text>
@@ -255,6 +275,7 @@ function Disponivel({ s }: { s: S }) {
           )}
         </Text>
       )}
+      </ScrollView>
 
       <View style={{ gap: Spacing.two }}>
         {!m.online ? (
@@ -279,6 +300,79 @@ function Disponivel({ s }: { s: S }) {
         )}
       </View>
     </>
+  );
+}
+
+/** Onde há mais pedidos agora, perto do motorista. As zonas também aparecem no mapa, a verde. */
+function ZonasProcura({ s }: { s: S }) {
+  const m = useModoMotorista();
+  const zonas = zonasProcura(new Date(), m.feitas.slice(0, 30).map((f) => f.pedido.origem)).slice(0, 3);
+  if (zonas.length === 0) return null;
+  return (
+    <View style={[s.caixa, { gap: 2 }]}>
+      <Text style={s.nomePequeno}>{t('Onde há mais pedidos agora')}</Text>
+      {zonas.map((z) => (
+        <Text key={z.lugar.id} style={s.secundarioPequeno}>
+          {t(nomeNivel(z.nivel))} · {nomeLugar(z.lugar)} · {formatarKm(distanciaKm(m.posicao, z.lugar))}
+        </Text>
+      ))}
+      <Text style={[s.secundarioPequeno, { fontSize: 11 }]}>{t('Estimativa pela hora e pelo dia da semana.')}</Text>
+    </View>
+  );
+}
+
+/** Ir para casa: no fim do dia, só recebe pedidos que o deixam mais perto de casa (duas vezes por dia). */
+function IrParaCasa({ s }: { s: S }) {
+  const m = useModoMotorista();
+  const casaDaConta = useConta().locais.casa;
+  const [escolher, setEscolher] = useState(false);
+  const [erro, setErro] = useState('');
+  const opcoes = [...(casaDaConta ? [casaDaConta] : []), ...LUGARES.filter((l) => l.id !== casaDaConta?.id)];
+  const restam = MAX_IR_PARA_CASA_POR_DIA - m.usosCasaHoje;
+  function mudar(v: boolean) {
+    setErro('');
+    if (!v) return m.desligarIrParaCasa();
+    if (!m.casa) return setEscolher(true);
+    if (!m.ligarIrParaCasa()) setErro(t('Já usaste as {n} vezes de hoje.', { n: MAX_IR_PARA_CASA_POR_DIA }));
+  }
+  return (
+    <View style={[s.caixa, { gap: Spacing.one }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.nomePequeno}>{t('Ir para casa')}</Text>
+          <Text style={s.secundarioPequeno}>
+            {m.irParaCasa && m.casa
+              ? t('Só recebes pedidos que te aproximam de {casa}.', { casa: nomeLugar(m.casa) })
+              : m.casa
+                ? t('Casa: {casa} · {n} de {max} usos hoje', { casa: nomeLugar(m.casa), n: m.usosCasaHoje, max: MAX_IR_PARA_CASA_POR_DIA })
+                : t('Escolhe onde fica a tua casa.')}
+            {m.casa && !m.irParaCasa ? '  ' : ''}
+            {m.casa && !m.irParaCasa && (
+              <Text style={s.ligacao} onPress={() => setEscolher((e) => !e)}>
+                {t('Mudar')}
+              </Text>
+            )}
+          </Text>
+        </View>
+        <Switch value={m.irParaCasa} onValueChange={mudar} disabled={!m.irParaCasa && m.casa != null && restam <= 0} accessibilityLabel={t('Ir para casa')} />
+      </View>
+      {erro ? <Text style={s.erro}>{erro}</Text> : null}
+      {escolher && (
+        <View style={s.elogios}>
+          {opcoes.map((l) => (
+            <Pressable
+              key={l.id}
+              onPress={() => {
+                m.setCasa({ id: l.id, nome: l.nome, zona: l.zona, latitude: l.latitude, longitude: l.longitude });
+                setEscolher(false);
+              }}
+              style={[s.elogio, m.casa?.id === l.id && { borderWidth: 1.5 }]}>
+              <Text style={s.secundarioPequeno}>{l.id === casaDaConta?.id ? t('Casa guardada · {zona}', { zona: l.zona }) : nomeLugar(l)}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -308,17 +402,21 @@ function ResumoTurnoAtual({ s }: { s: S }) {
 /** O que o cliente pediu além do percurso: outra pessoa no carro, o voo e as preferências. */
 function ExtrasPedido({ pedido, ligar, s }: { pedido: PedidoMotorista; ligar?: boolean; s: S }) {
   const cores = usePalette();
-  const prefs = textoPreferencias(pedido.preferencias);
-  if (!pedido.passageiro && !pedido.voo && prefs.length === 0) return null;
+  const necessidades = textoNecessidades(pedido.preferencias);
+  // As necessidades vêm à cabeça, a negrito: o carro tem de as levar.
+  const prefs = textoPreferencias(pedido.preferencias).slice(necessidades.length);
+  if (!pedido.passageiro && !pedido.voo && prefs.length === 0 && necessidades.length === 0 && !pedido.favorito) return null;
   return (
     <View style={[s.caixa, { gap: Spacing.one }]}>
+      {pedido.favorito && <Text style={[s.secundarioPequeno, { color: cores.text, fontWeight: '700' }]}>{t('♥ És o motorista favorito deste cliente')}</Text>}
+      {necessidades.length > 0 && <Text style={[s.secundarioPequeno, { color: cores.text, fontWeight: '800' }]}>{t('Leva: {lista}', { lista: necessidades.join(', ') })}</Text>}
       {pedido.passageiro && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
           <Text style={[s.secundarioPequeno, { flex: 1, color: cores.text }]}>
             {t('Vai {nome} · pedido por {cliente}', { nome: pedido.passageiro.nome, cliente: pedido.clienteNome ?? t('o cliente') })}
           </Text>
           {ligar && (
-            <Text style={s.ligacao} onPress={() => Linking.openURL(`tel:${pedido.passageiro!.telefone}`)}>
+            <Text style={s.ligacao} onPress={() => ligarProtegido(pedido.passageiro!.telefone, pedido.id)}>
               {t('Ligar')}
             </Text>
           )}
@@ -484,7 +582,17 @@ function ViagemEmCurso({ s }: { s: S }) {
         detalheRecolha={fase === 'a_recolha' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : fase === 'chegou' ? t('Chegaste') : undefined}
         detalheDestino={fase === 'em_viagem' ? `${duracaoMin(km)} min · ${formatarKm(km)}` : formatarKm(pedido.km)}
       />
-      {pedido.clienteNome && !pedido.passageiro ? <Text style={s.secundarioPequeno}>{t('Cliente: {nome}', { nome: pedido.clienteNome })}</Text> : null}
+      {pedido.clienteNome && !pedido.passageiro ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+          <Text style={[s.secundarioPequeno, { flex: 1 }]}>{t('Cliente: {nome}', { nome: pedido.clienteNome })}</Text>
+          {/* Depois de o cliente entrar no carro, deixa de haver botão para ligar. */}
+          {pedido.clienteTelefone && fase !== 'em_viagem' && (
+            <Text style={s.ligacao} onPress={() => ligarProtegido(pedido.clienteTelefone!, pedido.id)}>
+              {t('Ligar')}
+            </Text>
+          )}
+        </View>
+      ) : null}
       <ExtrasPedido pedido={pedido} ligar={fase !== 'em_viagem'} s={s} />
 
       <Pressable onPress={abrirChat} style={[s.caixa, s.linhaReserva, { marginTop: Spacing.two }]} accessibilityLabel={t('Mensagem')}>

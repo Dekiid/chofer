@@ -61,6 +61,8 @@ export type PedidoMotorista = {
   preferencias?: Preferencias;
   /** Recolha no aeroporto: o voo, para o motorista acompanhar atrasos. */
   voo?: string;
+  /** O cliente guardou este motorista nos favoritos e pediu-o outra vez. */
+  favorito?: boolean;
 };
 
 /** O que o motorista diz do cliente no fim da viagem. */

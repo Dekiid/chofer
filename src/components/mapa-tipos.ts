@@ -1,6 +1,11 @@
 export type Ponto = { latitude: number; longitude: number };
 
+/** Zona do mapa de procura do motorista: quanto mais forte, mais pedidos. */
+export type ZonaMapa = { ponto: Ponto; raioM: number; nivel: number };
+
 export type MapaProps = {
+  /** Mapa de procura (só no modo motorista). */
+  zonas?: ZonaMapa[];
   origem?: Ponto;
   destino?: Ponto | null;
   /** Paragens pelo caminho, entre a recolha e o destino. */

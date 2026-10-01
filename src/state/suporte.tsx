@@ -1,8 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import { useGuardado } from '@/data/guardar';
 import { enviarAjuda, lerRespostasAjuda } from '@/data/servidor-painel';
+import { useConta } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
+import { t } from '@/i18n';
+import { formatarMzn } from '@/data/categorias';
 
 export const TIPOS_AJUDA = [
   { id: 'objeto', nome: 'Esqueci-me de um objeto no carro' },
@@ -27,6 +30,8 @@ export type PedidoAjuda = {
   resposta?: string;
   reembolsoMzn?: number;
   respondidoEm?: Date;
+  /** O reembolso já entrou na carteira do cliente. */
+  creditado?: boolean;
 };
 
 type Suporte = {
@@ -63,6 +68,20 @@ export function SuporteProvider({ children }: { children: ReactNode }) {
     const id = setInterval(ler, 60000);
     return () => clearInterval(id);
   }, [telefone, abertos, setPedidos]);
+
+  // Reembolsos dados pela equipa entram na carteira do cliente (uma vez por pedido).
+  const { movimentar, avisar } = useConta();
+  const creditados = useRef(new Set<string>());
+  useEffect(() => {
+    const novos = pedidos.filter((p) => p.clienteTelefone === telefone && p.estado === 'resolvido' && (p.reembolsoMzn ?? 0) > 0 && !p.creditado && !creditados.current.has(p.id));
+    if (novos.length === 0) return;
+    for (const p of novos) {
+      creditados.current.add(p.id);
+      movimentar(p.reembolsoMzn!, 'reembolso', p.viagemResumo);
+      avisar(t('Reembolso na carteira'), t('Devolvemos {valor} para a tua carteira.', { valor: formatarMzn(p.reembolsoMzn!) }));
+    }
+    setPedidos((l) => l.map((p) => (novos.some((n) => n.id === p.id) ? { ...p, creditado: true } : p)));
+  }, [pedidos, telefone, movimentar, avisar, setPedidos]);
   const valor = useMemo<Suporte>(
     () => ({
       pedidos,

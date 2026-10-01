@@ -19,6 +19,8 @@ import { SincronizarPartilha } from '@/components/sincronizar-partilha';
 import { guardarPartilha, ligacaoPartilha, novoIdPartilha, PARTILHA_POR_LINK, type DadosPartilha } from '@/data/partilha';
 import { EMERGENCIA, gerarCodigoRecolha, ligacaoMapa } from '@/data/seguranca';
 import { custoCancelar, custoFalta, type Cancelamento } from '@/data/cancelamento';
+import { ligarProtegido } from '@/data/chamadas';
+import { DESVIO_KM, distanciaAoCaminho, PARAGEM_LONGA_MIN, SEGUNDOS_PARA_AVISAR, type MotivoAlerta } from '@/data/vigilancia';
 import { devePartilhar, textoPreferencias } from '@/data/extras-viagem';
 import { avisarMotoristaPorPush } from '@/data/push';
 import { ouvir, publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
@@ -80,6 +82,8 @@ export default function Viagem() {
   // As mensagens do motorista chegam enquanto a viagem está aberta.
   useAcompanharChat(idPedido, 'cliente');
   const faltaRef = useRef<() => void>(() => {});
+  // Na simulação, o carro pára enquanto o alerta de segurança ou o SOS estão abertos.
+  const simulacaoParada = useRef(false);
 
   // Tempo real: eventos do motorista desta viagem.
   useEffect(() => {
@@ -138,6 +142,7 @@ export default function Viagem() {
         passageiro: viagemConta?.passageiro ?? pedido.passageiro ?? undefined,
         preferencias: viagemConta?.preferencias ?? conta.preferencias,
         voo: viagemConta?.voo ?? pedido.voo ?? undefined,
+        favorito: viagemConta?.favorito ?? conta.eFavorito(v.motorista?.telefone),
       },
     });
     // Com a app do motorista fechada, o aviso chega por push (precisa da versão de desenvolvimento).
@@ -176,6 +181,7 @@ export default function Viagem() {
     if (!pontos) return;
     let fracao = 0;
     const id = setInterval(() => {
+      if (simulacaoParada.current) return;
       fracao = Math.min(1, fracao + PASSO / TEMPO_DESLOCACAO);
       setCarro(pontoNaRota(pontos, fracao));
       setProgresso(fracao);
@@ -209,6 +215,55 @@ export default function Viagem() {
 
   // Viagem partilhada por link: criado na primeira partilha; o resumo vai para o servidor pelo SincronizarPartilha.
   const [idPartilha, setIdPartilha] = useState<string | null>(null);
+
+  // Alerta de segurança, como o RideCheck da Uber: carro parado muito tempo ou fora do caminho previsto.
+  const [alerta, setAlerta] = useState<{ motivo: MotivoAlerta; em: number } | null>(null);
+  const silencioAte = useRef(0);
+  const ultimoMovimento = useRef<{ ponto: Ponto; em: number } | null>(null);
+  const alertar = (motivo: MotivoAlerta) => {
+    if (Date.now() < silencioAte.current) return;
+    setAlerta((a) => a ?? { motivo, em: Date.now() });
+  };
+  useEffect(() => {
+    if (fase !== 'em_viagem' || !carro) {
+      ultimoMovimento.current = null;
+      return;
+    }
+    const u = ultimoMovimento.current;
+    if (!u || distanciaKm(u.ponto, carro) > 0.05) ultimoMovimento.current = { ponto: carro, em: Date.now() };
+    if (pontosViagem && distanciaAoCaminho(carro, pontosViagem) > DESVIO_KM) alertar('desvio');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- alertar só lê referências.
+  }, [fase, carro, pontosViagem]);
+  useEffect(() => {
+    if (fase !== 'em_viagem' || !destino) return;
+    const id = setInterval(() => {
+      const u = ultimoMovimento.current;
+      if (u && Date.now() - u.em > PARAGEM_LONGA_MIN * 60000 && distanciaKm(u.ponto, destino) > 0.5) alertar('parado');
+    }, 15000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- alertar só lê referências.
+  }, [fase, destino]);
+  const [segundosAlerta, setSegundosAlerta] = useState(SEGUNDOS_PARA_AVISAR);
+  useEffect(() => {
+    if (!alerta) return;
+    const id = setInterval(() => {
+      const resta = Math.max(0, SEGUNDOS_PARA_AVISAR - Math.floor((Date.now() - alerta.em) / 1000));
+      setSegundosAlerta(resta);
+      // Sem resposta: abre as opções de emergência e avisa.
+      if (resta === 0) {
+        setAlerta(null);
+        setSos(true);
+        avisar(t('Sem resposta ao alerta'), t('Abrimos as opções de emergência. Se estiver tudo bem, fecha-as.'));
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [alerta, avisar]);
+  useEffect(() => {
+    if (fase !== 'em_viagem') setAlerta(null);
+  }, [fase]);
+  useEffect(() => {
+    simulacaoParada.current = alerta != null || sos;
+  }, [alerta, sos]);
 
   if (!destino) return <Redirect href="/" />;
 
@@ -285,7 +340,11 @@ export default function Viagem() {
         motivoCancelamento: 'cliente',
       });
       if (c && c.taxaMzn > 0) avisar(t('Viagem cancelada'), t('Taxa de cancelamento: {valor}, por {pagamento}.', { valor: formatarMzn(c.taxaMzn), pagamento: pagamento ?? '' }));
-      else if (c && c.reembolsoMzn > 0) avisar(t('Viagem cancelada'), t('Devolvemos {valor} por {pagamento}.', { valor: formatarMzn(c.reembolsoMzn), pagamento: pagamento ?? '' }));
+      else if (c && c.reembolsoMzn > 0) {
+        // O reembolso cai logo na carteira; dali pode usar-se na próxima viagem ou levantar-se para o M-Pesa.
+        conta.movimentar(c.reembolsoMzn, 'reembolso', destino?.nome);
+        avisar(t('Viagem cancelada'), t('Devolvemos {valor} para a tua carteira.', { valor: formatarMzn(c.reembolsoMzn) }));
+      }
       // O carro volta a ficar livre na agenda.
       agenda.libertar(viagemConta.id);
     }
@@ -312,7 +371,8 @@ export default function Viagem() {
     em_viagem: t('A caminho de {destino}', { destino: destino.nome }),
     concluida: t('Chegaste ao destino'),
   };
-  const ligar = () => Linking.openURL(`tel:${motorista.telefone}`);
+  // Com o número da Chauffeur configurado, nenhum dos dois vê o número do outro.
+  const ligar = () => ligarProtegido(motorista.telefone, idPedido);
 
   // Mensagem para um familiar ou amigo acompanhar: carro, matrícula, motorista, destino, chegada e onde está agora.
   async function partilhar() {
@@ -460,6 +520,14 @@ export default function Viagem() {
         {comMotorista && prefs.length > 0 && <Text style={[s.secundarioPequeno, { marginBottom: Spacing.one }]}>{prefs.join(' · ')}</Text>}
 
         {(fase === 'a_caminho' || fase === 'chegou' || fase === 'em_viagem') && <NotaPagamento />}
+        {fase === 'em_viagem' && !TEMPO_REAL_ATIVO && (
+          <Text style={[s.secundarioPequeno, { marginBottom: Spacing.two }]}>
+            {t('Demonstração:')}{' '}
+            <Text style={s.ligacaoExtras} onPress={() => alertar('parado')}>
+              {t('testar o alerta de segurança')}
+            </Text>
+          </Text>
+        )}
 
         {comMotorista && (
           <View style={s.acoes}>
@@ -480,7 +548,20 @@ export default function Viagem() {
             <Text style={s.total}>
               {formatarMzn(preco + gorjeta)} <Text style={s.secundario}>· {porPagar ? t('a pagar por {pagamento}', { pagamento: pagamento ?? '' }) : t('pago por {pagamento}', { pagamento: pagamento ?? '' })}</Text>
             </Text>
-            <Text style={[s.secundario, { marginBottom: Spacing.two }]}>{t('Como foi a viagem com {nome}?', { nome: primeiroNome })}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.two }}>
+              <Text style={[s.secundario, { flex: 1 }]}>{t('Como foi a viagem com {nome}?', { nome: primeiroNome })}</Text>
+              {/* Guardar o motorista para o pedir outra vez (na conta, em Motoristas favoritos). */}
+              <Pressable
+                onPress={() => conta.alternarFavorito(motorista)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityState={{ selected: conta.eFavorito(motorista.telefone) }}
+                accessibilityLabel={conta.eFavorito(motorista.telefone) ? t('Tirar dos favoritos') : t('Guardar nos favoritos')}
+                style={s.favorito}>
+                <Text style={[s.coracao, conta.eFavorito(motorista.telefone) && { color: '#DC2626' }]}>{conta.eFavorito(motorista.telefone) ? '♥' : '♡'}</Text>
+                <Text style={s.secundarioPequeno}>{conta.eFavorito(motorista.telefone) ? t('Favorito') : t('Favorito?')}</Text>
+              </Pressable>
+            </View>
             <View style={s.estrelas}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <Pressable key={n} onPress={() => setEstrelas(n)} accessibilityLabel={n === 1 ? t('{n} estrela', { n }) : t('{n} estrelas', { n })}>
@@ -543,6 +624,37 @@ export default function Viagem() {
           </View>
         )}
       </Painel>
+
+      <Modal visible={alerta != null} transparent animationType="fade" onRequestClose={() => setAlerta(null)} statusBarTranslucent>
+        <View style={s.fundoSos}>
+          <View style={s.folhaSos}>
+            <Text style={s.titulo}>{t('Está tudo bem?')}</Text>
+            <Text style={[s.secundario, { marginTop: Spacing.one, marginBottom: Spacing.three }]}>
+              {alerta?.motivo === 'parado' ? t('O carro está parado há mais de {n} minutos, longe do destino.', { n: PARAGEM_LONGA_MIN }) : t('O carro saiu do caminho previsto.')}{' '}
+              {t('Se não responderes em {s} segundos, abrimos as opções de emergência.', { s: segundosAlerta })}
+            </Text>
+            <View style={{ gap: Spacing.two }}>
+              <BotaoPrincipal
+                texto={t('Está tudo bem')}
+                onPress={() => {
+                  // Não volta a perguntar nos próximos 10 minutos.
+                  silencioAte.current = Date.now() + 10 * 60000;
+                  ultimoMovimento.current = carro ? { ponto: carro, em: Date.now() } : null;
+                  setAlerta(null);
+                }}
+              />
+              <BotaoPrincipal
+                escuro
+                texto={t('Preciso de ajuda')}
+                onPress={() => {
+                  setAlerta(null);
+                  setSos(true);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={sos} transparent animationType="fade" onRequestClose={() => setSos(false)} statusBarTranslucent>
         <Pressable style={s.fundoSos} onPress={() => setSos(false)}>
@@ -639,6 +751,8 @@ function estilos(c: Palette) {
     chipAtivo: { borderColor: c.primary },
     chipTexto: { color: c.text, fontSize: 13, fontWeight: '600' },
     chipTextoAtivo: { fontWeight: '800' },
+    favorito: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    coracao: { color: c.text, fontSize: 22, lineHeight: 24 },
     comentario: { backgroundColor: c.backgroundElement, borderRadius: Radius.card, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2, color: c.text, fontSize: 15, marginBottom: Spacing.three },
     fundoSos: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     folhaSos: { backgroundColor: c.background, borderTopLeftRadius: Radius.sheet, borderTopRightRadius: Radius.sheet, padding: Spacing.four, paddingBottom: Spacing.five },

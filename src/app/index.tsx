@@ -30,7 +30,7 @@ export default function Inicio() {
   const { naoLidas } = useAgenda();
   const avisos = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length + naoLidas;
   const insets = useSafeAreaInsets();
-  const { avisosNaoLidos } = useConta();
+  const { avisosNaoLidos, eFavorito } = useConta();
   const [alturaPainel, setAlturaPainel] = useState(420);
   const ecraJanela = useWindowDimensions();
   // Telemóveis baixos (iPhone SE, Androids pequenos): lista mais curta para sobrar espaço à foto.
@@ -162,6 +162,9 @@ export default function Inicio() {
                   <View style={{ flex: 1 }}>
                     <Text style={s.nome}>{nomeViatura(v)}</Text>
                     <Text style={s.descricao}>{p.descricao}</Text>
+                    {modo === 'motorista' && v.motorista && eFavorito(v.motorista.telefone) && (
+                      <Text style={s.favorito}>{t('♥ {nome}, o teu motorista favorito', { nome: v.motorista.nome.split(' ')[0] })}</Text>
+                    )}
                   </View>
                   <Text style={s.preco}>
                     {formatarMzn(p.valor)}
@@ -258,5 +261,6 @@ function estilos(c: Palette) {
     lugares: { color: c.textSecondary, fontSize: 14, fontWeight: '400' },
     descricao: { color: c.textSecondary, marginTop: 2 },
     preco: { color: c.text, fontSize: 16, fontWeight: '700' },
+    favorito: { color: c.text, fontSize: 13, fontWeight: '700', marginTop: 2 },
   });
 }

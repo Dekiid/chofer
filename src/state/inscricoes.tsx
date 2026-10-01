@@ -65,6 +65,8 @@ export type DadosInscricao = {
    * a carta de condução é de quem conduz.
    */
   motorista?: { nome: string; telefone: string };
+  /** Código de convite de outro motorista (MOT-1234), para lhe pagar o prémio. */
+  convite?: string;
 };
 
 /** Número de quem conduz este carro: o motorista indicado pelo dono, ou o próprio dono. */

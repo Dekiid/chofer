@@ -7,7 +7,7 @@ import { avisarNoTelemovel } from '@/data/avisos-telemovel';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { COMISSAO, nomeViatura, type Viatura } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
-import { LOCALIZACAO_PADRAO, LUGARES, nomeLugar } from '@/data/lugares';
+import { LOCALIZACAO_PADRAO, LUGARES, nomeLugar, type Lugar } from '@/data/lugares';
 import { comecarLocalizacaoFundo, pararLocalizacaoFundo } from '@/data/localizacao-fundo';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import { calcularRota, calcularRotaPor, pontoNaRota, rotaEstimadaPor, type Rota } from '@/data/rotas';
@@ -32,6 +32,14 @@ const SIMULACAO_VIAGEM = 30000;
 const PASSO = 500;
 // A posição vai para o cliente no máximo de 2 em 2 segundos.
 const INTERVALO_POSICAO = 2000;
+
+/** Modo «ir para casa»: no máximo duas vezes por dia, como na Uber. */
+export const MAX_IR_PARA_CASA_POR_DIA = 2;
+/** Com «ir para casa», só chegam pedidos cujo destino fica pelo menos isto mais perto de casa. */
+const APROXIMA_KM = 1;
+
+/** O pedido deixa o motorista mais perto de casa? */
+export const aproximaDeCasa = (p: PedidoMotorista, posicao: Ponto, casa: Ponto) => distanciaKm(p.destino, casa) <= distanciaKm(posicao, casa) - APROXIMA_KM;
 
 /** O que o motorista recebe: o valor pago pelo cliente menos a comissão da plataforma. */
 export const ganhoMotorista = (p: PedidoMotorista) => Math.round(p.precoMzn * (1 - COMISSAO));
@@ -76,6 +84,14 @@ type ModoMotorista = {
   cancelarViagem: (motivo?: 'falta') => void;
   fecharResumo: () => void;
   simularPedido: () => void;
+  /** Ir para casa: só recebe pedidos para agora que o aproximam de casa. */
+  casa: Lugar | null;
+  setCasa: (l: Lugar | null) => void;
+  irParaCasa: boolean;
+  /** Liga o modo; devolve false se já usou as vezes do dia. */
+  ligarIrParaCasa: () => boolean;
+  desligarIrParaCasa: () => void;
+  usosCasaHoje: number;
 };
 
 /** Turno aberto: começa quando o motorista fica online e acaba quando ele o termina. */
@@ -136,13 +152,18 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   const [turno, setTurno] = useGuardado<Turno | null>(chaveMotorista && `${chaveMotorista}.turno`, null);
   const [turnos, setTurnos] = useGuardado<ResumoTurno[]>(chaveMotorista && `${chaveMotorista}.turnos`, []);
   const emPausa = turno?.pausas.some((p) => !p.fim) ?? false;
+  const [casa, setCasa] = useGuardado<Lugar | null>(chaveMotorista && `${chaveMotorista}.casa`, null);
+  const [usosCasa, setUsosCasa] = useGuardado<{ dia: string; n: number }>(chaveMotorista && `${chaveMotorista}.casa-usos`, { dia: '', n: 0 });
+  const [irParaCasa, setIrParaCasa] = useState(false);
+  const hoje = new Date().toDateString();
+  const usosCasaHoje = usosCasa.dia === hoje ? usosCasa.n : 0;
   const ganhosHoje = deHoje.reduce((t, f) => t + ganhoMotorista(f.pedido), 0);
   const viagensHoje = deHoje.length;
 
   // Os eventos chegam fora do ciclo do React; estas referências têm sempre o estado atual.
-  const atual = useRef({ online, emPausa, viaturaId, pedidoNovo, viagem, posicao, eu, simular });
+  const atual = useRef({ online, emPausa, viaturaId, pedidoNovo, viagem, posicao, eu, simular, casa: irParaCasa ? casa : null });
   useEffect(() => {
-    atual.current = { online, emPausa, viaturaId, pedidoNovo, viagem, posicao, eu, simular };
+    atual.current = { online, emPausa, viaturaId, pedidoNovo, viagem, posicao, eu, simular, casa: irParaCasa ? casa : null };
   });
 
   const receber = useCallback((p: PedidoMotorista) => {
@@ -169,7 +190,8 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
           if (e.pedido.viaturaId !== a.viaturaId) return;
           // Reservas chegam mesmo offline e ficam confirmadas; pedidos para agora só com o motorista online e livre.
           if (e.pedido.recolhaEm) receberReserva(e.pedido);
-          else if (a.online && !a.emPausa && !a.viagem && !a.pedidoNovo) receber(e.pedido);
+          // Com «ir para casa», os pedidos que o afastam de casa não aparecem.
+          else if (a.online && !a.emPausa && !a.viagem && !a.pedidoNovo && (!a.casa || aproximaDeCasa(e.pedido, a.posicao, a.casa))) receber(e.pedido);
         }
         if (e.tipo === 'cancelado' && e.por === 'cliente') {
           if (a.pedidoNovo?.id === e.id) setPedidoNovo(null);
@@ -267,7 +289,10 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       const perto = [...LUGARES].sort((x, y) => distanciaKm(a.posicao, x) - distanciaKm(a.posicao, y)).slice(0, 4);
       const origem = perto[Math.floor(Math.random() * perto.length)];
       const outros = LUGARES.filter((l) => l.id !== origem.id);
-      const destino = outros[Math.floor(Math.random() * outros.length)];
+      // Com «ir para casa», o pedido de demonstração vai para perto de casa.
+      const paraCasa = a.casa && !reserva ? outros.filter((l) => distanciaKm(l, a.casa!) <= distanciaKm(origem, a.casa!) - APROXIMA_KM) : [];
+      const escolha = paraCasa.length > 0 ? paraCasa : a.casa && !reserva ? [a.casa] : outros;
+      const destino = escolha[Math.floor(Math.random() * escolha.length)];
       const rota = rotaEstimadaPor([origem, destino]);
       const amanha = new Date();
       amanha.setDate(amanha.getDate() + 1);
@@ -413,6 +438,11 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
         pararLocalizacaoFundo();
         setFeitas((l) => [{ pedido: viagem.pedido, concluidaEm: new Date().toISOString() }, ...l]);
         setViagem({ ...viagem, fase: 'concluida', rota: null });
+        // Chegou perto de casa: o modo desliga-se sozinho.
+        if (irParaCasa && casa && distanciaKm(viagem.pedido.destino, casa) < 1.5) {
+          setIrParaCasa(false);
+          avisarNoTelemovel(t('Chegaste perto de casa'), t('O modo ir para casa desligou-se.'));
+        }
       },
       cancelarViagem: (motivo) => {
         if (!viagem) return;
@@ -422,8 +452,19 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       },
       fecharResumo: () => setViagem(null),
       simularPedido,
+      casa,
+      setCasa,
+      irParaCasa,
+      ligarIrParaCasa: () => {
+        if (!casa || usosCasaHoje >= MAX_IR_PARA_CASA_POR_DIA) return false;
+        setUsosCasa({ dia: hoje, n: usosCasaHoje + 1 });
+        setIrParaCasa(true);
+        return true;
+      },
+      desligarIrParaCasa: () => setIrParaCasa(false),
+      usosCasaHoje,
     }),
-    [viatura, perfil, eu, online, turno, setTurno, emPausa, turnos, setTurnos, posicao, simular, pedidoNovo, expiraEm, viagem, agendadas, feitas, setFeitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva],
+    [viatura, perfil, eu, online, turno, setTurno, emPausa, turnos, setTurnos, posicao, simular, pedidoNovo, expiraEm, viagem, agendadas, feitas, setFeitas, ganhosHoje, viagensHoje, iniciarViagem, simularPedido, simularReserva, casa, setCasa, irParaCasa, usosCasaHoje, setUsosCasa, hoje],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

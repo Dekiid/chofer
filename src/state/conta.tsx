@@ -2,11 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
 import { PREFERENCIAS_PADRAO, type ContactoConfianca, type PartilhaAuto, type Passageiro, type Preferencias } from '@/data/extras-viagem';
+import { formatarMzn } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
 import { ouvir, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { LUGARES, type Lugar } from '@/data/lugares';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import type { Promo } from '@/data/promocoes';
+import { assinaturaAtiva, CLUB, type Assinatura } from '@/data/club';
 import type { Pagamento } from '@/state/pedido';
 import { enviarViagem } from '@/data/servidor-painel';
 import { useSessao } from '@/state/sessao';
@@ -63,7 +65,25 @@ export type ViagemFeita = {
   voo?: string;
   /** Quem cancelou, ou falta de comparência. */
   motivoCancelamento?: 'cliente' | 'motorista' | 'falta';
+  /** Desconto da assinatura Chauffeur Club (já incluído em descontoMzn). */
+  descontoClubMzn?: number;
+  /** Parte paga com o saldo da carteira. */
+  carteiraMzn?: number;
+  /** Conta dividida: a parte de cada amigo (a do cliente é o resto). */
+  divisao?: ParteDivisao[];
+  /** Pedido feito ao motorista favorito. */
+  favorito?: boolean;
 };
+
+/** Parte de um amigo numa conta dividida. Recebe o pedido de pagamento no telemóvel. */
+export type ParteDivisao = { nome: string; telefone: string; valorMzn: number; paga: boolean };
+
+/** Movimento da carteira: positivo entra (reembolso, crédito, carregamento), negativo sai (viagem, levantamento). */
+export type TipoMovimento = 'reembolso' | 'convite' | 'carregamento' | 'viagem' | 'levantamento';
+export type Movimento = { id: string; valorMzn: number; tipo: TipoMovimento; /** Destino da viagem, por exemplo. */ detalhe?: string; em: Date };
+
+/** Dados para o recibo com NUIT (cliente particular). */
+export type Faturacao = { nome: string; nuit: string; morada: string };
 
 export const totalPago = (v: ViagemFeita) => (v.estado === 'cancelada' ? (v.taxaCancelamentoMzn ?? 0) : v.precoMzn - v.descontoMzn + v.gorjetaMzn);
 
@@ -107,6 +127,28 @@ type Conta = {
   codigoConvite: string;
   creditoMzn: number;
   amigosConvidados: number;
+
+  /** Motoristas favoritos: o cliente pode pedir o mesmo motorista outra vez. */
+  favoritos: Motorista[];
+  alternarFavorito: (m: Motorista) => void;
+  eFavorito: (telefone: string | undefined) => boolean;
+
+  /** Carteira: reembolsos, créditos de convite e carregamentos. */
+  saldoMzn: number;
+  movimentos: Movimento[];
+  movimentar: (valorMzn: number, tipo: TipoMovimento, detalhe?: string) => void;
+
+  faturacao: Faturacao | null;
+  setFaturacao: (f: Faturacao | null) => void;
+
+  /** Chauffeur Club: null quando não tem; com renovaEm no passado, terminou. */
+  /** Conta dividida: guarda a parte de cada amigo e envia-lhes o pedido de pagamento (simulado no protótipo). */
+  dividirViagem: (id: string, partes: ParteDivisao[]) => void;
+
+  assinatura: Assinatura | null;
+  clubAtivo: boolean;
+  aderirClub: () => void;
+  cancelarClub: () => void;
 };
 
 const ContaContext = createContext<Conta | null>(null);
@@ -157,6 +199,17 @@ export function ContaProvider({ children }: { children: ReactNode }) {
   const [contactosConfianca, setContactosConfianca] = useGuardado<ContactoConfianca[]>(chave && `${chave}.contactos`, []);
   const [partilhaAuto, setPartilhaAuto] = useGuardado<PartilhaAuto>(chave && `${chave}.partilha`, 'noite');
   const [empresa, setEmpresa] = useGuardado<Empresa | null>(chave && `${chave}.empresa`, null);
+  const [favoritos, setFavoritos] = useGuardado<Motorista[]>(chave && `${chave}.favoritos`, []);
+  const [movimentos, setMovimentos] = useGuardado<Movimento[]>(chave && `${chave}.carteira`, []);
+  const [faturacao, setFaturacao] = useGuardado<Faturacao | null>(chave && `${chave}.faturacao`, null);
+  const [assinatura, setAssinatura] = useGuardado<Assinatura | null>(chave && `${chave}.club`, null);
+  const movimentar = useCallback(
+    (valorMzn: number, tipo: TipoMovimento, detalhe?: string) => {
+      if (!valorMzn) return;
+      setMovimentos((l) => [{ id: `mv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, valorMzn, tipo, detalhe, em: new Date() }, ...l]);
+    },
+    [setMovimentos],
+  );
   const [viagemAtualId, setViagemAtualId] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [avisoTopo, setAvisoTopo] = useState<Aviso | null>(null);
@@ -237,10 +290,41 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       setPromo,
       // No produto final o código vem da conta do cliente; aqui é fixo.
       codigoConvite: 'AMIGO-7K2P',
-      creditoMzn: 0,
-      amigosConvidados: 0,
+      creditoMzn: movimentos.filter((m) => m.tipo === 'convite').reduce((t, m) => t + m.valorMzn, 0),
+      amigosConvidados: movimentos.filter((m) => m.tipo === 'convite').length,
+      favoritos,
+      alternarFavorito: (m) =>
+        setFavoritos((l) => (l.some((f) => f.telefone === m.telefone) ? l.filter((f) => f.telefone !== m.telefone) : [{ nome: m.nome, telefone: m.telefone, matricula: m.matricula }, ...l])),
+      eFavorito: (telefone) => telefone != null && favoritos.some((f) => f.telefone === telefone),
+      saldoMzn: Math.max(0, movimentos.reduce((t, m) => t + m.valorMzn, 0)),
+      movimentos,
+      movimentar,
+      faturacao,
+      setFaturacao,
+      dividirViagem: (id, partes) => {
+        if (partes.length === 0) return;
+        setViagens((l) => l.map((v) => (v.id === id ? { ...v, divisao: partes } : v)));
+        // Protótipo: cada amigo "paga" alguns segundos depois. No produto final, cada um recebe o pedido M-Pesa/e-Mola
+        // e, se não pagar numa hora, a parte dele é cobrada a quem pediu.
+        partes.forEach((p, i) =>
+          setTimeout(() => {
+            setViagens((l) => l.map((v) => (v.id === id ? { ...v, divisao: v.divisao?.map((x) => (x.telefone === p.telefone ? { ...x, paga: true } : x)) } : v)));
+            avisar(t('Conta dividida'), t('{nome} pagou a sua parte: {valor}.', { nome: p.nome, valor: formatarMzn(p.valorMzn) }));
+          }, 5000 + i * 3000),
+        );
+      },
+      assinatura,
+      clubAtivo: assinaturaAtiva(assinatura),
+      aderirClub: () => {
+        const desde = new Date();
+        const renovaEm = new Date(desde);
+        renovaEm.setDate(renovaEm.getDate() + CLUB.diasPorMes);
+        setAssinatura({ desde, renovaEm });
+      },
+      // Fica ativa até ao fim do mês já pago, como na Uber One.
+      cancelarClub: () => setAssinatura((a) => (a ? { ...a, cancelada: true } : a)),
     };
-  }, [locais, setLocais, viagens, setViagens, viagemAtualId, avisos, avisoTopo, avisosNoTelemovel, preferencias, setPreferencias, contactosConfianca, setContactosConfianca, partilhaAuto, setPartilhaAuto, empresa, setEmpresa, promo, avisar]);
+  }, [locais, setLocais, viagens, setViagens, viagemAtualId, avisos, avisoTopo, avisosNoTelemovel, preferencias, setPreferencias, contactosConfianca, setContactosConfianca, partilhaAuto, setPartilhaAuto, empresa, setEmpresa, promo, avisar, favoritos, setFavoritos, movimentos, movimentar, faturacao, setFaturacao, assinatura, setAssinatura]);
 
   return <ContaContext.Provider value={valor}>{children}</ContaContext.Provider>;
 }

@@ -10,7 +10,7 @@ import { formatarDia, formatarHora } from '@/data/agenda';
 import { custoCancelar } from '@/data/cancelamento';
 import { formatarTelefone } from '@/data/motorista';
 import { formatarMzn } from '@/data/categorias';
-import { descricaoReserva, eReserva, linhasRecibo, nomePagamento, numeroRecibo, partilharRecibo } from '@/data/recibo';
+import { descricaoReserva, eReserva, linhasPagamento, linhasRecibo, numeroRecibo, pagoPor, partilharRecibo } from '@/data/recibo';
 import { textoDias } from '@/data/reserva';
 import { publicar, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { useAgenda } from '@/state/agenda';
@@ -23,7 +23,8 @@ export default function Recibo() {
   const cores = usePalette();
   const s = estilos(cores);
   const { id } = useLocalSearchParams<{ id: string }>();
-  const v = useConta().viagens.find((x) => x.id === id);
+  const conta = useConta();
+  const v = conta.viagens.find((x) => x.id === id);
   const [aGerar, setAGerar] = useState(false);
   if (!v) return <Redirect href="/viagens" />;
 
@@ -32,7 +33,7 @@ export default function Recibo() {
   async function pdf() {
     setAGerar(true);
     try {
-      await partilharRecibo(v!);
+      await partilharRecibo(v!, conta.faturacao);
     } finally {
       setAGerar(false);
     }
@@ -48,7 +49,7 @@ export default function Recibo() {
         <Text style={s.secundario}>{numeroRecibo(v)}</Text>
         <Text style={s.total}>{formatarMzn(totalPago(v))}</Text>
         <Text style={s.secundario}>
-          {formatarDia(v.recolhaEm, new Date())}, {formatarHora(v.recolhaEm)} · {t('pago por {pagamento}', { pagamento: nomePagamento(v) })}
+          {formatarDia(v.recolhaEm, new Date())}, {formatarHora(v.recolhaEm)} · {t('pago por {pagamento}', { pagamento: pagoPor(v) })}
         </Text>
 
         {v.passageiro && <Text style={s.secundario}>{t('Viagem para {nome} · {telefone}', { nome: v.passageiro.nome, telefone: formatarTelefone(v.passageiro.telefone) })}</Text>}
@@ -96,7 +97,22 @@ export default function Recibo() {
             <Text style={s.totalLinha}>{v.estado === 'cancelada' ? t('Cancelada · pago') : t('Total pago')}</Text>
             <Text style={s.totalLinha}>{formatarMzn(totalPago(v))}</Text>
           </View>
+          {linhasPagamento(v).map((l) => (
+            <View key={l.nome} style={s.linha}>
+              <Text style={s.secundario}>{l.nome}</Text>
+              <Text style={s.secundario}>{formatarMzn(l.valor)}</Text>
+            </View>
+          ))}
         </View>
+        {conta.faturacao ? (
+          <Text style={s.secundario} onPress={() => router.push('/faturacao')}>
+            {t('No PDF: {nome} · NUIT {nuit}', { nome: conta.faturacao.nome, nuit: conta.faturacao.nuit })}
+          </Text>
+        ) : (
+          <Text style={[s.secundario, { textDecorationLine: 'underline' }]} onPress={() => router.push('/faturacao')}>
+            {t('Pôr o meu NUIT nos recibos')}
+          </Text>
+        )}
         {v.estado === 'agendada' && <CancelarReserva v={v} />}
         <Text style={[s.secundario, { textDecorationLine: 'underline', marginTop: Spacing.two }]} onPress={() => router.push({ pathname: '/ajuda', params: { viagem: v.id } })}>
           {t('Ajuda com esta viagem')}
@@ -128,7 +144,8 @@ function CancelarReserva({ v }: { v: ViagemFeita }) {
     conta.atualizarViagem(v.id, { estado: 'cancelada', taxaCancelamentoMzn: c.taxaMzn, reembolsoMzn: c.reembolsoMzn, motivoCancelamento: 'cliente' });
     agenda.libertar(v.id);
     if (TEMPO_REAL_ATIVO) publicar({ tipo: 'cancelado', id: v.id, por: 'cliente' });
-    conta.avisar(t('Reserva cancelada'), c.reembolsoMzn > 0 ? t('Devolvemos {valor} por {pagamento}.', { valor: formatarMzn(c.reembolsoMzn), pagamento: nomePagamento(v) }) : t('A reserva foi cancelada.'));
+    if (c.reembolsoMzn > 0) conta.movimentar(c.reembolsoMzn, 'reembolso', v.destino.nome);
+    conta.avisar(t('Reserva cancelada'), c.reembolsoMzn > 0 ? t('Devolvemos {valor} para a tua carteira.', { valor: formatarMzn(c.reembolsoMzn) }) : t('A reserva foi cancelada.'));
   }
 
   return (

@@ -7,9 +7,14 @@ export type Preferencias = {
   temperatura: 'fresco' | 'normal' | 'quente' | null;
   musica: 'sem' | 'baixa' | null;
   ajudaMalas: boolean;
+  /** Cadeirinhas de criança que o motorista leva (0 a 2). */
+  cadeirinhas?: number;
+  /** Cadeira de rodas dobrável: o motorista ajuda a entrar e guarda-a na bagageira. */
+  cadeiraRodas?: boolean;
 };
 
-export const PREFERENCIAS_PADRAO: Preferencias = { silencio: false, temperatura: null, musica: null, ajudaMalas: false };
+export const PREFERENCIAS_PADRAO: Preferencias = { silencio: false, temperatura: null, musica: null, ajudaMalas: false, cadeirinhas: 0, cadeiraRodas: false };
+export const MAX_CADEIRINHAS = 2;
 
 /** Quem vai no carro quando o pedido é para outra pessoa. */
 export type Passageiro = { nome: string; telefone: string };
@@ -36,10 +41,10 @@ export const normalizarVoo = (s: string) => s.toUpperCase().replace(/[^A-Z0-9 ]/
 /** Ligação para ver o voo ao vivo. */
 export const ligacaoVoo = (voo: string) => `https://www.flightradar24.com/data/flights/${voo.replace(/\s/g, '').toLowerCase()}`;
 
-/** As preferências em frases curtas, para o cliente e o motorista. */
+/** As preferências em frases curtas, para o cliente e o motorista (primeiro o que o carro tem de levar). */
 export function textoPreferencias(p: Preferencias | undefined): string[] {
   if (!p) return [];
-  const l: string[] = [];
+  const l: string[] = [...textoNecessidades(p)];
   if (p.silencio) l.push(t('Viagem em silêncio'));
   if (p.temperatura === 'fresco') l.push(t('Ar condicionado fresco'));
   if (p.temperatura === 'normal') l.push(t('Temperatura normal'));
@@ -47,6 +52,16 @@ export function textoPreferencias(p: Preferencias | undefined): string[] {
   if (p.musica === 'sem') l.push(t('Sem música'));
   if (p.musica === 'baixa') l.push(t('Música baixa'));
   if (p.ajudaMalas) l.push(t('Ajuda com as malas'));
+  return l;
+}
+
+/** O que o carro tem de levar: cadeirinhas e cadeira de rodas. Vem antes das preferências, porque é obrigatório. */
+export function textoNecessidades(p: Preferencias | undefined): string[] {
+  if (!p) return [];
+  const l: string[] = [];
+  if ((p.cadeirinhas ?? 0) === 1) l.push(t('1 cadeirinha de criança'));
+  if ((p.cadeirinhas ?? 0) > 1) l.push(t('{n} cadeirinhas de criança', { n: p.cadeirinhas! }));
+  if (p.cadeiraRodas) l.push(t('Cadeira de rodas na bagageira'));
   return l;
 }
 

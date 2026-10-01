@@ -8,7 +8,9 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { pedirAutorizacao } from '@/data/avisos-telemovel';
-import { formatarMzn } from '@/data/categorias';
+import { formatarMzn, nomeViatura } from '@/data/categorias';
+import { CLUB } from '@/data/club';
+import { usePedido } from '@/state/pedido';
 import { textoPreferencias } from '@/data/extras-viagem';
 import { CREDITO_CONVITE_MZN, DESCONTO_CONVIDADO, PROMOS } from '@/data/promocoes';
 import { formatarNumero } from '@/data/telefone';
@@ -36,6 +38,7 @@ export default function Conta() {
   const [apagar, setApagar] = useState(false);
   const [erroApagar, setErroApagar] = useState<string | null>(null);
   const feitas = conta.viagens.filter((v) => v.estado === 'concluida').length;
+  const { viaturas, setViaturaId } = usePedido();
 
   // Ao sair, os avisos vistos deixam de contar como novos.
   useEffect(() => marcarAvisosLidos, [marcarAvisosLidos]);
@@ -79,6 +82,18 @@ export default function Conta() {
           <Text style={s.nome}>{t('As tuas viagens')}</Text>
           <Text style={s.secundario}>{t('Histórico, viagens marcadas e recibos')}</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/carteira')} style={s.entrada}>
+          <Text style={s.nome}>{t('Carteira')}</Text>
+          <Text style={s.secundario}>{t('Saldo {valor} · reembolsos e créditos pagam as próximas viagens', { valor: formatarMzn(conta.saldoMzn) })}</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/club')} style={s.entrada}>
+          <Text style={s.nome}>Chauffeur Club</Text>
+          <Text style={s.secundario}>
+            {conta.clubAtivo
+              ? t('Ativo · {p}% de desconto em todas as viagens', { p: Math.round(CLUB.percentagem * 100) })
+              : t('{p}% de desconto em todas as viagens por {valor} por mês', { p: Math.round(CLUB.percentagem * 100), valor: formatarMzn(CLUB.precoMensalMzn) })}
+          </Text>
+        </Pressable>
         <Pressable onPress={() => router.push('/ajuda')} style={s.entrada}>
           <Text style={s.nome}>{t('Ajuda')}</Text>
           <Text style={s.secundario}>{t('Objetos perdidos, cobranças, queixas e perguntas frequentes')}</Text>
@@ -94,6 +109,10 @@ export default function Conta() {
         <Pressable onPress={() => router.push({ pathname: '/opcoes', params: { so: 'preferencias' } })} style={s.entrada}>
           <Text style={s.nome}>{t('Preferências da viagem')}</Text>
           <Text style={s.secundario}>{textoPreferencias(conta.preferencias).join(' · ') || t('Silêncio, temperatura, música e malas')}</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/faturacao')} style={s.entrada}>
+          <Text style={s.nome}>{t('Recibos com NUIT')}</Text>
+          <Text style={s.secundario}>{conta.faturacao ? t('{nome} · NUIT {nuit}', { nome: conta.faturacao.nome, nuit: conta.faturacao.nuit }) : t('Para justificares a despesa')}</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/empresa')} style={s.entrada}>
           <Text style={s.nome}>{t('Conta de empresa')}</Text>
@@ -135,6 +154,40 @@ export default function Conta() {
             </Text>
           </Pressable>
         )}
+
+        <Text style={s.secao}>{t('Motoristas favoritos')}</Text>
+        <View style={s.caixa}>
+          {conta.favoritos.length === 0 && <Text style={s.secundario}>{t('No fim de uma viagem, toca no coração para guardares o motorista. Depois podes pedi-lo outra vez.')}</Text>}
+          {conta.favoritos.map((f, i) => {
+            // O carro que conduz agora; nos carros de exemplo (sem motorista próprio), o da última viagem com ele.
+            const ultima = conta.viagens.find((v) => v.motorista.telefone === f.telefone && v.viaturaId);
+            const carro = viaturas.find((v) => v.motorista?.telefone === f.telefone) ?? viaturas.find((v) => v.id === ultima?.viaturaId);
+            return (
+              <View key={f.telefone} style={[s.linha, i > 0 && s.separador]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.nomePequeno}>♥ {f.nome}</Text>
+                  <Text style={s.secundario} numberOfLines={1}>
+                    {carro ? `${nomeViatura(carro)} · ${f.matricula}` : t('Sem carro disponível agora')}
+                  </Text>
+                </View>
+                {carro && (
+                  <Text
+                    style={s.ligacao}
+                    onPress={() => {
+                      setViaturaId(carro.id);
+                      router.dismissTo('/');
+                      router.push('/destino');
+                    }}>
+                    {t('Pedir')}
+                  </Text>
+                )}
+                <Text style={[s.secundario, { textDecorationLine: 'underline' }]} onPress={() => conta.alternarFavorito(f)}>
+                  {t('Tirar')}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
 
         <Text style={s.secao}>{t('Locais guardados')}</Text>
         <View style={s.caixa}>

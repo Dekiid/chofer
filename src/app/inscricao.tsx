@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { usePalette } from '@/constants/use-palette';
 import { COMISSAO, formatarMzn, TIPOS_VIATURA } from '@/data/categorias';
 import { lerData, mascaraData } from '@/data/datas';
 import { normalizarTelefone } from '@/data/motorista';
+import { CODIGO_MOTORISTA_VALIDO, codigoConviteMotorista, normalizarCodigoMotorista } from '@/data/convite-motorista';
 import { FOTOS_PEDIDAS, useInscricoes, type FotoPedida } from '@/state/inscricoes';
 import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
@@ -58,6 +59,8 @@ export default function Inscricao() {
   const [fotos, setFotos] = useState<Partial<Record<FotoPedida, string>>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
   const [enviada, setEnviada] = useState(false);
+  // Link de convite de outro motorista: ?convite=MOT-1234.
+  const [convite, setConvite] = useState(normalizarCodigoMotorista(useLocalSearchParams<{ convite?: string }>().convite ?? ''));
 
   const telefoneValido = normalizarTelefone(telefone);
   const outro = quemConduz === 'outro';
@@ -80,6 +83,7 @@ export default function Inscricao() {
     validadeCarta: !validadeFutura(validadeCarta),
     validadeSeguro: !validadeFutura(validadeSeguro),
     validadeInspecao: !validadeFutura(validadeInspecao),
+    convite: convite !== '' && (!CODIGO_MOTORISTA_VALIDO.test(convite) || (telefoneValido != null && convite === codigoConviteMotorista(telefoneValido))),
   };
   const valido = !Object.values(erros).some(Boolean);
 
@@ -109,6 +113,7 @@ export default function Inscricao() {
       fotos: fotos as Record<FotoPedida, string>,
       validades: { carta: lerData(validadeCarta)!, seguro: lerData(validadeSeguro)!, inspecao: lerData(validadeInspecao)! },
       motorista: outro && motoristaTelefoneValido ? { nome: motoristaNome.trim(), telefone: motoristaTelefoneValido } : undefined,
+      convite: convite || undefined,
     });
     setEnviada(true);
   }
@@ -156,6 +161,10 @@ export default function Inscricao() {
         })}
         <Text style={s.ajuda}>{outro ? t('O teu número, para falarmos contigo sobre o carro e veres o resumo dos teus carros.') : t('Os clientes usam este número para te ligar durante a viagem.')}</Text>
         {campo(t('Número do BI'), documento, setDocumento, erros.documento, t('Escreve o número do BI.'), { autoCapitalize: 'characters' })}
+        {campo(t('Código de convite (opcional)'), convite, (v) => setConvite(normalizarCodigoMotorista(v)), erros.convite, t('O código tem a forma MOT-1234 e não pode ser o teu.'), {
+          placeholder: 'MOT-1234',
+          autoCapitalize: 'characters',
+        })}
 
         <Text style={s.secao}>{t('Quem conduz este carro?')}</Text>
         <View style={s.opcoes}>
