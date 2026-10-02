@@ -265,6 +265,27 @@ export default function Viagem() {
     simulacaoParada.current = alerta != null || sos;
   }, [alerta, sos]);
 
+  // Quanto custa cancelar agora (regras em src/data/cancelamento.ts).
+  const aceite = fase === 'a_caminho' || fase === 'chegou';
+  const [aceiteEm, setAceiteEm] = useState<number | null>(null);
+  useEffect(() => {
+    if (aceite && aceiteEm == null) setAceiteEm(Date.now());
+  }, [aceite, aceiteEm]);
+  const [confirmarCancelar, setConfirmarCancelar] = useState<Cancelamento | null>(null);
+
+  // O motorista esperou e o cliente não apareceu.
+  useEffect(() => {
+    faltaRef.current = () => {
+      if (!viagemConta) return sair();
+      const c = custoFalta(viagemConta);
+      atualizarViagem(viagemConta.id, { estado: 'cancelada', porPagar: false, taxaCancelamentoMzn: c.taxaMzn, reembolsoMzn: 0, motivoCancelamento: 'falta' });
+      agenda.libertar(viagemConta.id);
+      avisar(t('Falta de comparência'), `${c.texto} ${formatarMzn(c.taxaMzn)}.`);
+      sair();
+    };
+  });
+
+  // Todos os hooks ficam acima: sem destino (por exemplo, depois de mudar de país) volta-se ao início.
   if (!destino) return <Redirect href="/" />;
 
   const preco = viagemConta ? viagemConta.precoMzn - viagemConta.descontoMzn : calcularPreco(viatura, pedido.rota?.km ?? 0, pedido.quando?.tipo === 'imediato');
@@ -301,26 +322,6 @@ export default function Viagem() {
     pedido.limpar();
     router.dismissTo('/');
   }
-
-  // Quanto custa cancelar agora (regras em src/data/cancelamento.ts).
-  const aceite = fase === 'a_caminho' || fase === 'chegou';
-  const [aceiteEm, setAceiteEm] = useState<number | null>(null);
-  useEffect(() => {
-    if (aceite && aceiteEm == null) setAceiteEm(Date.now());
-  }, [aceite, aceiteEm]);
-  const [confirmarCancelar, setConfirmarCancelar] = useState<Cancelamento | null>(null);
-
-  // O motorista esperou e o cliente não apareceu.
-  useEffect(() => {
-    faltaRef.current = () => {
-      if (!viagemConta) return sair();
-      const c = custoFalta(viagemConta);
-      atualizarViagem(viagemConta.id, { estado: 'cancelada', porPagar: false, taxaCancelamentoMzn: c.taxaMzn, reembolsoMzn: 0, motivoCancelamento: 'falta' });
-      agenda.libertar(viagemConta.id);
-      avisar(t('Falta de comparência'), `${c.texto} ${formatarMzn(c.taxaMzn)}.`);
-      sair();
-    };
-  });
 
   function pedirCancelar() {
     const c = viagemConta ? custoCancelar(viagemConta, new Date(), aceite, aceiteEm ?? undefined) : null;
