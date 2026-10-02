@@ -3,7 +3,8 @@
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 
-import { COMISSAO, dataHora, mzn, supabase } from '@/lib/supabase';
+import { COMISSAO, daMzn, dataHora, mzn, paraMzn, supabase } from '@/lib/supabase';
+import { definirPaisPainel, filtrarPais, PAISES, paisPainel, type Pais } from '@/lib/paises';
 import { exemplo } from '@/lib/exemplo';
 
 // Linhas das tabelas de supabase/painel.sql (e reservas.sql).
@@ -79,6 +80,20 @@ export default function Painel() {
   const [demo, setDemo] = useState(false);
   const [dados, setDados] = useState<Dados | null>(null);
   const [aba, setAba] = useState<Aba>('Resumo');
+  // Moçambique e Angola ficam separados: cada país vê só as suas viagens, motoristas e valores (pedido do Flavio).
+  const [pais, setPais] = useState<Pais>('MZ');
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem('painel.pais');
+      if (guardado === 'MZ' || guardado === 'AO') setPais(guardado);
+    } catch {}
+  }, []);
+  function escolherPais(p: Pais) {
+    setPais(p);
+    try {
+      localStorage.setItem('painel.pais', p);
+    } catch {}
+  }
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
@@ -124,9 +139,12 @@ export default function Painel() {
     return <Entrar sessao={sessao} semAdmin={admin === false} onDemo={() => setDemo(true)} />;
   }
 
-  const pendentes = dados?.inscricoes.filter((x) => x.estado === 'pendente').length ?? 0;
-  const abertos = dados?.ajuda.filter((x) => x.estado === 'aberto').length ?? 0;
-  const porFazer = dados ? agendas(dados).porFazer.length : 0;
+  definirPaisPainel(pais);
+  const todos = dados;
+  const dadosPais = todos && filtrarPais(todos, pais);
+  const pendentes = dadosPais?.inscricoes.filter((x) => x.estado === 'pendente').length ?? 0;
+  const abertos = dadosPais?.ajuda.filter((x) => x.estado === 'aberto').length ?? 0;
+  const porFazer = dadosPais ? agendas(dadosPais).porFazer.length : 0;
 
   return (
     <>
@@ -144,6 +162,13 @@ export default function Painel() {
             </button>
           ))}
         </nav>
+        <div className="abas paises">
+          {(Object.keys(PAISES) as Pais[]).map((p) => (
+            <button key={p} className={`aba ${pais === p ? 'ativa' : ''}`} onClick={() => escolherPais(p)}>
+              {PAISES[p].bandeira} {PAISES[p].nome}
+            </button>
+          ))}
+        </div>
         <div className="linha">
           {demo && <span className="etiqueta laranja">Dados de exemplo</span>}
           <button className="botao claro" onClick={carregar}>
@@ -156,20 +181,21 @@ export default function Painel() {
       </header>
       <main>
         {erro && <p className="erro">{erro}</p>}
-        {!dados ? (
+        {pais === 'AO' && <p className="sec">Angola: valores em kwanzas (câmbio provisório de {PAISES.AO.porMetical} Kz por metical). Os pagamentos em Angola ainda são simulados.</p>}
+        {!dadosPais ? (
           <p className="vazio">A carregar…</p>
         ) : aba === 'Resumo' ? (
-          <Resumo d={dados} />
+          <Resumo d={dadosPais} />
         ) : aba === 'Viagens' ? (
-          <Viagens d={dados} />
+          <Viagens d={dadosPais} />
         ) : aba === 'Motoristas' ? (
-          <Motoristas d={dados} demo={demo} mudar={setDados} recarregar={carregar} />
+          <Motoristas d={dadosPais} demo={demo} mudar={setDados} recarregar={carregar} />
         ) : aba === 'Agendas' ? (
-          <Agendas d={dados} />
+          <Agendas d={dadosPais} />
         ) : aba === 'Avaliações' ? (
-          <Avaliacoes d={dados} />
+          <Avaliacoes d={dadosPais} />
         ) : (
-          <Ajuda d={dados} demo={demo} mudar={setDados} recarregar={carregar} />
+          <Ajuda d={dadosPais} demo={demo} mudar={setDados} recarregar={carregar} />
         )}
       </main>
     </>
@@ -358,7 +384,8 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
   const ordem = { pendente: 0, aprovada: 1, rejeitada: 2 };
   const lista = [...d.inscricoes].sort((a, b) => ordem[a.estado] - ordem[b.estado]);
   async function decidir(i: Inscricao, estado: 'aprovada' | 'rejeitada') {
-    const por_km_mzn = precos[i.id] ?? i.por_km_mzn;
+    // O preço escreve-se na moeda do país (MT ou Kz) e guarda-se em meticais.
+    const por_km_mzn = precos[i.id] != null ? Math.max(1, paraMzn(precos[i.id])) : i.por_km_mzn;
     if (demo) return mudar((x) => x && { ...x, inscricoes: x.inscricoes.map((y) => (y.id === i.id ? { ...y, estado, por_km_mzn } : y)) });
     const { error } = await supabase()!.from('inscricoes').update({ estado, por_km_mzn, decidida_em: new Date().toISOString() }).eq('id', i.id);
     if (error) alert(`Não foi possível guardar: ${error.message}`);
@@ -423,7 +450,7 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
                         style={{ width: 90 }}
                         type="number"
                         min={1}
-                        value={precos[i.id] ?? i.por_km_mzn}
+                        value={precos[i.id] ?? daMzn(i.por_km_mzn)}
                         onChange={(e) => setPrecos((p) => ({ ...p, [i.id]: Number(e.target.value) }))}
                       />
                     ) : (
@@ -713,7 +740,7 @@ function Ajuda({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; mudar:
   async function responder(p: PedidoAjuda) {
     const r = respostas[p.id];
     if (!r?.texto.trim()) return;
-    const linha = { estado: 'resolvido' as const, resposta: r.texto.trim(), reembolso_mzn: Number(r.reembolso) || null, respondido_em: new Date().toISOString() };
+    const linha = { estado: 'resolvido' as const, resposta: r.texto.trim(), reembolso_mzn: paraMzn(Number(r.reembolso)) || null, respondido_em: new Date().toISOString() };
     if (demo) return mudar((x) => x && { ...x, ajuda: x.ajuda.map((y) => (y.id === p.id ? { ...y, ...linha } : y)) });
     const { error } = await supabase()!.from('pedidos_ajuda').update(linha).eq('id', p.id);
     if (error) alert(`Não foi possível guardar: ${error.message}`);
@@ -756,7 +783,7 @@ function Ajuda({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; mudar:
                   style={{ width: 130 }}
                   type="number"
                   min={0}
-                  placeholder="Reembolso MT"
+                  placeholder={`Reembolso ${PAISES[paisPainel()].simbolo}`}
                   value={respostas[p.id]?.reembolso ?? ''}
                   onChange={(e) => setRespostas((r) => ({ ...r, [p.id]: { texto: r[p.id]?.texto ?? '', reembolso: e.target.value } }))}
                 />

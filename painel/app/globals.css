@@ -54,3 +54,4 @@ h2 { font-size: 18px; margin: 24px 0 12px; }
 .erro { color: var(--vermelho); font-size: 14px; }
 .vazio { color: var(--secundario); padding: 24px; text-align: center; }
 .contador.verde { background: var(--verde); color: #04130a; }
+.abas.paises { flex: 0 0 auto; background: var(--fundo); border-radius: 999px; padding: 2px; }
