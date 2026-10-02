@@ -165,11 +165,12 @@ function viagensExemplo(): ViagemFeita[] {
     x.setHours(h, 15, 0, 0);
     return x;
   };
-  const lugar = (id: string) => LUGARES.find((l) => l.id === id)!;
+  // Em Angola não há estes sítios de Maputo: usa os lugares de Luanda pela mesma ordem.
+  const lugar = (id: string, i: number) => LUGARES.find((l) => l.id === id) ?? LUGARES[i];
   const base = { paragens: [], motorista: MOTORISTA_EXEMPLO, taxaImediatoMzn: 0, gorjetaMzn: 0, pagamento: 'mpesa' as const, codigoRecolha: '0000', estado: 'concluida' as const };
   return [
-    { ...base, id: 'v-ex-2', criadaEm: dia(2, 8), recolhaEm: dia(2, 9), origem: lugar('polana'), destino: lugar('aeroporto'), viatura: 'Mercedes-Benz Classe E', km: 7.4, minutos: 18, precoMzn: 700, descontoMzn: 140, promo: 'BEMVINDO', gorjetaMzn: 50, avaliacao: { estrelas: 5, elogios: ['Pontual', 'Carro limpo'], comentario: '' } },
-    { ...base, id: 'v-ex-1', criadaEm: dia(6, 19), recolhaEm: dia(6, 20), origem: lugar('baia-mall'), destino: lugar('matola-shopping'), viatura: 'BMW Série 5', km: 16.2, minutos: 31, precoMzn: 1460, descontoMzn: 0, pagamento: 'emola', avaliacao: { estrelas: 4, elogios: ['Condução segura'], comentario: '' } },
+    { ...base, id: 'v-ex-2', criadaEm: dia(2, 8), recolhaEm: dia(2, 9), origem: lugar('polana', 1), destino: lugar('aeroporto', 0), viatura: 'Mercedes-Benz Classe E', km: 7.4, minutos: 18, precoMzn: 700, descontoMzn: 140, promo: 'BEMVINDO', gorjetaMzn: 50, avaliacao: { estrelas: 5, elogios: ['Pontual', 'Carro limpo'], comentario: '' } },
+    { ...base, id: 'v-ex-1', criadaEm: dia(6, 19), recolhaEm: dia(6, 20), origem: lugar('baia-mall', 3), destino: lugar('matola-shopping', 4), viatura: 'BMW Série 5', km: 16.2, minutos: 31, precoMzn: 1460, descontoMzn: 0, pagamento: 'emola', avaliacao: { estrelas: 4, elogios: ['Condução segura'], comentario: '' } },
   ];
 }
 
@@ -181,7 +182,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
   const [locais, setLocais] = useGuardado<Record<TipoLocal, Lugar | null>>(chave && `${chave}.locais`, () => ({
     casa: null,
     trabalho: null,
-    aeroporto: LUGARES.find((l) => l.id === 'aeroporto') ?? null,
+    aeroporto: LUGARES.find((l) => l.id.startsWith('aeroporto')) ?? null,
   }));
   const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo);
 

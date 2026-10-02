@@ -13,6 +13,7 @@ import { formatarMzn } from '@/data/categorias';
 import { CLUB, estadoViagensGratis, vantagensClub } from '@/data/club';
 import { normalizarTelefone } from '@/data/motorista';
 import { cobrarEsperar, metodoDoNumero, pagamentosReais } from '@/data/pagamentos';
+import { carteiraPrincipal, lerTelefone, metodosTexto, paisAtual } from '@/data/paises';
 import { t } from '@/i18n';
 import { useConta } from '@/state/conta';
 
@@ -37,8 +38,8 @@ export default function Club() {
     if (!numero) return;
     setAProcessar(true);
     setErro('');
-    const falhou = pagamentosReais
-      ? await cobrarEsperar({ tipo: 'club', metodo: metodoDoNumero(numero), telefone: numero.replace(/^\+258/, ''), valorMzn: CLUB.precoMensalMzn, viaturaId: 'club', viagem: {} })
+    const falhou = pagamentosReais()
+      ? await cobrarEsperar({ tipo: 'club', metodo: metodoDoNumero(numero), telefone: lerTelefone(numero).digitos, valorMzn: CLUB.precoMensalMzn, viaturaId: 'club', viagem: {} })
       : (await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO)), null);
     if (falhou) {
       setErro(falhou);
@@ -98,7 +99,7 @@ export default function Club() {
           {aProcessar ? (
             <View style={{ alignItems: 'center', gap: Spacing.two }}>
               <ActivityIndicator color={cores.text} />
-              <Text style={s.secundario}>{t('Confirma no teu telemóvel com o PIN do M-Pesa.')}</Text>
+              <Text style={s.secundario}>{t('Confirma no teu telemóvel com o PIN do {carteira}.', { carteira: carteiraPrincipal() })}</Text>
             </View>
           ) : conta.clubAtivo && a && !a.cancelada ? (
             <BotaoSecundario
@@ -114,7 +115,7 @@ export default function Club() {
                 value={telefone}
                 onChangeText={setTelefone}
                 keyboardType="phone-pad"
-                placeholder={t('Número M-Pesa ou e-Mola, ex.: 84 123 4567')}
+                placeholder={t('Número {metodos}, ex.: {exemplo}', { metodos: metodosTexto(), exemplo: paisAtual().exemploNumero })}
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />

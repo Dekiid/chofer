@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BotaoPrincipal, BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { COMISSAO, formatarMzn, TIPOS_VIATURA } from '@/data/categorias';
+import { COMISSAO, formatarMzn, paraMzn, TIPOS_VIATURA } from '@/data/categorias';
+import { lerTelefone, paisAtual } from '@/data/paises';
 import { lerData, mascaraData } from '@/data/datas';
 import { normalizarTelefone } from '@/data/motorista';
 import { CODIGO_MOTORISTA_VALIDO, codigoConviteMotorista, normalizarCodigoMotorista } from '@/data/convite-motorista';
@@ -39,7 +40,7 @@ export default function Inscricao() {
   const [motoristaNome, setMotoristaNome] = useState('');
   const [motoristaTelefone, setMotoristaTelefone] = useState('');
   // O número da conta, para o carro ficar ligado a este motorista no modo motorista.
-  const [telefone, setTelefone] = useState(perfil?.telefone.replace(/^\+258/, '') ?? '');
+  const [telefone, setTelefone] = useState(lerTelefone(perfil?.telefone ?? '').digitos ?? '');
   const [documento, setDocumento] = useState(anterior?.documento ?? '');
   const [cartaConducao, setCartaConducao] = useState('');
   const [marca, setMarca] = useState('');
@@ -106,9 +107,9 @@ export default function Inscricao() {
       matricula: matricula.trim().toUpperCase(),
       tipo,
       lugares,
-      porKmMzn: Number(preco),
+      porKmMzn: Math.max(1, Math.round(paraMzn(Number(preco)))),
       casamento: casamentos
-        ? { semDecoracaoMzn: Number(semDecoracao), comDecoracaoMzn: Number(comDecoracao), foto: fotoDecorada ? { uri: fotoDecorada } : undefined }
+        ? { semDecoracaoMzn: Math.round(paraMzn(Number(semDecoracao))), comDecoracaoMzn: Math.round(paraMzn(Number(comDecoracao))), foto: fotoDecorada ? { uri: fotoDecorada } : undefined }
         : undefined,
       fotos: fotos as Record<FotoPedida, string>,
       validades: { carta: lerData(validadeCarta)!, seguro: lerData(validadeSeguro)!, inspecao: lerData(validadeInspecao)! },
@@ -154,8 +155,8 @@ export default function Inscricao() {
       <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <Text style={s.secao}>{t('Dados pessoais')}</Text>
         {campo(t('Nome completo'), nome, setNome, erros.nome, t('Escreve o nome completo.'), { placeholder: t('Ex.: {exemplo}', { exemplo: 'João Macuácua' }), autoComplete: 'name' })}
-        {campo(t('Número de contacto'), telefone, setTelefone, erros.telefone, t('Número móvel moçambicano, ex.: 84 123 4567.'), {
-          placeholder: '84 123 4567',
+        {campo(t('Número de contacto'), telefone, setTelefone, erros.telefone, t('Número móvel de {pais}, ex.: {exemplo}.', { pais: t(paisAtual().nome), exemplo: paisAtual().exemploNumero }), {
+          placeholder: paisAtual().exemploNumero,
           keyboardType: 'phone-pad',
           autoComplete: 'tel',
         })}
@@ -178,8 +179,8 @@ export default function Inscricao() {
           <>
             <Text style={s.ajuda}>{t('O motorista entra na app com o número dele e fica com o modo motorista só para este carro. Os clientes ligam-lhe a ele. Tu vês o resumo do carro.')}</Text>
             {campo(t('Nome do motorista'), motoristaNome, setMotoristaNome, erros.motoristaNome, t('Escreve o nome completo.'), { placeholder: t('Ex.: {exemplo}', { exemplo: 'Abel Sitoe' }) })}
-            {campo(t('Número do motorista'), motoristaTelefone, setMotoristaTelefone, erros.motoristaTelefone, t('Número móvel moçambicano, diferente do teu.'), {
-              placeholder: '84 765 4321',
+            {campo(t('Número do motorista'), motoristaTelefone, setMotoristaTelefone, erros.motoristaTelefone, t('Número móvel de {pais}, diferente do teu.', { pais: t(paisAtual().nome) }), {
+              placeholder: paisAtual().exemploNumero,
               keyboardType: 'phone-pad',
             })}
           </>
@@ -237,7 +238,7 @@ export default function Inscricao() {
         </View>
 
         <Text style={s.secao}>{t('Preço')}</Text>
-        {campo(t('Preço por km que propões (MT)'), preco, setPreco, erros.preco, t('Indica o preço por km.'), {
+        {campo(t('Preço por km que propões ({moeda})', { moeda: paisAtual().simbolo }), preco, setPreco, erros.preco, t('Indica o preço por km.'), {
           placeholder: t('Ex.: {exemplo}', { exemplo: TIPOS_VIATURA.find((x) => x.tipo === tipo)?.porKmMzn ?? '' }),
           keyboardType: 'number-pad',
           maxLength: 4,
@@ -249,7 +250,7 @@ export default function Inscricao() {
             {Number(preco) > 0
               ? t('Exemplo: numa viagem de {km} km, recebes {teu}. O preço fica sujeito à nossa aprovação.', {
                   km: KM_EXEMPLO,
-                  teu: formatarMzn(Math.round(Number(preco) * KM_EXEMPLO * (1 - COMISSAO))),
+                  teu: formatarMzn(paraMzn(Number(preco)) * KM_EXEMPLO * (1 - COMISSAO)),
                 })
               : t('Indica o preço por km para veres quanto recebes numa viagem. O preço fica sujeito à nossa aprovação.')}
           </Text>
@@ -268,14 +269,14 @@ export default function Inscricao() {
           <>
             <View style={s.linha}>
               <View style={{ flex: 1 }}>
-                {campo(t('Sem decoração (MT)'), semDecoracao, setSemDecoracao, erros.semDecoracao, t('Indica o preço.'), {
+                {campo(t('Sem decoração ({moeda})', { moeda: paisAtual().simbolo }), semDecoracao, setSemDecoracao, erros.semDecoracao, t('Indica o preço.'), {
                   placeholder: t('Ex.: {exemplo}', { exemplo: 9000 }),
                   keyboardType: 'number-pad',
                   maxLength: 6,
                 })}
               </View>
               <View style={{ flex: 1 }}>
-                {campo(t('Com decoração (MT)'), comDecoracao, setComDecoracao, erros.comDecoracao, t('Indica o preço.'), {
+                {campo(t('Com decoração ({moeda})', { moeda: paisAtual().simbolo }), comDecoracao, setComDecoracao, erros.comDecoracao, t('Indica o preço.'), {
                   placeholder: t('Ex.: {exemplo}', { exemplo: 12500 }),
                   keyboardType: 'number-pad',
                   maxLength: 6,

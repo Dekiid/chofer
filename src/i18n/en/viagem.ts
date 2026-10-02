@@ -189,8 +189,8 @@ export const viagem: Record<string, string> = {
   'Recibo Chauffeur': 'Chauffeur receipt',
 
   // Promoções
-  '20% na primeira viagem, até 500 MT': '20% off your first trip, up to 500 MT',
-  '10% em qualquer viagem, até 300 MT': '10% off any trip, up to 300 MT',
+  '20% na primeira viagem, até {valor}': '20% off your first trip, up to {valor}',
+  '10% em qualquer viagem, até {valor}': '10% off any trip, up to {valor}',
   '200 MT na primeira viagem, oferta de um amigo': '200 MT off your first trip, from a friend',
 
   // Cancelamento

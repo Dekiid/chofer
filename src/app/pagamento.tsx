@@ -23,11 +23,12 @@ import { publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-r
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta, type ParteDivisao } from '@/state/conta';
 import { useAgenda, type ResultadoReserva } from '@/state/agenda';
-import { PAGAMENTOS, usePedido } from '@/state/pedido';
+import { PAGAMENTOS, pagamentosDoPais, usePedido } from '@/state/pedido';
 import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
 import { idiomaAtual, t } from '@/i18n';
 import { nomeLugar } from '@/data/lugares';
+import { metodosTexto, paisAtual } from '@/data/paises';
 
 type Estado = 'preencher' | 'a_processar' | 'pago' | 'agendada' | 'falhou' | 'pago_no_fim';
 
@@ -43,6 +44,9 @@ function diaNaFrase(d: Date): string {
   const dia = formatarDia(d, new Date());
   return idiomaAtual() === 'en' && !/^(Today|Tomorrow)$/.test(dia) ? dia : dia.toLowerCase();
 }
+
+/** Número móvel válido para cobrar: em Moçambique só M-Pesa e e-Mola (84 a 87); em Angola qualquer móvel. */
+const numeroDoMetodo = (d: string) => (paisAtual().codigo === 'MZ' ? /^8[4-7]\d{7}$/.test(d) : paisAtual().numero.test(d));
 
 export default function Pagamento() {
   const cores = usePalette();
@@ -102,7 +106,7 @@ export default function Pagamento() {
     if (daCarteira > 0) {
       conta.movimentar(-daCarteira, 'viagem', destinoNome);
       // O dinheiro real carregado também sai do servidor, para não se poder levantar depois de gasto.
-      if (pagamentosReais) usarCarteiraReal(daCarteira, id);
+      if (pagamentosReais()) usarCarteiraReal(daCarteira, id);
     }
     if (partes.length > 0) conta.dividirViagem(id, partes);
   }
@@ -295,7 +299,7 @@ export default function Pagamento() {
     // Pagamento real pela DebitoPay: o pedido vai para o telemóvel e espera-se pelo PIN.
     // Sem pagamentos reais (pré-visualização, testes), a confirmação é simulada.
     const pagaPorTelemovel = aCobrar > 0 && (pedido.pagamento === 'mpesa' || pedido.pagamento === 'emola');
-    if (pagamentosReais && pagaPorTelemovel) {
+    if (pagamentosReais() && pagaPorTelemovel) {
       const erro = await cobrarEsperar(
         {
           metodo: pedido.pagamento,
@@ -436,12 +440,12 @@ export default function Pagamento() {
 
   if (!noFim && (reserva ? !reserva.inicio : !destino || !quando)) return <Redirect href="/" />;
 
-  const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento) ?? PAGAMENTOS[0];
+  const metodo = PAGAMENTOS.find((p) => p.id === pedido.pagamento) ?? pagamentosDoPais()[0];
   const digitos = telefone.replace(/\D/g, '');
   // Com a fatura da empresa não há número de telefone para cobrar.
   const naFatura = metodo.id === 'empresa' && conta.empresa != null;
   // Tudo pago pela carteira ou pelos amigos: não há nada para cobrar por M-Pesa ou e-Mola.
-  const telefoneValido = naFatura || aCobrar === 0 || /^8[4-7]\d{7}$/.test(digitos);
+  const telefoneValido = naFatura || aCobrar === 0 || numeroDoMetodo(digitos);
 
   if (estado !== 'preencher') {
     return (
@@ -567,7 +571,7 @@ export default function Pagamento() {
                   <Text style={s.secundarioPequeno}>
                     {partes.length > 0
                       ? t('Cada um paga {valor}. Os amigos recebem o pedido de pagamento no telemóvel.', { valor: formatarMzn(parteAmigo) })
-                      : t('Cada amigo paga a sua parte por M-Pesa ou e-Mola.')}
+                      : t('Cada amigo paga a sua parte por {metodos}.', { metodos: metodosTexto() })}
                   </Text>
                 </View>
                 <Switch value={dividir} onValueChange={setDividir} accessibilityLabel={t('Dividir com amigos')} />
@@ -609,7 +613,7 @@ export default function Pagamento() {
           <>
           <Text style={s.rotulo}>{t('Método de pagamento')}</Text>
           <View style={s.metodos}>
-            {PAGAMENTOS.filter((p) => p.id !== 'empresa' || conta.empresa).map((p) => {
+            {pagamentosDoPais().filter((p) => p.id !== 'empresa' || conta.empresa).map((p) => {
               const ativo = p.id === pedido.pagamento;
               return (
                 <Pressable key={p.id} onPress={() => pedido.setPagamento(p.id)} style={[s.metodo, ativo && s.metodoAtivo]}>
@@ -631,7 +635,7 @@ export default function Pagamento() {
           onChangeText={(t) => {
             setTelefone(t);
             // Número completo: o teclado baixa sozinho para se ver o botão de pagar.
-            if (/^8[4-7]\d{7}$/.test(t.replace(/\D/g, ''))) Keyboard.dismiss();
+            if (numeroDoMetodo(t.replace(/\D/g, ''))) Keyboard.dismiss();
           }}
           keyboardType="phone-pad"
           placeholder={t('Começa por {prefixos}', { prefixos: metodo.prefixos.replace(' ou ', ` ${t('ou')} `) })}

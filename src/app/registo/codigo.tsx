@@ -6,7 +6,7 @@ import { estilosPasso, PassoRegisto } from '@/components/passo-registo';
 import { Text, TextInput } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
-import { formatarNumero } from '@/data/telefone';
+import { numeroCompleto } from '@/data/telefone';
 import { t } from '@/i18n';
 import { digitosCodigo, MOTORISTA_DEMO, proximoPasso, useSessao } from '@/state/sessao';
 
@@ -64,7 +64,7 @@ export default function Codigo() {
   return (
     <PassoRegisto
       titulo={t('Escreve o código de {n} dígitos', { n: digitos })}
-      descricao={demo ? t('Conta de demonstração do motorista: escreve o código de acesso.') : t('Enviámos para +258 {numero}.', { numero: formatarNumero(telefone) })}
+      descricao={demo ? t('Conta de demonstração do motorista: escreve o código de acesso.') : t('Enviámos para {numero}.', { numero: numeroCompleto(telefone) })}
       onVoltar={() => router.back()}>
       {/* Um campo escondido recebe os dígitos (e o código da SMS, que o telemóvel sugere sozinho); as caixas só mostram. */}
       <Pressable onPress={() => campo.current?.focus()} style={estilos.caixas} accessibilityLabel={t('Código de confirmação')}>

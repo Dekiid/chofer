@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { paisAtual } from '@/data/paises';
 import { Text } from '@/components/texto';
 import { usePalette } from '@/constants/use-palette';
 
@@ -37,7 +38,7 @@ export function Mapa({ origem, destino, paragens, carro, rota, zonas }: MapaProp
     <View
       style={[StyleSheet.absoluteFill, { backgroundColor: cores.mapa, alignItems: 'center', paddingTop: 60 }]}
       onLayout={(e) => setTamanho({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      <Text style={{ color: cores.textSecondary }}>{t('Mapa de Maputo e Matola')}</Text>
+      <Text style={{ color: cores.textSecondary }}>{t('Mapa de {zona}', { zona: t(paisAtual().zonaServico) })}</Text>
       {tamanho.w > 0 &&
         zonas?.map((z, i) => {
           const c = xy(z.ponto);

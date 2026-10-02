@@ -15,6 +15,7 @@ import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { eAeroporto, textoPreferencias } from '@/data/extras-viagem';
 import { nomeLugar } from '@/data/lugares';
 import { lugarNoPonto } from '@/data/moradas';
+import { metodosTexto } from '@/data/paises';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { usePedirAgora } from '@/hooks/use-pedir-agora';
 import { useTempoConducao } from '@/hooks/use-tempo-conducao';
@@ -217,7 +218,7 @@ export default function Confirmar() {
 
             {/* Reservas pagam-se já, para guardar o horário; pedidos para agora pagam-se no fim, como na Uber,
                 porque o motorista ainda pode recusar. */}
-            {quando && <Text style={s.quandoPaga}>{imediato ? t('Pagas no fim da viagem, por M-Pesa ou e-Mola.') : t('Pagas agora, para reservar o horário.')}</Text>}
+            {quando && <Text style={s.quandoPaga}>{imediato ? t('Pagas no fim da viagem, por {metodos}.', { metodos: metodosTexto() }) : t('Pagas agora, para reservar o horário.')}</Text>}
             <NotaPagamento />
             {erroPedido ? <Text style={s.avisoAgenda}>{erroPedido}</Text> : null}
             <BotaoPrincipal

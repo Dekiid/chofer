@@ -1,3 +1,6 @@
+import { lerTelefone } from './paises';
+import { numeroCompleto } from './telefone';
+
 export type Motorista = {
   nome: string;
   /** Número completo com indicativo, por exemplo +258841234567. */
@@ -12,14 +15,13 @@ export const MOTORISTA_EXEMPLO: Motorista = {
   matricula: 'AFK 123 MC',
 };
 
-/** Aceita 84 123 4567, 841234567 ou +258 84 123 4567 e devolve +258841234567, ou null se não for um número móvel moçambicano. */
+/**
+ * Aceita 84 123 4567, 841234567 ou +258 84 123 4567 (Moçambique) e 923 456 789 ou +244 923 456 789 (Angola)
+ * e devolve o número com indicativo, ou null se não for um número móvel de um desses países.
+ */
 export function normalizarTelefone(texto: string): string | null {
-  let d = texto.replace(/\D/g, '');
-  if (d.length === 12 && d.startsWith('258')) d = d.slice(3);
-  return /^8[2-7]\d{7}$/.test(d) ? `+258${d}` : null;
+  const { pais, digitos } = lerTelefone(texto);
+  return pais.numero.test(digitos) ? `${pais.indicativo}${digitos}` : null;
 }
 
-export function formatarTelefone(tel: string): string {
-  const d = tel.replace(/^\+258/, '');
-  return `+258 ${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`;
-}
+export const formatarTelefone = numeroCompleto;

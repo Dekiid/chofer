@@ -1,3 +1,4 @@
+import { formatarMzn } from '@/data/categorias';
 import { t } from '@/i18n';
 
 /** Códigos promocionais. No protótipo ficam aqui; no produto final vêm do Supabase e a gestão cria-os. */
@@ -15,7 +16,7 @@ export const PROMOS: Promo[] = [
   {
     codigo: 'BEMVINDO',
     get descricao() {
-      return t('20% na primeira viagem, até 500 MT');
+      return t('20% na primeira viagem, até {valor}', { valor: formatarMzn(500) });
     },
     percentagem: 0.2,
     maximoMzn: 500,
@@ -23,7 +24,7 @@ export const PROMOS: Promo[] = [
   {
     codigo: 'CHAUFFEUR10',
     get descricao() {
-      return t('10% em qualquer viagem, até 300 MT');
+      return t('10% em qualquer viagem, até {valor}', { valor: formatarMzn(300) });
     },
     percentagem: 0.1,
     maximoMzn: 300,

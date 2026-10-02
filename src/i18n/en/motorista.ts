@@ -142,7 +142,7 @@ export const motorista: Record<string, string> = {
   'Escreve o nome completo.': 'Enter your full name.',
   'Ex.: {exemplo}': 'E.g. {exemplo}',
   'Número de contacto': 'Contact number',
-  'Número móvel moçambicano, ex.: 84 123 4567.': 'Mozambican mobile number, e.g. 84 123 4567.',
+  'Número móvel de {pais}, ex.: {exemplo}.': 'Mobile number in {pais}, e.g. {exemplo}.',
   'Os clientes usam este número para te ligar durante a viagem.': 'Riders use this number to call you during the trip.',
   'Número do BI': 'ID number (BI)',
   'Escreve o número do BI.': 'Enter your ID number.',
@@ -168,7 +168,7 @@ export const motorista: Record<string, string> = {
   Clássico: 'Classic',
   'Lugares para passageiros': 'Passenger seats',
   Preço: 'Price',
-  'Preço por km que propões (MT)': 'Your proposed price per km (MT)',
+  'Preço por km que propões ({moeda})': 'Your proposed price per km ({moeda})',
   'Indica o preço por km.': 'Enter the price per km.',
   'O Chauffeur fica com {pct}% do valor total de cada viagem.': 'Chauffeur keeps {pct}% of the total fare of each trip.',
   'Exemplo: numa viagem de {km} km o cliente paga {total}. Tu recebes {teu} e o Chauffeur fica com {comissao}.':
@@ -179,8 +179,8 @@ export const motorista: Record<string, string> = {
     'Want to rent out your car, with a driver, for weddings? Enter how much you charge for the wedding day.',
   Sim: 'Yes',
   Não: 'No',
-  'Sem decoração (MT)': 'Without decoration (MT)',
-  'Com decoração (MT)': 'With decoration (MT)',
+  'Sem decoração ({moeda})': 'Without decoration ({moeda})',
+  'Com decoração ({moeda})': 'With decoration ({moeda})',
   'Indica o preço.': 'Enter the price.',
   'Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço. Aplica-se a mesma comissão de {pct}%.':
     'With decoration, you decorate the car yourself (flowers, ribbons, bows) and include that cost in the price. The same {pct}% fee applies.',
@@ -208,7 +208,7 @@ export const motorista: Record<string, string> = {
 
   // src/state/modo-motorista.tsx (avisos no telemóvel)
   'Novo pedido': 'New request',
-  '{origem} → {destino} · recebes {valor} MT': '{origem} → {destino} · you get {valor} MT',
+  '{origem} → {destino} · recebes {valor}': '{origem} → {destino} · you get {valor}',
   'Nova reserva confirmada': 'New booking confirmed',
   'Viagem cancelada': 'Trip cancelled',
   'O cliente cancelou a viagem.': 'The rider cancelled the trip.',
@@ -274,7 +274,7 @@ export const motorista: Record<string, string> = {
   'O motorista entra na app com o número dele e fica com o modo motorista só para este carro. Os clientes ligam-lhe a ele. Tu vês o resumo do carro.': 'The driver signs in with their own number and gets driver mode for this car only. Riders call the driver. You see the car summary.',
   'Nome do motorista': "Driver's name",
   'Número do motorista': "Driver's number",
-  'Número móvel moçambicano, diferente do teu.': 'Mozambican mobile number, different from yours.',
+  'Número móvel de {pais}, diferente do teu.': 'Mobile number in {pais}, different from yours.',
   'Número da carta de condução do motorista': "Driver's licence number",
   'Carta do motorista válida até': "Driver's licence valid until",
   'A carta acima é a do motorista.': 'The licence above is the driver\'s.',
@@ -284,6 +284,6 @@ export const motorista: Record<string, string> = {
   'Exemplo: numa viagem de {km} km, recebes {teu}. O preço fica sujeito à nossa aprovação.': 'Example: on a {km} km trip, you get {teu}. The price is subject to our approval.',
   'Indica o preço por km para veres quanto recebes numa viagem. O preço fica sujeito à nossa aprovação.': 'Enter the price per km to see what you get per trip. The price is subject to our approval.',
   'Com decoração, és tu que decoras o carro (flores, fitas, laços) e incluis esse custo no preço.': 'With decoration, you decorate the car (flowers, ribbons, bows) and include that cost in the price.',
-  'Recebes na segunda-feira, {data}, por M-Pesa.': 'You get paid on Monday, {data}, by M-Pesa.',
+  'Recebes na segunda-feira, {data}, por {carteira}.': 'You get paid on Monday, {data}, by {carteira}.',
   'Pago por {pagamento}. A gorjeta vai toda para o motorista.': 'Paid by {pagamento}. The tip goes entirely to the driver.',
 };

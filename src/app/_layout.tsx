@@ -82,7 +82,7 @@ function Abertura() {
     <View style={estilos.abertura}>
       <StatusBar style="light" />
       <Logo altura={44} variante="negativo" />
-      <Text style={estilos.cidade}>Maputo · Moçambique</Text>
+      <Text style={estilos.cidade}>Moçambique · Angola</Text>
     </View>
   );
 }

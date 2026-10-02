@@ -3,19 +3,26 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Quando } from '@/data/agenda';
 import { VIATURAS, type Viatura } from '@/data/categorias';
 import { LOCALIZACAO_PADRAO, type Lugar } from '@/data/lugares';
+import { aoMudarPais, paisAtual, type CodigoPais } from '@/data/paises';
 import type { ReservaDias } from '@/data/reserva';
 import { calcularRotaPor, rotaEstimadaPor, type Rota } from '@/data/rotas';
 import type { Passageiro } from '@/data/extras-viagem';
 import { useInscricoes } from '@/state/inscricoes';
 
-export type Pagamento = 'mpesa' | 'emola' | 'empresa';
+export type Pagamento = 'mpesa' | 'emola' | 'multicaixa' | 'unitel' | 'empresa';
 
-export const PAGAMENTOS: { id: Pagamento; nome: string; prefixos: string }[] = [
-  { id: 'mpesa', nome: 'M-Pesa', prefixos: '84 ou 85' },
-  { id: 'emola', nome: 'e-Mola', prefixos: '86 ou 87' },
+export const PAGAMENTOS: { id: Pagamento; nome: string; prefixos: string; pais?: CodigoPais }[] = [
+  { id: 'mpesa', nome: 'M-Pesa', prefixos: '84 ou 85', pais: 'MZ' },
+  { id: 'emola', nome: 'e-Mola', prefixos: '86 ou 87', pais: 'MZ' },
+  // Angola: simulados até haver fornecedor de pagamentos angolano.
+  { id: 'multicaixa', nome: 'Multicaixa Express', prefixos: '9', pais: 'AO' },
+  { id: 'unitel', nome: 'Unitel Money', prefixos: '92 ou 93', pais: 'AO' },
   // Só aparece a quem tem conta de empresa: a viagem vai para a fatura do mês.
   { id: 'empresa', nome: 'Fatura da empresa', prefixos: '' },
 ];
+
+/** Métodos de pagamento do país da conta. */
+export const pagamentosDoPais = () => PAGAMENTOS.filter((p) => !p.pais || p.pais === paisAtual().codigo);
 
 type Pedido = {
   /** Onde o carro vai buscar; por defeito a localização do telemóvel, mas pode ser outro sítio (pedir para outra pessoa). */
@@ -68,10 +75,23 @@ export function PedidoProvider({ children }: { children: ReactNode }) {
     setLocalAtualEstado(l);
     setOrigem((atual) => (atual.id === LOCALIZACAO_PADRAO.id ? l : atual));
   }, []);
+  // Ao entrar com uma conta de outro país, o ponto de partida passa para a cidade desse país.
+  useEffect(
+    () =>
+      // Fora da renderização: o país muda enquanto a sessão se desenha.
+      aoMudarPais(() => setTimeout(() => {
+        setLocalAtualEstado((l) => (l.id === LOCALIZACAO_PADRAO.id && l.zona !== 'Localização atual' ? { ...LOCALIZACAO_PADRAO } : l));
+        setOrigem((l) => (l.id === LOCALIZACAO_PADRAO.id && l.zona !== 'Localização atual' ? { ...LOCALIZACAO_PADRAO } : l));
+        setDestino(null);
+        setParagens([]);
+        setPagamento(pagamentosDoPais()[0].id);
+      })),
+    [],
+  );
   const [destino, setDestino] = useState<Lugar | null>(null);
   const [paragens, setParagens] = useState<Lugar[]>([]);
   const [viaturaId, setViaturaId] = useState(VIATURAS[0].id);
-  const [pagamento, setPagamento] = useState<Pagamento>('mpesa');
+  const [pagamento, setPagamento] = useState<Pagamento>(() => pagamentosDoPais()[0].id);
   const [quando, setQuando] = useState<Quando | null>(null);
   const [passageiro, setPassageiro] = useState<Passageiro | null>(null);
   const [voo, setVoo] = useState<string | null>(null);

@@ -12,8 +12,9 @@ import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { CLUB } from '@/data/club';
 import { usePedido } from '@/state/pedido';
 import { textoPreferencias } from '@/data/extras-viagem';
+import { paisAtual } from '@/data/paises';
 import { CREDITO_CONVITE_MZN, DESCONTO_CONVIDADO, PROMOS } from '@/data/promocoes';
-import { formatarNumero } from '@/data/telefone';
+import { numeroCompleto } from '@/data/telefone';
 import { t } from '@/i18n';
 import { useIdioma } from '@/i18n/idioma';
 import { LOCAIS, useConta } from '@/state/conta';
@@ -46,8 +47,9 @@ export default function Conta() {
   async function convidar() {
     try {
       await Share.share({
-        message: t('Experimenta a Chauffeur, carros premium com motorista em Maputo e Matola. Usa o meu código {codigo} e ganhas {valor} na primeira viagem.', {
+        message: t('Experimenta a Chauffeur, carros premium com motorista em {zona}. Usa o meu código {codigo} e ganhas {valor} na primeira viagem.', {
           codigo: conta.codigoConvite,
+          zona: t(paisAtual().zonaServico),
           valor: formatarMzn(DESCONTO_CONVIDADO.valorMzn ?? 0),
         }),
       });
@@ -67,7 +69,7 @@ export default function Conta() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.nome}>{sessao.perfil?.nome ? `${sessao.perfil.nome} ${sessao.perfil.apelido ?? ''}`.trim() : t('Cliente Chauffeur')}</Text>
-            {sessao.perfil?.telefone ? <Text style={s.secundario}>+258 {formatarNumero(sessao.perfil.telefone)}</Text> : null}
+            {sessao.perfil?.telefone ? <Text style={s.secundario}>{numeroCompleto(sessao.perfil.telefone)}</Text> : null}
             <Text style={s.secundario}>
               {nota
                 ? `★ ${feitas === 1 ? t('{nota} dada pelos motoristas · {n} viagem', { nota: nota.media.toFixed(1).replace('.', ','), n: feitas }) : t('{nota} dada pelos motoristas · {n} viagens', { nota: nota.media.toFixed(1).replace('.', ','), n: feitas })}`

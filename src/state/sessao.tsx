@@ -2,11 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { definirPais, paisDoTelefone } from '@/data/paises';
 import { supabase } from '@/data/tempo-real';
 import { VERSAO_TERMOS } from '@/data/textos-legais';
 import { t } from '@/i18n';
 
-/** O que o cliente diz no registo. O telefone vem no formato +25884…. */
+/** O que o cliente diz no registo. O telefone vem com indicativo: +25884… (Moçambique) ou +2449… (Angola). */
 export type Perfil = {
   telefone: string;
   nome?: string;
@@ -268,6 +269,9 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     }),
     [estado, perfil, completo, semSms, pedirCodigo, confirmarCodigo, guardarPerfil, sair, apagarConta, bemVindo],
   );
+
+  // O país da conta (pelo indicativo do número) decide a moeda, os lugares e os pagamentos. Corre antes dos ecrãs.
+  if (perfil) definirPais(paisDoTelefone(perfil.telefone).codigo);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

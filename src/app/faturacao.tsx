@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { paisAtual } from '@/data/paises';
 import { FecharTeclado } from '@/components/fechar-teclado';
 import { Text, TextInput } from '@/components/texto';
 import { BotaoPrincipal, BotaoSecundario, BotaoVoltar } from '@/components/ui';
@@ -46,7 +47,7 @@ export default function Faturacao() {
           />
           {nuit.length > 0 && !nuitValido && <Text style={s.erro}>{t('O NUIT tem 9 números.')}</Text>}
           <Text style={s.rotulo}>{t('Morada (opcional)')}</Text>
-          <TextInput value={morada} onChangeText={setMorada} placeholder={t('Ex.: Av. Julius Nyerere 123, Maputo')} placeholderTextColor={cores.textSecondary} style={s.campo} />
+          <TextInput value={morada} onChangeText={setMorada} placeholder={t('Ex.: {exemplo}', { exemplo: paisAtual().exemploMorada })} placeholderTextColor={cores.textSecondary} style={s.campo} />
           <View style={{ height: Spacing.three }} />
           <BotaoPrincipal
             texto={t('Guardar')}

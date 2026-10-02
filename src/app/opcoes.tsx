@@ -10,6 +10,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { eAeroporto, ESPERA_AEROPORTO_MIN, MAX_CADEIRINHAS, normalizarVoo, VOO_VALIDO, type Preferencias } from '@/data/extras-viagem';
 import { normalizarTelefone } from '@/data/motorista';
+import { lerTelefone, paisAtual } from '@/data/paises';
 import { t } from '@/i18n';
 import { useConta } from '@/state/conta';
 import { usePedido } from '@/state/pedido';
@@ -24,7 +25,7 @@ export default function Opcoes() {
   const soPreferencias = useLocalSearchParams<{ so?: string }>().so === 'preferencias';
   const [paraOutro, setParaOutro] = useState(pedido.passageiro != null);
   const [nome, setNome] = useState(pedido.passageiro?.nome ?? '');
-  const [telefone, setTelefone] = useState(pedido.passageiro?.telefone.replace(/^\+258/, '') ?? '');
+  const [telefone, setTelefone] = useState((pedido.passageiro ? lerTelefone(pedido.passageiro.telefone).digitos : ''));
   const [pref, setPref] = useState<Preferencias>(conta.preferencias);
   const [voo, setVoo] = useState(pedido.voo ?? '');
   const aeroporto = !soPreferencias && eAeroporto(pedido.origem);
@@ -83,7 +84,7 @@ export default function Opcoes() {
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
-              {telefone.length > 0 && !telefoneValido && <Text style={s.erro}>{t('Número móvel moçambicano, ex.: 84 123 4567.')}</Text>}
+              {telefone.length > 0 && !telefoneValido && <Text style={s.erro}>{t('Número móvel de {pais}, ex.: {exemplo}.', { pais: t(paisAtual().nome), exemplo: paisAtual().exemploNumero })}</Text>}
             </>
           )}
           </>

@@ -1,6 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
 import type { Motorista } from './motorista';
+import { paisAtual } from './paises';
 
 export type Modo = 'motorista' | 'aluguer' | 'casamento';
 
@@ -108,6 +109,14 @@ export function nomeViatura(v: Viatura): string {
   return `${v.marca} ${v.modelo}`;
 }
 
+/** Mostra um valor guardado em meticais na moeda do país da conta (MT em Moçambique, Kz em Angola). */
 export function formatarMzn(valor: number): string {
-  return `${valor.toLocaleString('pt-PT')} MT`;
+  const p = paisAtual();
+  return `${Math.round(valor * p.porMetical).toLocaleString('pt-PT')} ${p.simbolo}`;
 }
+
+/** Converte um valor escrito na moeda local para meticais (o que se guarda). */
+export const paraMzn = (local: number) => local / paisAtual().porMetical;
+
+/** Converte meticais para a moeda local, para preencher campos. */
+export const daMzn = (mzn: number) => Math.round(mzn * paisAtual().porMetical);

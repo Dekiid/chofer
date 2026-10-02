@@ -1,3 +1,4 @@
+import { paisAtual } from '@/data/paises';
 import { supabase } from '@/data/tempo-real';
 import type { Pagamento } from '@/state/pedido';
 
@@ -13,7 +14,10 @@ const CHAVE_SUPABASE = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
  * para o Supabase poder estar ligado (tempo real, painel) antes de a DebitoPay estar pronta.
  * Sem isso, o pagamento é simulado (pré-visualização e testes).
  */
-export const pagamentosReais = Boolean(URL_SUPABASE && CHAVE_SUPABASE) && process.env.EXPO_PUBLIC_PAGAMENTOS_REAIS === '1';
+const pagamentosLigados = Boolean(URL_SUPABASE && CHAVE_SUPABASE) && process.env.EXPO_PUBLIC_PAGAMENTOS_REAIS === '1';
+
+/** Cobranças reais só em Moçambique (DebitoPay); em Angola fica simulado até haver fornecedor angolano. */
+export const pagamentosReais = () => pagamentosLigados && paisAtual().cobrancasReais;
 
 export type EstadoPagamento = 'pendente' | 'pago' | 'falhou' | 'expirado';
 

@@ -13,19 +13,21 @@ import { ESPERA_MIN, HORAS_CANCELAR_GRATIS, MINUTOS_CANCELAR_GRATIS, TAXA_CANCEL
 import { formatarMzn } from '@/data/categorias';
 import { t } from '@/i18n';
 import { ligarProtegido } from '@/data/chamadas';
+import { metodosTexto } from '@/data/paises';
 import { useConta, type ViagemFeita } from '@/state/conta';
 import { useSessao } from '@/state/sessao';
 import { TIPOS_AJUDA, useSuporte, type TipoAjuda } from '@/state/suporte';
 
 // Os textos traduzem-se ao desenhar (t(q.p), t(q.r, q.v)); os valores ficam em v.
-const PERGUNTAS: { p: string; r: string; v?: Record<string, string | number> }[] = [
+// É uma função para os valores (moeda, métodos de pagamento) seguirem o país da conta.
+const perguntas = (): { p: string; r: string; v?: Record<string, string | number> }[] => [
   {
     p: 'Como cancelo uma viagem?',
     r: 'Na viagem em curso, toca em «Cancelar pedido». Numa viagem marcada, abre-a em As tuas viagens e toca em «Cancelar a reserva». Reservas: grátis até {horas} horas antes. Pedidos para agora: grátis até {minutos} minutos depois de o motorista aceitar, depois {taxa}.',
     v: { horas: HORAS_CANCELAR_GRATIS, minutos: MINUTOS_CANCELAR_GRATIS, taxa: formatarMzn(TAXA_CANCELAMENTO_MZN) },
   },
   { p: 'Quanto tempo espera o motorista?', r: '{min} minutos depois de chegar à recolha. Depois disso, pode marcar falta de comparência.', v: { min: ESPERA_MIN } },
-  { p: 'Posso pagar em dinheiro?', r: 'Não. Pagas só pela app, por M-Pesa ou e-Mola, ou com a fatura da tua empresa.' },
+  { p: 'Posso pagar em dinheiro?', r: 'Não. Pagas só pela app, por {metodos}, ou com a fatura da tua empresa.', v: { metodos: metodosTexto() } },
   { p: 'Quando pago?', r: 'As viagens marcadas, os alugueres e os casamentos pagam-se ao reservar. Os pedidos para agora pagam-se no fim da viagem.' },
   { p: 'Esqueci-me de uma coisa no carro', r: 'Escolhe «Esqueci-me de um objeto no carro» aqui em baixo e a viagem. Podes ligar logo ao motorista, e nós também o contactamos.' },
 ];
@@ -139,7 +141,7 @@ export default function Ajuda() {
           )}
 
           <Text style={s.secao}>{t('Perguntas frequentes')}</Text>
-          {PERGUNTAS.map((q, i) => (
+          {perguntas().map((q, i) => (
             <Pressable key={q.p} onPress={() => setAberta(aberta === i ? null : i)} style={s.cartao}>
               <Text style={s.nome}>{t(q.p)}</Text>
               {aberta === i && <Text style={s.texto}>{t(q.r, q.v)}</Text>}

@@ -4,11 +4,12 @@ import { Platform, Vibration } from 'react-native';
 
 import type { Ponto } from '@/components/mapa-tipos';
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
-import { COMISSAO, nomeViatura, type Viatura } from '@/data/categorias';
+import { COMISSAO, formatarMzn, nomeViatura, type Viatura } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
 import { LOCALIZACAO_PADRAO, LUGARES, nomeLugar, type Lugar } from '@/data/lugares';
 import { comecarLocalizacaoFundo, pararLocalizacaoFundo } from '@/data/localizacao-fundo';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
+import { carteiraPrincipal } from '@/data/paises';
 import { calcularRota, calcularRotaPor, pontoNaRota, rotaEstimadaPor, type Rota } from '@/data/rotas';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { registarPushMotorista } from '@/data/push';
@@ -169,7 +170,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
     setPedidoNovo(p);
     setExpiraEm(Date.now() + TEMPO_PARA_ACEITAR);
     Vibration.vibrate([0, 400, 200, 400]);
-    avisarNoTelemovel(t('Novo pedido'), t('{origem} → {destino} · recebes {valor} MT', { origem: nomeLugar(p.origem), destino: nomeLugar(p.destino), valor: ganhoMotorista(p) }));
+    avisarNoTelemovel(t('Novo pedido'), t('{origem} → {destino} · recebes {valor}', { origem: nomeLugar(p.origem), destino: nomeLugar(p.destino), valor: formatarMzn(ganhoMotorista(p)) }));
   }, []);
 
   // Reserva nova: fica logo na agenda do motorista (o cliente já pagou e o carro estava livre), com um toque curto.
@@ -308,7 +309,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
         precoMzn: calcularPreco(v, rota.km, !reserva),
         recolhaEm: reserva ? amanha.toISOString() : undefined,
         codigoRecolha: gerarCodigoRecolha(),
-        pagamento: 'M-Pesa',
+        pagamento: carteiraPrincipal(),
         criadoEm: new Date().toISOString(),
       };
     },

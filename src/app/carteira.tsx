@@ -12,6 +12,7 @@ import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
 import { normalizarTelefone } from '@/data/motorista';
 import { cobrarEsperar, levantarCarteira, metodoDoNumero, pagamentosReais, saldoCarteiraReal } from '@/data/pagamentos';
+import { carteiraPrincipal, lerTelefone, metodosTexto, paisAtual } from '@/data/paises';
 import { useSessao } from '@/state/sessao';
 import { t } from '@/i18n';
 import { useConta, type Movimento } from '@/state/conta';
@@ -29,11 +30,11 @@ function nomeMovimento(m: Movimento): string {
     case 'convite':
       return t('Crédito de convite');
     case 'carregamento':
-      return t('Carregamento por M-Pesa');
+      return t('Carregamento por {carteira}', { carteira: carteiraPrincipal() });
     case 'viagem':
       return m.detalhe ? t('Viagem para {destino}', { destino: m.detalhe }) : t('Viagem');
     case 'levantamento':
-      return t('Levantamento para o M-Pesa');
+      return t('Levantamento para o {carteira}', { carteira: carteiraPrincipal() });
   }
 }
 
@@ -52,9 +53,9 @@ export default function Carteira() {
   // Os reembolsos e os créditos de convite ficam no telemóvel e só pagam viagens.
   const [saldoReal, setSaldoReal] = useState<number | null>(null);
   useEffect(() => {
-    if (pagamentosReais) saldoCarteiraReal().then(setSaldoReal);
+    if (pagamentosReais()) saldoCarteiraReal().then(setSaldoReal);
   }, []);
-  const levantarReal = pagamentosReais;
+  const levantarReal = pagamentosReais();
   // O levantamento real vai sempre para o número da conta; o simulado deixa escrever o número.
   const numero = levantarReal && acao === 'levantar' ? (perfil?.telefone ?? null) : normalizarTelefone(telefone);
   const agora = new Date();
@@ -80,8 +81,8 @@ export default function Carteira() {
     // O carregamento é cobrado a sério pela DebitoPay quando os pagamentos reais estão ligados.
     // O levantamento ainda é simulado: a devolução para o M-Pesa faz-se à mão até haver envios pela API.
     const falhou =
-      acao === 'carregar' && pagamentosReais
-        ? await cobrarEsperar({ tipo: 'carteira', metodo: metodoDoNumero(numero), telefone: numero.replace(/^\+258/, ''), valorMzn: valor, viaturaId: 'carteira', viagem: {} })
+      acao === 'carregar' && pagamentosReais()
+        ? await cobrarEsperar({ tipo: 'carteira', metodo: metodoDoNumero(numero), telefone: lerTelefone(numero).digitos, valorMzn: valor, viaturaId: 'carteira', viagem: {} })
         : (await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO)), null);
     if (falhou) {
       setErro(falhou);
@@ -93,7 +94,7 @@ export default function Carteira() {
       conta.avisar(t('Carteira carregada'), t('{valor} entraram na tua carteira.', { valor: formatarMzn(valor) }));
     } else {
       conta.movimentar(-valorLevantar, 'levantamento');
-      conta.avisar(t('Levantamento feito'), t('{valor} foram para o M-Pesa {numero}.', { valor: formatarMzn(valorLevantar), numero: telefone.replace(/\s/g, '') }));
+      conta.avisar(t('Levantamento feito'), t('{valor} foram para o {carteira} {numero}.', { carteira: carteiraPrincipal(), valor: formatarMzn(valorLevantar), numero: telefone.replace(/\s/g, '') }));
     }
     setAProcessar(false);
     setAcao(null);
@@ -117,11 +118,11 @@ export default function Carteira() {
           {aProcessar ? (
             <View style={[s.caixa, { alignItems: 'center', gap: Spacing.two }]}>
               <ActivityIndicator color={cores.text} />
-              <Text style={s.secundario}>{acao === 'carregar' ? t('Confirma no teu telemóvel com o PIN do M-Pesa.') : t('A enviar para o teu M-Pesa…')}</Text>
+              <Text style={s.secundario}>{acao === 'carregar' ? t('Confirma no teu telemóvel com o PIN do {carteira}.', { carteira: carteiraPrincipal() }) : t('A enviar para o teu {carteira}…', { carteira: carteiraPrincipal() })}</Text>
             </View>
           ) : acao ? (
             <View style={[s.caixa, { gap: Spacing.two }]}>
-              <Text style={s.nome}>{acao === 'carregar' ? t('Carregar a carteira') : t('Levantar {valor} para o M-Pesa', { valor: formatarMzn(valorLevantar) })}</Text>
+              <Text style={s.nome}>{acao === 'carregar' ? t('Carregar a carteira') : t('Levantar {valor} para o {carteira}', { carteira: carteiraPrincipal(), valor: formatarMzn(valorLevantar) })}</Text>
               {acao === 'carregar' && (
                 <View style={s.chips}>
                   {CARREGAMENTOS.map((v) => (
@@ -140,7 +141,7 @@ export default function Carteira() {
                 value={telefone}
                 onChangeText={setTelefone}
                 keyboardType="phone-pad"
-                placeholder={acao === 'carregar' ? t('Número M-Pesa ou e-Mola, ex.: 84 123 4567') : t('Número M-Pesa, ex.: 84 123 4567')}
+                placeholder={acao === 'carregar' ? t('Número {metodos}, ex.: {exemplo}', { metodos: metodosTexto(), exemplo: paisAtual().exemploNumero }) : t('Número {carteira}, ex.: {exemplo}', { carteira: carteiraPrincipal(), exemplo: paisAtual().exemploNumero })}
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
@@ -152,7 +153,7 @@ export default function Carteira() {
           ) : (
             <View style={{ gap: Spacing.two }}>
               <BotaoPrincipal texto={t('Carregar a carteira')} onPress={() => setAcao('carregar')} />
-              {(levantarReal ? (saldoReal ?? 0) >= 10 : conta.saldoMzn > 0) && <BotaoSecundario texto={t('Levantar para o M-Pesa')} onPress={() => setAcao('levantar')} />}
+              {(levantarReal ? (saldoReal ?? 0) >= 10 : conta.saldoMzn > 0) && <BotaoSecundario texto={t('Levantar para o {carteira}', { carteira: carteiraPrincipal() })} onPress={() => setAcao('levantar')} />}
             </View>
           )}
 

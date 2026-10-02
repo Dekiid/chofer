@@ -4,9 +4,10 @@ import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 
 import { MAPA_ESCURO } from './mapa-escuro';
 import type { MapaProps, Ponto } from './mapa-tipos';
+import { paisAtual } from '@/data/paises';
 import { t } from '@/i18n';
 
-// Centro entre Maputo e Matola.
+// Centro entre Maputo e Matola; em Angola, Luanda (ver initialRegion).
 export const REGIAO_INICIAL = {
   latitude: -25.94,
   longitude: 32.52,
@@ -53,7 +54,7 @@ export function Mapa({ origem, destino, paragens, carro, rota, seguirCarro, marg
     <MapView
       ref={ref}
       style={StyleSheet.absoluteFill}
-      initialRegion={REGIAO_INICIAL}
+      initialRegion={{ ...REGIAO_INICIAL, ...paisAtual().centro }}
       showsUserLocation
       showsMyLocationButton={false}
       userInterfaceStyle={escuro ? 'dark' : 'light'}

@@ -83,7 +83,7 @@ export const cliente: Record<string, string> = {
   'Preço por km': 'Price per km',
   'Taxa de pedido imediato': 'Instant request fee',
   Total: 'Total',
-  'Pagas no fim da viagem, por M-Pesa ou e-Mola.': 'You pay at the end of the trip, with M-Pesa or e-Mola.',
+  'Pagas no fim da viagem, por {metodos}.': 'You pay at the end of the trip, with {metodos}.',
   'Pagas agora, para reservar o horário.': 'You pay now to reserve the time.',
   'A pedir…': 'Requesting…',
   'Pedir chauffeur': 'Request chauffeur',
@@ -156,7 +156,7 @@ export const cliente: Record<string, string> = {
 
   // Mapa
   Motorista: 'Driver',
-  'Mapa de Maputo e Matola': 'Map of Maputo and Matola',
+  'Mapa de {zona}': 'Map of {zona}',
 
   // Fotos e galeria
   'Foto do {carro}': 'Photo of the {carro}',
@@ -179,8 +179,8 @@ export const cliente: Record<string, string> = {
 
   // Nota de pagamento
   Nota: 'Note',
-  'Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não aceites dinheiro do cliente.': "Payments are made only in the app, with M-Pesa or e-Mola. Don't accept cash from the rider.",
-  'Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não se paga em dinheiro ao motorista.': "Payments are made only in the app, with M-Pesa or e-Mola. Don't pay the driver in cash.",
+  'Os pagamentos são feitos só pela app, por {metodos}. Não aceites dinheiro do cliente.': "Payments are made only in the app, with {metodos}. Don't accept cash from the rider.",
+  'Os pagamentos são feitos só pela app, por {metodos}. Não se paga em dinheiro ao motorista.': "Payments are made only in the app, with {metodos}. Don't pay the driver in cash.",
 
   // Componentes gerais
   Voltar: 'Back',

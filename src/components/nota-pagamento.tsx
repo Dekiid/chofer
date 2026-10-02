@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { metodosTexto } from '@/data/paises';
 import { Text } from '@/components/texto';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
@@ -13,8 +14,8 @@ export function NotaPagamento({ paraMotorista = false }: { paraMotorista?: boole
       <Text style={[estilos.titulo, { color: c.text }]}>{t('Nota')}</Text>
       <Text style={[estilos.texto, { color: c.textSecondary }]}>
         {paraMotorista
-          ? t('Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não aceites dinheiro do cliente.')
-          : t('Os pagamentos são feitos só pela app, por M-Pesa ou e-Mola. Não se paga em dinheiro ao motorista.')}
+          ? t('Os pagamentos são feitos só pela app, por {metodos}. Não aceites dinheiro do cliente.', { metodos: metodosTexto() })
+          : t('Os pagamentos são feitos só pela app, por {metodos}. Não se paga em dinheiro ao motorista.', { metodos: metodosTexto() })}
       </Text>
     </View>
   );

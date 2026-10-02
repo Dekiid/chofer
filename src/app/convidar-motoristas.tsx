@@ -8,6 +8,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarMzn } from '@/data/categorias';
 import { codigoConviteMotorista, PREMIO_CONVITE_MOTORISTA_MZN, VIAGENS_PARA_PREMIO } from '@/data/convite-motorista';
+import { paisAtual } from '@/data/paises';
 import { t } from '@/i18n';
 import { useInscricoes } from '@/state/inscricoes';
 import { useSessao } from '@/state/sessao';
@@ -24,7 +25,7 @@ export default function ConvidarMotoristas() {
   async function partilhar() {
     try {
       await Share.share({
-        message: t('Conduz com a Chauffeur, carros premium com motorista em Maputo e Matola. Inscreve o teu carro na app e escreve o meu código {codigo} na inscrição.', { codigo }),
+        message: t('Conduz com a Chauffeur, carros premium com motorista em {zona}. Inscreve o teu carro na app e escreve o meu código {codigo} na inscrição.', { codigo, zona: t(paisAtual().zonaServico) }),
       });
     } catch {}
   }

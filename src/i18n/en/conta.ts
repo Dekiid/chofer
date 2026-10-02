@@ -6,7 +6,7 @@ export const conta: Record<string, string> = {
   'Enviamos um código por SMS para confirmar.': "We'll text you a code to confirm it.",
   Continuar: 'Continue',
   'Número de telemóvel': 'Mobile number',
-  'O número tem de começar por 82, 83, 84, 85, 86 ou 87.': 'The number must start with 82, 83, 84, 85, 86 or 87.',
+  'O número tem de começar por {prefixos}.': 'The number must start with {prefixos}.',
   'Continuar sem SMS (teste)': 'Continue without SMS (test)',
   'Modo de teste, sem SMS: o código é sempre {codigo} e a conta fica só neste telemóvel.':
     'Test mode, no SMS: the code is always {codigo} and the account stays on this phone only.',
@@ -31,13 +31,13 @@ export const conta: Record<string, string> = {
   'Política de Privacidade': 'Privacy Policy',
   'Li e aceito': 'I have read and accept',
   'Viaturas premium, com motorista, à tua porta.': 'Premium cars, with a driver, at your door.',
-  'Escolhe o carro, marca a hora e paga antes. Em Maputo e Matola.': 'Choose the car, book the time and pay upfront. In Maputo and Matola.',
+  'Escolhe o carro, marca a hora e paga antes. Em Maputo, Matola e Luanda.': 'Choose the car, book the time and pay upfront. In Maputo and Matola.',
   Começar: 'Get started',
   'Já tens conta?': 'Already have an account?',
   Entrar: 'Log in',
   'Escreve o código de {n} dígitos': 'Enter the {n}-digit code',
   'Conta de demonstração do motorista: escreve o código de acesso.': 'Driver demo account: enter the access code.',
-  'Enviámos para +258 {numero}.': 'Sent to +258 {numero}.',
+  'Enviámos para {numero}.': 'Sent to {numero}.',
   'Código de confirmação': 'Confirmation code',
   Código: 'Code',
   'Reenviar código em 0:{s}': 'Resend code in 0:{s}',
@@ -65,8 +65,8 @@ export const conta: Record<string, string> = {
     "the key doesn't look like the anon key (starts with eyJ) or the publishable key (starts with sb_publishable_)",
 
   // Conta
-  'Experimenta a Chauffeur, carros premium com motorista em Maputo e Matola. Usa o meu código {codigo} e ganhas {valor} na primeira viagem.':
-    'Try Chauffeur, premium cars with a driver in Maputo and Matola. Use my code {codigo} and get {valor} off your first trip.',
+  'Experimenta a Chauffeur, carros premium com motorista em {zona}. Usa o meu código {codigo} e ganhas {valor} na primeira viagem.':
+    'Try Chauffeur, premium cars with a driver in {zona}. Use my code {codigo} and get {valor} off your first trip.',
   'A tua conta': 'Your account',
   'Cliente Chauffeur': 'Chauffeur rider',
   '{nota} dada pelos motoristas · {n} viagem': '{nota} from drivers · {n} trip',
@@ -146,7 +146,7 @@ export const conta: Record<string, string> = {
   '{min} minutos depois de chegar à recolha. Depois disso, pode marcar falta de comparência.':
     '{min} minutes after arriving at the pickup. After that, they can mark you as a no-show.',
   'Posso pagar em dinheiro?': 'Can I pay in cash?',
-  'Não. Pagas só pela app, por M-Pesa ou e-Mola, ou com a fatura da tua empresa.': 'No. You pay only in the app, with M-Pesa or e-Mola, or on your company invoice.',
+  'Não. Pagas só pela app, por {metodos}, ou com a fatura da tua empresa.': 'No. You pay only in the app, with {metodos}, or on your company invoice.',
   'Quando pago?': 'When do I pay?',
   'As viagens marcadas, os alugueres e os casamentos pagam-se ao reservar. Os pedidos para agora pagam-se no fim da viagem.':
     'Scheduled trips, rentals and weddings are paid when you book. Rides for now are paid at the end of the trip.',

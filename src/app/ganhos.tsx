@@ -10,6 +10,7 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
+import { carteiraPrincipal } from '@/data/paises';
 import { ganhoMotorista, useModoMotorista } from '@/state/modo-motorista';
 import { t } from '@/i18n';
 
@@ -98,7 +99,7 @@ export default function Ganhos() {
             <Text style={s.valor}>{formatarMzn(porReceber)}</Text>
           </View>
           <Text style={s.secundario}>
-            {t('Recebes na segunda-feira, {data}, por M-Pesa.', { data: `${proximaSegunda.getDate()}/${proximaSegunda.getMonth() + 1}` })}
+            {t('Recebes na segunda-feira, {data}, por {carteira}.', { carteira: carteiraPrincipal(), data: `${proximaSegunda.getDate()}/${proximaSegunda.getMonth() + 1}` })}
           </Text>
           <View style={s.linha}>
             <Text style={s.texto}>{t('Já pago')}</Text>

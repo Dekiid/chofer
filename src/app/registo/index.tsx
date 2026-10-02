@@ -28,7 +28,7 @@ export default function BoasVindas() {
         <Logo altura={36} variante="negativo" />
         <Image source={CARRO} style={s.carro} contentFit="contain" accessibilityLabel="Mercedes-Benz Classe S" />
         <Text style={s.titulo}>{t('Viaturas premium, com motorista, à tua porta.')}</Text>
-        <Text style={s.texto}>{t('Escolhe o carro, marca a hora e paga antes. Em Maputo e Matola.')}</Text>
+        <Text style={s.texto}>{t('Escolhe o carro, marca a hora e paga antes. Em Maputo, Matola e Luanda.')}</Text>
       </View>
       <View style={s.rodape}>
         <BotaoPrincipal texto={t('Começar')} onPress={() => router.push('/registo/telefone')} />
