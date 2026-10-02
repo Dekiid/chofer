@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import type { Quando } from '@/data/agenda';
 import { VIATURAS, type Viatura } from '@/data/categorias';
-import { LOCALIZACAO_PADRAO, type Lugar } from '@/data/lugares';
+import { ID_LOCAL_ATUAL, localizacaoPadrao, type Lugar } from '@/data/lugares';
 import { aoMudarPais, paisAtual, type CodigoPais } from '@/data/paises';
 import type { ReservaDias } from '@/data/reserva';
 import { calcularRotaPor, rotaEstimadaPor, type Rota } from '@/data/rotas';
@@ -69,19 +69,19 @@ export const MAX_PARAGENS = 2;
 const PedidoContext = createContext<Pedido | null>(null);
 
 export function PedidoProvider({ children }: { children: ReactNode }) {
-  const [origem, setOrigem] = useState<Lugar>(LOCALIZACAO_PADRAO);
-  const [localAtual, setLocalAtualEstado] = useState<Lugar>(LOCALIZACAO_PADRAO);
+  const [origem, setOrigem] = useState<Lugar>(localizacaoPadrao);
+  const [localAtual, setLocalAtualEstado] = useState<Lugar>(localizacaoPadrao);
   const setLocalAtual = useCallback((l: Lugar) => {
     setLocalAtualEstado(l);
-    setOrigem((atual) => (atual.id === LOCALIZACAO_PADRAO.id ? l : atual));
+    setOrigem((atual) => (atual.id === ID_LOCAL_ATUAL ? l : atual));
   }, []);
   // Ao entrar com uma conta de outro país, o ponto de partida passa para a cidade desse país.
   useEffect(
     () =>
       // Fora da renderização: o país muda enquanto a sessão se desenha.
       aoMudarPais(() => setTimeout(() => {
-        setLocalAtualEstado((l) => (l.id === LOCALIZACAO_PADRAO.id && l.zona !== 'Localização atual' ? { ...LOCALIZACAO_PADRAO } : l));
-        setOrigem((l) => (l.id === LOCALIZACAO_PADRAO.id && l.zona !== 'Localização atual' ? { ...LOCALIZACAO_PADRAO } : l));
+        setLocalAtualEstado((l) => (l.id === ID_LOCAL_ATUAL && l.zona !== 'Localização atual' ? localizacaoPadrao() : l));
+        setOrigem((l) => (l.id === ID_LOCAL_ATUAL && l.zona !== 'Localização atual' ? localizacaoPadrao() : l));
         setDestino(null);
         setParagens([]);
         setPagamento(pagamentosDoPais()[0].id);

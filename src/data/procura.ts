@@ -1,4 +1,4 @@
-import { LUGARES, type Lugar } from '@/data/lugares';
+import { lugares, type Lugar } from '@/data/lugares';
 import { distanciaKm } from '@/data/viagem';
 import type { Ponto } from '@/components/mapa-tipos';
 
@@ -28,7 +28,7 @@ const faixa = (h: number) => (h < 6 ? 0 : h < 10 ? 1 : h < 16 ? 2 : h < 20 ? 3 :
 export function zonasProcura(agora: Date, origensRecentes: Ponto[] = []): ZonaProcura[] {
   const f = faixa(agora.getHours());
   const fimDeSemana = agora.getDay() === 0 || agora.getDay() === 6;
-  return LUGARES.map((lugar) => {
+  return lugares().map((lugar) => {
     let peso = PADRAO[lugar.id]?.[f] ?? 0;
     if (fimDeSemana && (lugar.id === 'baia-mall' || lugar.id === 'matola-shopping' || lugar.id === 'marginal')) peso += 1;
     if (fimDeSemana && lugar.id === 'fortaleza') peso -= 1;

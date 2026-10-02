@@ -11,14 +11,14 @@ import { Painel } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarHora } from '@/data/agenda';
-import { LUGARES } from '@/data/lugares';
+import { lugares } from '@/data/lugares';
 import { lerPartilha, type DadosPartilha } from '@/data/partilha';
 import { ouvir, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
 import { t } from '@/i18n';
 
 // Exemplo para ver a página sem servidor: /seguir/demo.
 function exemplo(): DadosPartilha {
-  const [destino, origem] = [LUGARES[0], LUGARES[1]];
+  const [destino, origem] = [lugares()[0], lugares()[1]];
   return {
     viagemId: 'demo',
     cliente: 'Flavio',

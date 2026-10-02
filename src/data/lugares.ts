@@ -1,4 +1,4 @@
-import { aoMudarPais, paisAtual, type CodigoPais } from './paises';
+import { paisAtual, type CodigoPais } from './paises';
 import { t } from '@/i18n';
 
 export type Lugar = {
@@ -9,14 +9,8 @@ export type Lugar = {
   longitude: number;
 };
 
-// Ponto de partida quando ainda não há GPS: o centro da cidade do país da conta (muda com o país).
-export const LOCALIZACAO_PADRAO: Lugar = {
-  id: 'atual',
-  nome: 'A tua localização',
-  zona: 'Baixa, Maputo',
-  latitude: -25.9692,
-  longitude: 32.5732,
-};
+/** Id do lugar que representa a localização do telemóvel. */
+export const ID_LOCAL_ATUAL = 'atual';
 
 const PADRAO_POR_PAIS: Record<CodigoPais, Omit<Lugar, 'id' | 'nome'>> = {
   MZ: { zona: 'Baixa, Maputo', latitude: -25.9692, longitude: 32.5732 },
@@ -45,31 +39,27 @@ export const TODOS_LUGARES: (Lugar & { pais: CodigoPais })[] = [
   { pais: 'AO', id: 'kilamba', nome: 'Centralidade do Kilamba', zona: 'Kilamba, Luanda', latitude: -8.9965, longitude: 13.2745 },
 ];
 
-/** Os lugares do país da conta. A lista muda no lugar quando muda o país. */
-export const LUGARES: Lugar[] = [];
+// Ponto de partida quando ainda não há GPS: o centro da cidade do país da conta.
+// É um objeto novo de cada vez: os objetos que entram no estado do React (ou do Reanimated) ficam congelados.
+export const localizacaoPadrao = (): Lugar => ({ id: ID_LOCAL_ATUAL, nome: 'A tua localização', ...PADRAO_POR_PAIS[paisAtual().codigo] });
 
-function aplicarPais() {
-  const pais = paisAtual().codigo;
-  Object.assign(LOCALIZACAO_PADRAO, PADRAO_POR_PAIS[pais]);
-  LUGARES.splice(0, LUGARES.length, ...TODOS_LUGARES.filter((l) => l.pais === pais).map(({ pais: _, ...l }) => l));
-}
-aplicarPais();
-aoMudarPais(aplicarPais);
+/** Os lugares do país da conta. */
+export const lugares = (): Lugar[] => TODOS_LUGARES.filter((l) => l.pais === paisAtual().codigo).map(({ pais: _, ...l }) => l);
 
 /** Nome do lugar para mostrar: a localização do telemóvel aparece na língua escolhida. */
 export function nomeLugar(l: Lugar): string {
-  return l.id === LOCALIZACAO_PADRAO.id ? t(LOCALIZACAO_PADRAO.nome) : l.nome;
+  return l.id === ID_LOCAL_ATUAL ? t(l.nome) : l.nome;
 }
 
 /** Zona do lugar para mostrar, com o mesmo cuidado para a localização atual. */
 export function zonaLugar(l: Lugar): string {
-  return l.id === LOCALIZACAO_PADRAO.id && l.zona === 'Localização atual' ? t('Localização atual') : l.zona;
+  return l.id === ID_LOCAL_ATUAL && l.zona === 'Localização atual' ? t('Localização atual') : l.zona;
 }
 
 export function pesquisarLugares(texto: string): Lugar[] {
   const t = normalizar(texto.trim());
-  if (!t) return LUGARES;
-  return LUGARES.filter((l) => normalizar(`${l.nome} ${l.zona}`).includes(t));
+  if (!t) return lugares();
+  return lugares().filter((l) => normalizar(`${l.nome} ${l.zona}`).includes(t));
 }
 
 function normalizar(s: string) {

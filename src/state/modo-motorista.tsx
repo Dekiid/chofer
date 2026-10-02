@@ -6,7 +6,7 @@ import type { Ponto } from '@/components/mapa-tipos';
 import { avisarNoTelemovel } from '@/data/avisos-telemovel';
 import { COMISSAO, formatarMzn, nomeViatura, type Viatura } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
-import { LOCALIZACAO_PADRAO, LUGARES, nomeLugar, type Lugar } from '@/data/lugares';
+import { localizacaoPadrao, lugares, nomeLugar, type Lugar } from '@/data/lugares';
 import { comecarLocalizacaoFundo, pararLocalizacaoFundo } from '@/data/localizacao-fundo';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import { carteiraPrincipal } from '@/data/paises';
@@ -123,7 +123,7 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   const viatura = viaturas.find((v) => v.id === viaturaId) ?? null;
   const eu = viatura?.motorista ?? MOTORISTA_EXEMPLO;
   const [online, setOnline] = useState(false);
-  const [posicao, setPosicao] = useState<Ponto>(LOCALIZACAO_PADRAO);
+  const [posicao, setPosicao] = useState<Ponto>(localizacaoPadrao);
   const [simular, setSimular] = useState(true);
   const [pedidoNovo, setPedidoNovo] = useState<PedidoMotorista | null>(null);
   const [expiraEm, setExpiraEm] = useState<number | null>(null);
@@ -286,9 +286,9 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
       const v = viaturas.find((x) => x.id === a.viaturaId);
       if (!v) return null;
       // A recolha é um dos lugares mais perto do motorista; o destino, qualquer outro.
-      const perto = [...LUGARES].sort((x, y) => distanciaKm(a.posicao, x) - distanciaKm(a.posicao, y)).slice(0, 4);
+      const perto = [...lugares()].sort((x, y) => distanciaKm(a.posicao, x) - distanciaKm(a.posicao, y)).slice(0, 4);
       const origem = perto[Math.floor(Math.random() * perto.length)];
-      const outros = LUGARES.filter((l) => l.id !== origem.id);
+      const outros = lugares().filter((l) => l.id !== origem.id);
       // Com «ir para casa», o pedido de demonstração vai para perto de casa.
       const paraCasa = a.casa && !reserva ? outros.filter((l) => distanciaKm(l, a.casa!) <= distanciaKm(origem, a.casa!) - APROXIMA_KM) : [];
       const escolha = paraCasa.length > 0 ? paraCasa : a.casa && !reserva ? [a.casa] : outros;

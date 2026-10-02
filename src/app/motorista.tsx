@@ -19,7 +19,7 @@ import { duracaoTexto } from '@/data/datas';
 import { ESPERA_MIN } from '@/data/cancelamento';
 import { ELOGIOS_CLIENTE, ESPERA_AEROPORTO_MIN, ligacaoVoo, textoNecessidades, textoPreferencias } from '@/data/extras-viagem';
 import { nomeNivel, zonasProcura } from '@/data/procura';
-import { LUGARES, pesquisarLugares, type Lugar } from '@/data/lugares';
+import { lugares, pesquisarLugares, type Lugar } from '@/data/lugares';
 import { PREMIO_CONVITE_MOTORISTA_MZN } from '@/data/convite-motorista';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
@@ -404,7 +404,7 @@ function IrParaCasa({ s }: { s: S }) {
   // Escreve-se a zona ou o bairro; sem texto, aparecem a casa guardada na conta e alguns sítios conhecidos.
   const opcoes = texto.trim()
     ? pesquisarLugares(texto).slice(0, 6)
-    : [...(casaDaConta ? [casaDaConta] : []), ...LUGARES.filter((l) => l.id !== casaDaConta?.id)].slice(0, 6);
+    : [...(casaDaConta ? [casaDaConta] : []), ...lugares().filter((l) => l.id !== casaDaConta?.id)].slice(0, 6);
   const restam = MAX_IR_PARA_CASA_POR_DIA - m.usosCasaHoje;
   function mudar(v: boolean) {
     setErro('');

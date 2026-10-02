@@ -5,7 +5,7 @@ import { PREFERENCIAS_PADRAO, type ContactoConfianca, type PartilhaAuto, type Pa
 import { formatarMzn } from '@/data/categorias';
 import { useGuardado } from '@/data/guardar';
 import { ouvir, TEMPO_REAL_ATIVO } from '@/data/tempo-real';
-import { LUGARES, type Lugar } from '@/data/lugares';
+import { lugares, type Lugar } from '@/data/lugares';
 import { MOTORISTA_EXEMPLO, type Motorista } from '@/data/motorista';
 import type { Promo } from '@/data/promocoes';
 import { assinaturaAtiva, CLUB, type Assinatura } from '@/data/club';
@@ -166,7 +166,7 @@ function viagensExemplo(): ViagemFeita[] {
     return x;
   };
   // Em Angola não há estes sítios de Maputo: usa os lugares de Luanda pela mesma ordem.
-  const lugar = (id: string, i: number) => LUGARES.find((l) => l.id === id) ?? LUGARES[i];
+  const lugar = (id: string, i: number) => lugares().find((l) => l.id === id) ?? lugares()[i];
   const base = { paragens: [], motorista: MOTORISTA_EXEMPLO, taxaImediatoMzn: 0, gorjetaMzn: 0, pagamento: 'mpesa' as const, codigoRecolha: '0000', estado: 'concluida' as const };
   return [
     { ...base, id: 'v-ex-2', criadaEm: dia(2, 8), recolhaEm: dia(2, 9), origem: lugar('polana', 1), destino: lugar('aeroporto', 0), viatura: 'Mercedes-Benz Classe E', km: 7.4, minutos: 18, precoMzn: 700, descontoMzn: 140, promo: 'BEMVINDO', gorjetaMzn: 50, avaliacao: { estrelas: 5, elogios: ['Pontual', 'Carro limpo'], comentario: '' } },
@@ -182,7 +182,7 @@ export function ContaProvider({ children }: { children: ReactNode }) {
   const [locais, setLocais] = useGuardado<Record<TipoLocal, Lugar | null>>(chave && `${chave}.locais`, () => ({
     casa: null,
     trabalho: null,
-    aeroporto: LUGARES.find((l) => l.id.startsWith('aeroporto')) ?? null,
+    aeroporto: lugares().find((l) => l.id.startsWith('aeroporto')) ?? null,
   }));
   const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo);
 

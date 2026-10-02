@@ -15,7 +15,7 @@ import { Radius, Spacing, VIDRO, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { formatarMzn, nomeViatura, type Modo, type Viatura } from '@/data/categorias';
 import { precoCasamento, type Decoracao } from '@/data/casamento';
-import { LOCALIZACAO_PADRAO } from '@/data/lugares';
+import { localizacaoPadrao } from '@/data/lugares';
 import { useAgenda } from '@/state/agenda';
 import { useConta } from '@/state/conta';
 import { useInscricoes } from '@/state/inscricoes';
@@ -83,7 +83,7 @@ export default function Inicio() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setLocalAtual({ ...LOCALIZACAO_PADRAO, zona: 'Localização atual', latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        setLocalAtual({ ...localizacaoPadrao(), zona: 'Localização atual', latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       } catch {
         // Sem localização, fica o ponto padrão na Baixa.
       }

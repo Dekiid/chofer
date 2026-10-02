@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 import type { Ponto } from '@/components/mapa-tipos';
 
-import { LUGARES, type Lugar } from './lugares';
+import { lugares, type Lugar } from './lugares';
 import { distanciaKm } from './viagem';
 import { t } from '@/i18n';
 
@@ -48,6 +48,6 @@ async function moradaTelemovel(p: Ponto): Promise<Nome | null> {
 
 // A menos de 200 m de um lugar da lista, usa o nome dele.
 function lugarPerto(p: Ponto): Nome | null {
-  const perto = LUGARES.map((l) => ({ l, km: distanciaKm(p, l) })).sort((a, b) => a.km - b.km)[0];
+  const perto = lugares().map((l) => ({ l, km: distanciaKm(p, l) })).sort((a, b) => a.km - b.km)[0];
   return perto && perto.km < 0.2 ? { nome: perto.l.nome, zona: perto.l.zona } : null;
 }
