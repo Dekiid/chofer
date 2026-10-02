@@ -14,3 +14,12 @@ export const CORS = {
 export function json(dados: unknown, status = 200): Response {
   return new Response(JSON.stringify(dados), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
+
+/** A conta de quem chama (sessão por SMS), ou null se veio só com a chave pública. */
+export async function quemChama(req: Request): Promise<{ id: string; telefone: string } | null> {
+  const token = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const { data, error } = await db.auth.getUser(token);
+  if (error || !data.user) return null;
+  return { id: data.user.id, telefone: (data.user.phone ?? '').replace(/\D/g, '').replace(/^258/, '') };
+}

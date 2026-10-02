@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,7 +11,8 @@ import { usePalette } from '@/constants/use-palette';
 import { formatarDia, formatarHora } from '@/data/agenda';
 import { formatarMzn } from '@/data/categorias';
 import { normalizarTelefone } from '@/data/motorista';
-import { cobrarEsperar, metodoDoNumero, pagamentosReais } from '@/data/pagamentos';
+import { cobrarEsperar, levantarCarteira, metodoDoNumero, pagamentosReais, saldoCarteiraReal } from '@/data/pagamentos';
+import { useSessao } from '@/state/sessao';
 import { t } from '@/i18n';
 import { useConta, type Movimento } from '@/state/conta';
 
@@ -46,14 +47,36 @@ export default function Carteira() {
   const [telefone, setTelefone] = useState('');
   const [aProcessar, setAProcessar] = useState(false);
   const [erro, setErro] = useState('');
-  const numero = normalizarTelefone(telefone);
+  const { perfil } = useSessao();
+  // Com pagamentos reais, só se levanta o dinheiro que o servidor guarda (os carregamentos pagos, menos o que já se usou).
+  // Os reembolsos e os créditos de convite ficam no telemóvel e só pagam viagens.
+  const [saldoReal, setSaldoReal] = useState<number | null>(null);
+  useEffect(() => {
+    if (pagamentosReais) saldoCarteiraReal().then(setSaldoReal);
+  }, []);
+  const levantarReal = pagamentosReais;
+  // O levantamento real vai sempre para o número da conta; o simulado deixa escrever o número.
+  const numero = levantarReal && acao === 'levantar' ? (perfil?.telefone ?? null) : normalizarTelefone(telefone);
   const agora = new Date();
-  const valorLevantar = conta.saldoMzn;
+  const valorLevantar = levantarReal ? Math.floor(saldoReal ?? 0) : conta.saldoMzn;
 
   async function confirmar() {
     if (!numero || !acao) return;
     setAProcessar(true);
     setErro('');
+    if (acao === 'levantar' && levantarReal) {
+      const r = await levantarCarteira(valorLevantar);
+      setAProcessar(false);
+      if (r.erro && !r.pendente) return setErro(r.erro);
+      conta.movimentar(-valorLevantar, 'levantamento');
+      conta.avisar(
+        r.pendente ? t('Levantamento a confirmar') : t('Levantamento feito'),
+        r.pendente ? (r.erro ?? '') : t('{valor} foram para o {numero}.', { valor: formatarMzn(valorLevantar), numero }),
+      );
+      setSaldoReal(await saldoCarteiraReal());
+      setAcao(null);
+      return;
+    }
     // O carregamento é cobrado a sério pela DebitoPay quando os pagamentos reais estão ligados.
     // O levantamento ainda é simulado: a devolução para o M-Pesa faz-se à mão até haver envios pela API.
     const falhou =
@@ -88,6 +111,7 @@ export default function Carteira() {
             <Text style={s.secundario}>{t('Saldo')}</Text>
             <Text style={s.saldo}>{formatarMzn(conta.saldoMzn)}</Text>
             <Text style={s.secundario}>{t('Os reembolsos e os créditos de convite entram aqui. O saldo paga primeiro as próximas viagens.')}</Text>
+            {levantarReal && saldoReal != null && <Text style={s.secundario}>{t('Podes levantar {valor}.', { valor: formatarMzn(Math.floor(saldoReal)) })}</Text>}
           </View>
 
           {aProcessar ? (
@@ -107,6 +131,11 @@ export default function Carteira() {
                   ))}
                 </View>
               )}
+              {acao === 'levantar' && levantarReal ? (
+                <Text style={s.secundario}>
+                  {t('Vai para o número da tua conta, {numero}. Só se levanta o dinheiro que carregaste; os reembolsos e os créditos de convite pagam as próximas viagens.', { numero: numero ?? '' })}
+                </Text>
+              ) : (
               <TextInput
                 value={telefone}
                 onChangeText={setTelefone}
@@ -115,6 +144,7 @@ export default function Carteira() {
                 placeholderTextColor={cores.textSecondary}
                 style={s.campo}
               />
+              )}
               {erro ? <Text style={[s.secundario, { color: '#DC2626' }]}>{erro}</Text> : null}
               <BotaoPrincipal texto={acao === 'carregar' ? t('Carregar {valor}', { valor: formatarMzn(valor) }) : t('Levantar')} desativado={!numero} onPress={confirmar} />
               <BotaoSecundario texto={t('Cancelar')} onPress={() => setAcao(null)} />
@@ -122,7 +152,7 @@ export default function Carteira() {
           ) : (
             <View style={{ gap: Spacing.two }}>
               <BotaoPrincipal texto={t('Carregar a carteira')} onPress={() => setAcao('carregar')} />
-              {conta.saldoMzn > 0 && <BotaoSecundario texto={t('Levantar para o M-Pesa')} onPress={() => setAcao('levantar')} />}
+              {(levantarReal ? (saldoReal ?? 0) >= 10 : conta.saldoMzn > 0) && <BotaoSecundario texto={t('Levantar para o M-Pesa')} onPress={() => setAcao('levantar')} />}
             </View>
           )}
 

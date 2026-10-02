@@ -23,6 +23,9 @@ function carteira(metodo: Metodo): string {
   return segredo(metodo === 'mpesa' ? 'DEBITOPAY_WALLET_MPESA' : 'DEBITOPAY_WALLET_EMOLA');
 }
 
+/** A DebitoPay respondeu e recusou (sabe-se que nada foi feito), ao contrário de uma falha de rede, em que não se sabe. */
+export class RecusaDebitoPay extends Error {}
+
 async function chamar(caminho: string, corpo: unknown, extra: Record<string, string> = {}) {
   const resposta = await fetch(`${BASE}${caminho}`, {
     method: 'POST',
@@ -31,9 +34,30 @@ async function chamar(caminho: string, corpo: unknown, extra: Record<string, str
   });
   const dados = await resposta.json().catch(() => ({}));
   if (!resposta.ok || dados.success === false) {
-    throw new Error(`DebitoPay ${resposta.status}: ${dados.error ?? dados.message ?? 'erro desconhecido'}`);
+    const texto = `DebitoPay ${resposta.status}: ${dados.error ?? dados.message ?? 'erro desconhecido'}`;
+    // 4xx ou success:false com resposta: recusado. 5xx: pode ter ficado a meio, não se sabe.
+    throw resposta.status < 500 ? new RecusaDebitoPay(texto) : new Error(texto);
   }
   return dados;
+}
+
+/**
+ * Envia dinheiro da carteira da plataforma para o M-Pesa ou e-Mola do cliente (B2C, «payout»).
+ * A referência é a nossa (o id do levantamento), para a DebitoPay e a reconciliação.
+ */
+export async function enviar(e: { referencia: string; metodo: Metodo; telefone: string; valorMzn: number }): Promise<{ referencia?: string }> {
+  const dados = await chamar(
+    '/payment-orchestrator?action=payout',
+    {
+      payment_method: e.metodo,
+      wallet_code: carteira(e.metodo),
+      amount: e.valorMzn,
+      phone: `258${e.telefone}`,
+      reference: e.referencia,
+    },
+    { 'Idempotency-Key': e.referencia },
+  );
+  return { referencia: dados.providerReference ?? dados.transactionReference ?? dados.reference };
 }
 
 /** Converte o estado da DebitoPay para o nosso. */

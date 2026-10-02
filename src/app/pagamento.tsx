@@ -18,7 +18,7 @@ import { normalizarTelefone } from '@/data/motorista';
 import { devolucaoReserva, fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { avisarMotoristaPorPush } from '@/data/push';
-import { cobrarEsperar, pagamentosReais } from '@/data/pagamentos';
+import { cobrarEsperar, pagamentosReais, usarCarteiraReal } from '@/data/pagamentos';
 import { publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta, type ParteDivisao } from '@/state/conta';
@@ -99,7 +99,11 @@ export default function Pagamento() {
   const aCobrar = minhaParte - daCarteira;
   /** O que sai da carteira e o que fica dividido, registado na viagem e na carteira. */
   function registarExtras(id: string, destinoNome: string) {
-    if (daCarteira > 0) conta.movimentar(-daCarteira, 'viagem', destinoNome);
+    if (daCarteira > 0) {
+      conta.movimentar(-daCarteira, 'viagem', destinoNome);
+      // O dinheiro real carregado também sai do servidor, para não se poder levantar depois de gasto.
+      if (pagamentosReais) usarCarteiraReal(daCarteira, id);
+    }
     if (partes.length > 0) conta.dividirViagem(id, partes);
   }
 

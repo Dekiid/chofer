@@ -1,7 +1,7 @@
 // Cria o pagamento de uma viagem e envia o pedido para o telemóvel do cliente.
 // Devolve logo o id; a app vai perguntando o estado em /estado-pagamento enquanto o cliente põe o PIN.
 import { cobrar, COMISSAO, MINIMO_MZN, type Metodo } from '../_shared/debitopay.ts';
-import { CORS, db, json } from '../_shared/supabase.ts';
+import { CORS, db, json, quemChama } from '../_shared/supabase.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -32,6 +32,9 @@ Deno.serve(async (req) => {
 
   // Carregamentos da carteira e o Club são todos da plataforma; nas viagens, 14% e o resto do motorista.
   const tipo = corpo?.tipo === 'carteira' || corpo?.tipo === 'club' ? corpo.tipo : 'viagem';
+  // O carregamento tem de ficar na carteira de alguém: só com a conta aberta por SMS.
+  const conta = await quemChama(req);
+  if (tipo === 'carteira' && !conta) return json({ erro: 'Entra com o teu número (código por SMS) para carregar a carteira.' }, 401);
   const comissao = tipo === 'viagem' ? centimos(valor * COMISSAO) : valor;
   const { data: pagamento, error } = await db
     .from('pagamentos')
@@ -43,6 +46,7 @@ Deno.serve(async (req) => {
       motorista_mzn: centimos(valor - comissao),
       viatura_id: viaturaId,
       viagem: { ...(corpo?.viagem ?? {}), tipo },
+      user_id: conta?.id ?? null,
     })
     .select('id')
     .single();

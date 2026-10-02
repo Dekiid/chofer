@@ -1,3 +1,4 @@
+import { supabase } from '@/data/tempo-real';
 import type { Pagamento } from '@/state/pedido';
 
 // Endereço do projeto Supabase e a chave pública (anon). Vêm do ficheiro .env.local (não vai para o GitHub):
@@ -17,9 +18,11 @@ export const pagamentosReais = Boolean(URL_SUPABASE && CHAVE_SUPABASE) && proces
 export type EstadoPagamento = 'pendente' | 'pago' | 'falhou' | 'expirado';
 
 async function chamar<T>(funcao: string, corpo: unknown): Promise<T> {
+  // Com a conta aberta por SMS, vai o token da sessão: o servidor sabe de quem é a carteira. Sem ela, só a chave pública.
+  const sessao = (await supabase()?.auth.getSession())?.data.session;
   const resposta = await fetch(`${URL_SUPABASE}/functions/v1/${funcao}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${CHAVE_SUPABASE}`, apikey: CHAVE_SUPABASE!, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${sessao?.access_token ?? CHAVE_SUPABASE}`, apikey: CHAVE_SUPABASE!, 'Content-Type': 'application/json' },
     body: JSON.stringify(corpo),
   });
   const dados = await resposta.json().catch(() => ({}));
@@ -85,4 +88,31 @@ export async function cobrarEsperar(p: NovoPagamento, continuar: () => boolean =
     }
   }
   return 'O pedido de pagamento expirou. Tenta outra vez.';
+}
+
+/** Saldo real da carteira, guardado no servidor (só com a conta aberta por SMS). É o que se pode levantar. */
+export async function saldoCarteiraReal(): Promise<number | null> {
+  try {
+    const r = await chamar<{ saldo_mzn: number }>('carteira', { acao: 'saldo' });
+    return Number(r.saldo_mzn);
+  } catch {
+    return null;
+  }
+}
+
+/** Tira do saldo real a parte da viagem paga com a carteira (nunca mais do que há). Repetir a mesma viagem não tira outra vez. */
+export async function usarCarteiraReal(valorMzn: number, viagemId: string): Promise<void> {
+  try {
+    await chamar('carteira', { acao: 'usar', valor_mzn: valorMzn, viagem_id: viagemId });
+  } catch {}
+}
+
+/** Envia o saldo real para o M-Pesa ou e-Mola do número da conta. Devolve null quando correu bem, ou a mensagem de erro. */
+export async function levantarCarteira(valorMzn: number): Promise<{ erro: string | null; pendente: boolean }> {
+  try {
+    const r = await chamar<{ estado: string; erro?: string }>('carteira', { acao: 'levantar', valor_mzn: valorMzn });
+    return { erro: r.estado === 'pendente' ? (r.erro ?? null) : null, pendente: r.estado === 'pendente' };
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : 'Sem ligação ao servidor. Tenta outra vez.', pendente: false };
+  }
 }

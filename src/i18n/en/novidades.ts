@@ -222,4 +222,8 @@ export const novidades: Record<string, string> = {
   "O {viatura}{decorado} e o motorista ficam reservados para o casamento a partir de {dia} às {hora}, até {devolucao} às {horaFim}. O motorista vai buscar os noivos {local}.": "The{decorado} {viatura} and the driver are booked for the wedding from {dia} at {hora} until {devolucao} at {horaFim}. The driver picks up the couple {local}.",
   "Entregamos o {viatura} {local} {dia} às {hora}. Devolve-o até {devolucao} às {horaFim}.": "We deliver the {viatura} {local} {dia} at {hora}. Return it by {devolucao} at {horaFim}.",
   "Todos os carros são entregues às {entrega} do primeiro dia e devolvidos às {devolucao} do dia seguinte ao último, para dar tempo à lavagem antes do próximo cliente.": "All cars are delivered at {entrega} on the first day and returned at {devolucao} the day after the last, to allow washing before the next customer.",
+  "Levantamento a confirmar": "Withdrawal being confirmed",
+  "{valor} foram para o {numero}.": "{valor} were sent to {numero}.",
+  "Podes levantar {valor}.": "You can withdraw {valor}.",
+  "Vai para o número da tua conta, {numero}. Só se levanta o dinheiro que carregaste; os reembolsos e os créditos de convite pagam as próximas viagens.": "It goes to your account number, {numero}. Only money you topped up can be withdrawn; refunds and invite credits pay for your next trips.",
 };
