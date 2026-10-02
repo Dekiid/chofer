@@ -9,7 +9,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { definirPais, paisAtual, PAISES, type CodigoPais } from '@/data/paises';
 import { t } from '@/i18n';
-import { CODIGO_TESTE, MOTORISTA_DEMO, useSessao } from '@/state/sessao';
+import { CODIGO_TESTE, contaDemo, useSessao } from '@/state/sessao';
 
 export default function Telefone() {
   const c = usePalette();
@@ -22,7 +22,7 @@ export default function Telefone() {
   const [erro, setErro] = useState('');
   const [semSmsNoServidor, setSemSmsNoServidor] = useState(false);
   // O número da conta de demonstração do motorista tem 8 dígitos.
-  const demo = `${pais.indicativo}${digitos}` === MOTORISTA_DEMO.telefone;
+  const demo = Boolean(contaDemo(`${pais.indicativo}${digitos}`));
   const valido = pais.numero.test(digitos) || demo;
 
   function escolherPais(codigo: CodigoPais) {

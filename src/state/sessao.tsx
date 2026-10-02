@@ -30,8 +30,14 @@ export const DIGITOS_CODIGO = 6;
  */
 export const MOTORISTA_DEMO = { telefone: '+25884121212', codigo: '0000' };
 
+/** A mesma conta de demonstração para Angola (pedido do Flavio, 2026-10-02): 92121212 e o código 0000. */
+export const MOTORISTA_DEMO_ANGOLA = { telefone: '+24492121212', codigo: '0000' };
+
+/** A conta de demonstração deste número, ou undefined. */
+export const contaDemo = (telefone: string) => [MOTORISTA_DEMO, MOTORISTA_DEMO_ANGOLA].find((d) => d.telefone === telefone);
+
 /** Quantos dígitos tem o código para este número. */
-export const digitosCodigo = (telefone: string) => (telefone === MOTORISTA_DEMO.telefone ? MOTORISTA_DEMO.codigo.length : DIGITOS_CODIGO);
+export const digitosCodigo = (telefone: string) => contaDemo(telefone)?.codigo.length ?? DIGITOS_CODIGO;
 
 type Sessao = {
   estado: 'a_carregar' | 'fora' | 'dentro';
@@ -140,7 +146,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const pedirCodigo = useCallback(
     async (telefone: string) => {
       const sb = supabase();
-      if (semSms || !sb || telefone === MOTORISTA_DEMO.telefone) {
+      if (semSms || !sb || contaDemo(telefone)) {
         await esperar(500);
         return null;
       }
@@ -153,15 +159,16 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const confirmarCodigo = useCallback(
     async (telefone: string, codigo: string) => {
       const sb = supabase();
-      if (telefone === MOTORISTA_DEMO.telefone) {
+      const demo = contaDemo(telefone);
+      if (demo) {
         await esperar(400);
-        if (codigo !== MOTORISTA_DEMO.codigo) return t('Código errado.');
+        if (codigo !== demo.codigo) return t('Código errado.');
         // Já vem com o registo feito, para entrar logo.
         const p: Perfil = {
           telefone,
           nome: 'Motorista',
           apelido: 'Demo',
-          email: 'motorista.demo@chauffeur.co.mz',
+          email: demo === MOTORISTA_DEMO ? 'motorista.demo@chauffeur.co.mz' : 'motorista.demo@chauffeur.co.ao',
           termos: VERSAO_TERMOS,
           motoristaDemo: true,
         };

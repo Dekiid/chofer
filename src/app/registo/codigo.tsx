@@ -8,7 +8,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { numeroCompleto } from '@/data/telefone';
 import { t } from '@/i18n';
-import { digitosCodigo, MOTORISTA_DEMO, proximoPasso, useSessao } from '@/state/sessao';
+import { contaDemo, digitosCodigo, proximoPasso, useSessao } from '@/state/sessao';
 
 // Tempo até se poder pedir outro código.
 const ESPERA_REENVIO = 30;
@@ -25,7 +25,7 @@ export default function Codigo() {
   const [confirmado, setConfirmado] = useState(false);
   const campo = useRef<RNTextInput>(null);
   const digitos = digitosCodigo(telefone);
-  const demo = telefone === MOTORISTA_DEMO.telefone;
+  const demo = Boolean(contaDemo(telefone));
 
   useEffect(() => {
     if (segundos <= 0) return;
