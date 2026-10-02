@@ -50,8 +50,8 @@ declare
 begin
   if valor <= 0 then raise exception 'valor_invalido'; end if;
   perform pg_advisory_xact_lock(hashtext(u::text));
-  select -valor_mzn into ja from public.carteira_movimentos where origem = origem_mov;
-  if found then return ja; end if;
+  ja := (select -m.valor_mzn from public.carteira_movimentos m where m.origem = origem_mov);
+  if ja is not null then return ja; end if;
   saldo := public.carteira_saldo(u);
   if tudo_ou_nada and saldo < valor then raise exception 'saldo_insuficiente'; end if;
   tirar := least(valor, greatest(saldo, 0));
