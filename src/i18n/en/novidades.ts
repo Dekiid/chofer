@@ -228,6 +228,9 @@ export const novidades: Record<string, string> = {
   "Moçambique": "Mozambique",
   "Angola": "Angola",
   "a": "to",
+  "A procurar…": "Searching…",
+  "Navegar com": "Navigate with",
+  "Mapas": "Maps",
   "Maputo e Matola": "Maputo and Matola",
   "Luanda": "Luanda",
 };

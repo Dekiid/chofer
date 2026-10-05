@@ -8,6 +8,7 @@ import { BotaoVoltar } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { nomeLugar, pesquisarLugares, zonaLugar, type Lugar } from '@/data/lugares';
+import { usePesquisaMoradas } from '@/hooks/use-pesquisa-moradas';
 import { LOCAIS, useConta, type TipoLocal } from '@/state/conta';
 import { MAX_PARAGENS, usePedido } from '@/state/pedido';
 import { Text, TextInput } from '@/components/texto';
@@ -29,7 +30,10 @@ export default function Destino() {
   const [texto, setTexto] = useState('');
   // Local guardado ainda sem morada: a próxima escolha fica guardada com esse nome.
   const [aGuardar, setAGuardar] = useState<TipoLocal | null>(soGuardar ?? null);
-  const encontrados = pesquisarLugares(texto);
+  // Primeiro os lugares conhecidos; depois as moradas de qualquer rua ou sítio, pelo Mapbox.
+  const { moradas, aProcurar } = usePesquisaMoradas(texto, pedido.origem);
+  const conhecidos = pesquisarLugares(texto);
+  const encontrados = [...conhecidos, ...moradas.filter((m) => !conhecidos.some((l) => l.nome === m.nome))];
   // Na recolha, a localização do telemóvel aparece sempre primeiro, para poder voltar a ela.
   const resultados = campo.tipo === 'origem' && !texto.trim() && !aGuardar ? [pedido.localAtual, ...encontrados] : encontrados;
 
@@ -118,7 +122,7 @@ export default function Destino() {
             {campoInput(t('Procura a morada'))}
           </View>
         </View>
-        <ListaLugares resultados={resultados} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
+        <ListaLugares resultados={resultados} aProcurar={aProcurar} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
       </SafeAreaView>
     );
   }
@@ -204,12 +208,12 @@ export default function Destino() {
       </ScrollView>
       {aGuardar && <Text style={[s.ajuda, { marginHorizontal: Spacing.three, marginBottom: Spacing.two }]}>{t('Escolhe a morada de {local}. Fica guardada para a próxima vez.', { local: t(nomeAGuardar ?? '') })}</Text>}
 
-      <ListaLugares resultados={resultados} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
+      <ListaLugares resultados={resultados} aProcurar={aProcurar} onEscolher={escolher} onMapa={() => setNoMapa(true)} s={s} />
     </SafeAreaView>
   );
 }
 
-function ListaLugares({ resultados, onEscolher, onMapa, s }: { resultados: Lugar[]; onEscolher: (l: Lugar) => void; onMapa: () => void; s: ReturnType<typeof estilos> }) {
+function ListaLugares({ resultados, aProcurar, onEscolher, onMapa, s }: { resultados: Lugar[]; aProcurar: boolean; onEscolher: (l: Lugar) => void; onMapa: () => void; s: ReturnType<typeof estilos> }) {
   return (
     <FlatList
       data={resultados}
@@ -228,7 +232,7 @@ function ListaLugares({ resultados, onEscolher, onMapa, s }: { resultados: Lugar
       keyExtractor={(l) => l.id}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-      ListEmptyComponent={<Text style={s.vazio}>{t('Nenhum lugar encontrado.')}</Text>}
+      ListEmptyComponent={<Text style={s.vazio}>{aProcurar ? t('A procurar…') : t('Nenhum lugar encontrado.')}</Text>}
       renderItem={({ item }) => (
         <Pressable style={s.item} onPress={() => onEscolher(item)}>
           <Text style={s.nome}>{nomeLugar(item)}</Text>

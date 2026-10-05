@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import type { Ponto } from '@/components/mapa-tipos';
 
 import { lugares, type Lugar } from './lugares';
+import { paisAtual } from './paises';
 import { distanciaKm } from './viagem';
 import { t } from '@/i18n';
 
@@ -50,4 +51,48 @@ async function moradaTelemovel(p: Ponto): Promise<Nome | null> {
 function lugarPerto(p: Ponto): Nome | null {
   const perto = lugares().map((l) => ({ l, km: distanciaKm(p, l) })).sort((a, b) => a.km - b.km)[0];
   return perto && perto.km < 0.2 ? { nome: perto.l.nome, zona: perto.l.zona } : null;
+}
+
+/**
+ * Procura moradas, ruas e estabelecimentos pelo nome, no país da conta e a começar pelos mais perto.
+ * Usa o Mapbox (o mesmo token das rotas); sem token, no telemóvel usa o geocodificador do sistema.
+ */
+export async function pesquisarMoradas(texto: string, perto: Ponto): Promise<Lugar[]> {
+  const q = texto.trim();
+  if (q.length < 3) return [];
+  if (TOKEN_MAPBOX) return moradasMapbox(q, perto);
+  return moradasTelemovel(q);
+}
+
+async function moradasMapbox(q: string, perto: Ponto): Promise<Lugar[]> {
+  try {
+    const pais = paisAtual().codigo.toLowerCase();
+    const url =
+      `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(q)}&country=${pais}` +
+      `&proximity=${perto.longitude},${perto.latitude}&language=pt&limit=8&access_token=${encodeURIComponent(TOKEN_MAPBOX!)}`;
+    const resposta = await fetch(url);
+    if (!resposta.ok) return [];
+    const dados = (await resposta.json()) as {
+      features?: { id?: string; properties?: { mapbox_id?: string; name?: string; place_formatted?: string; coordinates?: { latitude: number; longitude: number } } }[];
+    };
+    return (dados.features ?? []).flatMap((f) => {
+      const p = f.properties;
+      if (!p?.name || !p.coordinates) return [];
+      return [{ id: `mb-${p.mapbox_id ?? f.id ?? `${p.coordinates.latitude},${p.coordinates.longitude}`}`, nome: p.name, zona: p.place_formatted ?? '', latitude: p.coordinates.latitude, longitude: p.coordinates.longitude }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function moradasTelemovel(q: string): Promise<Lugar[]> {
+  if (Platform.OS === 'web') return [];
+  try {
+    const [r] = await Location.geocodeAsync(`${q}, ${paisAtual().cidade}, ${paisAtual().nome}`);
+    if (!r) return [];
+    const nome = (await moradaTelemovel(r)) ?? { nome: q, zona: paisAtual().cidade };
+    return [{ id: `geo-${r.latitude.toFixed(5)},${r.longitude.toFixed(5)}`, latitude: r.latitude, longitude: r.longitude, ...nome }];
+  } catch {
+    return [];
+  }
 }

@@ -20,6 +20,8 @@ import { ESPERA_MIN } from '@/data/cancelamento';
 import { ELOGIOS_CLIENTE, ESPERA_AEROPORTO_MIN, ligacaoVoo, textoNecessidades, textoPreferencias } from '@/data/extras-viagem';
 import { nomeNivel, zonasProcura } from '@/data/procura';
 import { lugares, pesquisarLugares, type Lugar } from '@/data/lugares';
+import { abrirNavegacao } from '@/data/navegacao';
+import { usePesquisaMoradas } from '@/hooks/use-pesquisa-moradas';
 import { PREMIO_CONVITE_MOTORISTA_MZN } from '@/data/convite-motorista';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
@@ -402,8 +404,9 @@ function IrParaCasa({ s }: { s: S }) {
   const [erro, setErro] = useState('');
   const pedidoLigar = useRef(false);
   // Escreve-se a zona ou o bairro; sem texto, aparecem a casa guardada na conta e alguns sítios conhecidos.
+  const { moradas } = usePesquisaMoradas(texto, m.posicao);
   const opcoes = texto.trim()
-    ? pesquisarLugares(texto).slice(0, 6)
+    ? [...pesquisarLugares(texto), ...moradas].slice(0, 6)
     : [...(casaDaConta ? [casaDaConta] : []), ...lugares().filter((l) => l.id !== casaDaConta?.id)].slice(0, 6);
   const restam = MAX_IR_PARA_CASA_POR_DIA - m.usosCasaHoje;
   function mudar(v: boolean) {
@@ -618,7 +621,7 @@ function ViagemEmCurso({ s }: { s: S }) {
 
   const alvo: Ponto = fase === 'a_recolha' || fase === 'chegou' ? pedido.origem : pedido.destino;
   const km = viagem.rota ? viagem.rota.km : distanciaKm(m.posicao, alvo) * 1.3;
-  const navegar = () => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${alvo.latitude},${alvo.longitude}&travelmode=driving`);
+  const navegar = () => abrirNavegacao(alvo);
 
   function tentarCodigo(c: string) {
     setCodigo(c);
