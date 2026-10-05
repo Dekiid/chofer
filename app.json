@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.dekiid.chauffeur"
+      "bundleIdentifier": "com.dekiid.chauffeur",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.dekiid.chauffeur",
@@ -60,7 +61,8 @@
           "photosPermission": "O Chauffeur precisa de acesso às tuas fotos para enviares as fotos do teu carro e dos documentos na inscrição.",
           "cameraPermission": "O Chauffeur usa a câmara para a selfie do motorista antes de ficar online."
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

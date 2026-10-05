@@ -1,13 +1,15 @@
 import { Image } from 'expo-image';
 import { Redirect, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/logo';
 import { Text } from '@/components/texto';
 import { BotaoPrincipal } from '@/components/ui';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { entrarCom, fornecedoresDisponiveis, type Fornecedor } from '@/data/entrar-social';
 import { t } from '@/i18n';
 import { proximoPasso, useSessao } from '@/state/sessao';
 
@@ -16,6 +18,20 @@ const CARRO = require('../../../assets/carros/mercedes-classe-s.webp');
 /** Boas-vindas: o primeiro ecrã de quem ainda não tem conta. */
 export default function BoasVindas() {
   const sessao = useSessao();
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [aEntrar, setAEntrar] = useState<Fornecedor | null>(null);
+  const [erro, setErro] = useState('');
+  useEffect(() => {
+    fornecedoresDisponiveis().then(setFornecedores);
+  }, []);
+
+  async function social(f: Fornecedor) {
+    setErro('');
+    setAEntrar(f);
+    const falhou = await entrarCom(f);
+    setAEntrar(null);
+    if (falhou) setErro(falhou);
+  }
   // Quem já confirmou o número mas não acabou o registo continua onde ficou.
   if (sessao.estado === 'dentro') {
     const passo = proximoPasso(sessao.perfil);
@@ -32,6 +48,16 @@ export default function BoasVindas() {
       </View>
       <View style={s.rodape}>
         <BotaoPrincipal texto={t('Começar')} onPress={() => router.push('/registo/telefone')} />
+        {fornecedores.map((f) => (
+          <Pressable key={f} style={s.social} onPress={() => social(f)} disabled={aEntrar != null} accessibilityRole="button">
+            {aEntrar === f ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={s.socialTexto}>{f === 'apple' ? t(' Continuar com a Apple') : t('Continuar com o Google')}</Text>
+            )}
+          </Pressable>
+        ))}
+        {erro ? <Text style={s.erro}>{erro}</Text> : null}
         <Text style={s.entrar}>
           {t('Já tens conta?')}{' '}
           <Text style={s.entrarLigacao} onPress={() => router.push('/registo/telefone')}>
@@ -50,6 +76,9 @@ const s = StyleSheet.create({
   titulo: { color: '#FFFFFF', fontSize: 32, fontWeight: '800', lineHeight: 38, marginBottom: Spacing.three },
   texto: { color: '#9BA19E', fontSize: 16, lineHeight: 23 },
   rodape: { paddingHorizontal: Spacing.four, paddingBottom: Spacing.three, gap: Spacing.three },
+  social: { borderRadius: Radius.botao, borderWidth: 1, borderColor: '#3A3F3C', paddingVertical: 14, alignItems: 'center' },
+  socialTexto: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  erro: { color: '#F87171', fontSize: 13, textAlign: 'center' },
   entrar: { color: '#9BA19E', fontSize: 14, textAlign: 'center' },
   entrarLigacao: { color: '#FFFFFF', fontWeight: '800' },
 });

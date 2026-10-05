@@ -18,6 +18,12 @@ export const CANAL_PEDIDOS = 'pedidos';
 
 const TABELA = 'push_motoristas';
 
+/**
+ * Com EXPO_PUBLIC_AVISOS_SERVIDOR=1 a app já não lê os tokens: grava o seu pela função guardar_push
+ * e pede o envio à função enviar-aviso (supabase/push-fechar.sql e a pasta supabase/functions/enviar-aviso).
+ */
+const AVISOS_NO_SERVIDOR = process.env.EXPO_PUBLIC_AVISOS_SERVIDOR === '1';
+
 function projectId(): string | null {
   const id = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   return typeof id === 'string' && id ? id : null;
@@ -61,9 +67,11 @@ export async function registarPushMotorista(viaturaId: string, telefone: string)
     }
 
     const token = (await Notifications.getExpoPushTokenAsync({ projectId: id })).data;
-    const { error } = await sb
-      .from(TABELA)
-      .upsert({ viatura_id: viaturaId, telefone, token, atualizado_em: new Date().toISOString() }, { onConflict: 'viatura_id' });
+    const { error } = AVISOS_NO_SERVIDOR
+      ? await sb.rpc('guardar_push', { p_viatura: viaturaId, p_telefone: telefone, p_token: token })
+      : await sb
+          .from(TABELA)
+          .upsert({ viatura_id: viaturaId, telefone, token, atualizado_em: new Date().toISOString() }, { onConflict: 'viatura_id' });
     if (error) console.warn('Push: não foi possível guardar o token', error.message);
     return token;
   } catch (e) {
@@ -75,15 +83,18 @@ export async function registarPushMotorista(viaturaId: string, telefone: string)
 /**
  * Envia um aviso push ao telemóvel do motorista do carro.
  *
- * ATENÇÃO: enviar a partir da app do cliente é só para testes. Qualquer pessoa com a app
- * poderia ler os tokens e mandar avisos. Antes do lançamento, isto passa para uma
- * Supabase Edge Function (com o token de acesso do Expo guardado no servidor) e a
- * tabela push_motoristas deixa de ser legível pela app.
+ * Sem EXPO_PUBLIC_AVISOS_SERVIDOR=1 envia a partir da app do cliente, o que é só para testes:
+ * qualquer pessoa com a app poderia ler os tokens. Antes do lançamento liga-se o envio pelo servidor.
  */
 export async function avisarMotoristaPorPush(viaturaId: string, titulo: string, texto: string, dados?: object): Promise<void> {
   if (Platform.OS === 'web') return;
   const sb = supabase();
   if (!sb) return;
+  if (AVISOS_NO_SERVIDOR) {
+    const { error } = await sb.functions.invoke('enviar-aviso', { body: { viatura_id: viaturaId, titulo, texto, dados: dados ?? {} } });
+    if (error) console.warn('Push: o servidor não enviou o aviso', error.message);
+    return;
+  }
   try {
     const { data, error } = await sb.from(TABELA).select('token').eq('viatura_id', viaturaId).maybeSingle();
     if (error) {

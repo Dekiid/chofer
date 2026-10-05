@@ -121,7 +121,8 @@ export function supabase(): SupabaseClient | null {
   if (cliente) return cliente;
   // A sessão da conta fica guardada no telemóvel, para não ser preciso entrar de cada vez que a app abre.
   cliente = createClient(URL_SUPABASE!, CHAVE_SUPABASE!, {
-    auth: { storage: AsyncStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+    // pkce: o login com Google volta à app com um código que se troca pela sessão (src/data/entrar-social.ts).
+    auth: { storage: AsyncStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: 'pkce' },
   });
   // No telemóvel, a sessão só se renova com a app aberta (recomendação do Supabase para React Native).
   if (Platform.OS !== 'web') {

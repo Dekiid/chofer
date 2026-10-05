@@ -69,9 +69,10 @@ const perfilDe = (u: User): Perfil => {
   const m = u.user_metadata ?? {};
   return {
     telefone: u.phone ? `+${u.phone.replace(/^\+/, '')}` : '',
-    nome: m.nome,
-    apelido: m.apelido,
-    email: m.email_recibos,
+    // Com Apple ou Google, o nome e o email vêm da conta deles até a pessoa os mudar.
+    nome: m.nome ?? m.given_name ?? (m.full_name as string | undefined)?.split(' ')[0],
+    apelido: m.apelido ?? m.family_name ?? (m.full_name as string | undefined)?.split(' ').slice(1).join(' '),
+    email: m.email_recibos ?? u.email,
     termos: m.termos,
   };
 };
@@ -82,6 +83,8 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function explicar(e: { code?: string; message?: string; status?: number }): string {
   if (e.code === 'phone_provider_disabled' || /provider.*disabled|Unsupported phone provider/i.test(e.message ?? ''))
     return t('O envio de SMS ainda não está ligado no Supabase.');
+  if (e.code === 'phone_exists' || /phone.*(already|exists|registered)/i.test(e.message ?? ''))
+    return t('Este número já tem conta. Sai e entra com o número, sem Apple nem Google.');
   if (e.code === 'sms_send_failed') return t('Não foi possível enviar a SMS para este número.');
   if (e.code === 'over_sms_send_rate_limit' || e.status === 429) return t('Pediste muitos códigos seguidos. Espera um pouco e tenta outra vez.');
   if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return t('Código errado ou expirado.');
@@ -150,10 +153,15 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         await esperar(500);
         return null;
       }
+      // Entrou com Apple ou Google: o número junta-se a essa conta, confirmado por SMS.
+      if (perfil && !perfil.telefone) {
+        const { error } = await sb.auth.updateUser({ phone: telefone });
+        return error ? explicar(error) : null;
+      }
       const { error } = await sb.auth.signInWithOtp({ phone: telefone });
       return error ? explicar(error) : null;
     },
-    [semSms],
+    [semSms, perfil],
   );
 
   const confirmarCodigo = useCallback(
@@ -193,13 +201,13 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         setEstado('dentro');
         return null;
       }
-      const { data, error } = await sb.auth.verifyOtp({ phone: telefone, token: codigo, type: 'sms' });
+      const { data, error } = await sb.auth.verifyOtp({ phone: telefone, token: codigo, type: perfil && !perfil.telefone ? 'phone_change' : 'sms' });
       if (error || !data.user) return explicar(error ?? {});
       setPerfil(perfilDe(data.user));
       setEstado('dentro');
       return null;
     },
-    [semSms, guardarLocal],
+    [semSms, perfil, guardarLocal],
   );
 
   const guardarPerfil = useCallback(
@@ -257,7 +265,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     return null;
   }, [perfil, semSms, guardarLocal]);
 
-  const completo = Boolean(perfil?.nome && perfil.apelido && perfil.email && perfil.termos);
+  const completo = Boolean(perfil?.telefone && perfil?.nome && perfil.apelido && perfil.email && perfil.termos);
 
   const valor = useMemo<Sessao>(
     () => ({
@@ -308,7 +316,7 @@ export function useSessao(): Sessao {
 
 /** O próximo passo do registo que falta, para retomar onde ficou. */
 export function proximoPasso(p: Perfil | null): '/registo/telefone' | '/registo/nome' | '/registo/email' | '/registo/termos' | null {
-  if (!p) return '/registo/telefone';
+  if (!p || !p.telefone) return '/registo/telefone';
   if (!p.nome || !p.apelido) return '/registo/nome';
   if (!p.email) return '/registo/email';
   if (!p.termos) return '/registo/termos';

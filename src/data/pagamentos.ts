@@ -62,6 +62,38 @@ export function estadoPagamento(id: string): Promise<{ estado: EstadoPagamento; 
   return chamar('estado-pagamento', { id });
 }
 
+/** Angola: referências Multicaixa reais pela ProxyPay, com EXPO_PUBLIC_PROXYPAY=1 além dos pagamentos reais. */
+export const multicaixaReal = () => pagamentosLigados && process.env.EXPO_PUBLIC_PROXYPAY === '1' && paisAtual().codigo === 'AO';
+
+export type ReferenciaMulticaixa = { id: string; entidade: string; referencia: string; valorKz: number; validade: string };
+
+/** Cria a referência Multicaixa para o cliente pagar no Multicaixa Express (ou no ATM). */
+export async function criarReferenciaMulticaixa(p: Omit<NovoPagamento, 'metodo'>): Promise<ReferenciaMulticaixa> {
+  const r = await chamar<{ id: string; entidade: string; referencia: string; valor_kz: number; validade: string }>('referencia-multicaixa', {
+    tipo: p.tipo ?? 'viagem',
+    telefone: p.telefone,
+    valor_mzn: p.valorMzn,
+    viatura_id: p.viaturaId,
+    viagem: p.viagem,
+  });
+  return { id: r.id, entidade: r.entidade, referencia: r.referencia, valorKz: r.valor_kz, validade: r.validade };
+}
+
+/** Espera que o pagamento fique pago (a app pergunta de 3 em 3 segundos). Devolve null quando pago, ou a mensagem. */
+export async function esperarPagamento(id: string, continuar: () => boolean = () => true, esperaMaxMs = 30 * 60_000): Promise<string | null> {
+  const inicio = Date.now();
+  while (Date.now() - inicio < esperaMaxMs && continuar()) {
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      const r = await estadoPagamento(id);
+      if (r.estado === 'pago') return null;
+      if (r.estado === 'falhou') return r.erro ?? 'O pagamento não foi aceite. Tenta outra vez.';
+      if (r.estado === 'expirado') return 'A referência expirou. Tenta outra vez.';
+    } catch {}
+  }
+  return 'A referência expirou. Tenta outra vez.';
+}
+
 /** M-Pesa para 84/85 e e-Mola para 86/87 (número com ou sem +258). */
 export const metodoDoNumero = (telefone: string): 'mpesa' | 'emola' => (/^(?:\+?258)?8[67]/.test(telefone.replace(/\s/g, '')) ? 'emola' : 'mpesa');
 

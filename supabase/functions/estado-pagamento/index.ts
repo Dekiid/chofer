@@ -1,6 +1,7 @@
 // Estado de um pagamento, para a app saber quando pode chamar o motorista.
 // Se o webhook tardar, pergunta diretamente à DebitoPay.
 import { consultar } from '../_shared/debitopay.ts';
+import { apagarReferencia, aplicarPagamento, configurado, pagamentosPorConfirmar, VALIDADE_MIN } from '../_shared/proxypay.ts';
 import { CORS, db, json } from '../_shared/supabase.ts';
 
 // Sem resposta ao fim deste tempo, o pedido no telemóvel já expirou.
@@ -12,7 +13,7 @@ Deno.serve(async (req) => {
   const id = String(corpo?.id ?? '');
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ erro: 'Pagamento inválido.' }, 400);
 
-  const { data: p } = await db.from('pagamentos').select('id, estado, erro, debitopay_payment_id, criado_em, atualizado_em').eq('id', id).single();
+  const { data: p } = await db.from('pagamentos').select('id, estado, erro, metodo, debitopay_payment_id, proxypay_referencia, criado_em, atualizado_em').eq('id', id).single();
   if (!p) return json({ erro: 'Pagamento não encontrado.' }, 404);
 
   let { estado, erro } = p;
@@ -35,9 +36,24 @@ Deno.serve(async (req) => {
       console.error(e);
     }
   }
-  if (estado === 'pendente' && Date.now() - new Date(p.criado_em).getTime() > EXPIRA_MIN * 60_000) {
+  // Angola: se o webhook da ProxyPay se perdeu, procura a referência na fila de pagamentos por confirmar.
+  if (estado === 'pendente' && p.metodo === 'multicaixa' && p.proxypay_referencia && configurado() && idadeSeg > 10) {
+    try {
+      const fila = await pagamentosPorConfirmar();
+      const pago = fila.find((x) => String(x.reference_id) === p.proxypay_referencia);
+      if (pago && (await aplicarPagamento(pago, pago))) {
+        const { data: novo } = await db.from('pagamentos').select('estado').eq('id', id).single();
+        estado = novo?.estado ?? estado;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const expira = p.metodo === 'multicaixa' ? VALIDADE_MIN : EXPIRA_MIN;
+  if (estado === 'pendente' && Date.now() - new Date(p.criado_em).getTime() > expira * 60_000) {
     estado = 'expirado';
     await db.from('pagamentos').update({ estado, atualizado_em: new Date().toISOString() }).eq('id', id).eq('estado', 'pendente');
+    if (p.proxypay_referencia) await apagarReferencia(p.proxypay_referencia);
   }
 
   // O erro técnico fica no servidor; a app mostra uma mensagem simples.

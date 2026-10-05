@@ -15,6 +15,8 @@ export default function Telefone() {
   const c = usePalette();
   const s = estilosPasso(c);
   const sessao = useSessao();
+  // Entrou com Apple ou Google e ainda não tem número.
+  const social = Boolean(sessao.perfil && !sessao.perfil.telefone && !sessao.semSms);
   const [codigoPais, setCodigoPais] = useState<CodigoPais>(paisAtual().codigo);
   const pais = PAISES[codigoPais];
   const [digitos, setDigitos] = useState('');
@@ -49,9 +51,10 @@ export default function Telefone() {
 
   return (
     <PassoRegisto
-      titulo={t('Qual é o teu número de telemóvel?')}
-      descricao={t('Enviamos um código por SMS para confirmar.')}
-      onVoltar={() => router.back()}
+      titulo={social ? t('Falta o teu número de telemóvel') : t('Qual é o teu número de telemóvel?')}
+      descricao={social ? t('Entraste com a tua conta. O número é para o motorista te ligar e para os pagamentos; enviamos um código por SMS.') : t('Enviamos um código por SMS para confirmar.')}
+      // Quem entrou com Apple ou Google e volta atrás sai dessa conta.
+      onVoltar={() => (social ? sessao.sair() : router.back())}
       rodape={
         aEnviar ? (
           <ActivityIndicator color={c.text} style={{ paddingVertical: Spacing.three }} />

@@ -18,7 +18,7 @@ import { normalizarTelefone } from '@/data/motorista';
 import { devolucaoReserva, fimReserva, textoDias, totalReserva } from '@/data/reserva';
 import { gerarCodigoRecolha } from '@/data/seguranca';
 import { avisarMotoristaPorPush } from '@/data/push';
-import { cobrarEsperar, pagamentosReais, usarCarteiraReal } from '@/data/pagamentos';
+import { cobrarEsperar, criarReferenciaMulticaixa, esperarPagamento, multicaixaReal, pagamentosReais, usarCarteiraReal, type ReferenciaMulticaixa } from '@/data/pagamentos';
 import { publicar, TEMPO_REAL_ATIVO, type PedidoMotorista } from '@/data/tempo-real';
 import { calcularPreco, taxaImediato } from '@/data/viagem';
 import { useConta, type ParteDivisao } from '@/state/conta';
@@ -55,6 +55,8 @@ export default function Pagamento() {
   const [telefone, setTelefone] = useState('');
   const agenda = useAgenda();
   const [estado, setEstado] = useState<Estado>('preencher');
+  // Angola: a referência Multicaixa que o cliente está a pagar.
+  const [referencia, setReferencia] = useState<ReferenciaMulticaixa | null>(null);
   const conta = useConta();
   const sessao = useSessao();
   const [codigoAberto, setCodigoAberto] = useState(false);
@@ -321,6 +323,33 @@ export default function Pagamento() {
       }
       return true;
     }
+    // Angola: referência Multicaixa pela ProxyPay; o cliente paga no Multicaixa Express e a app espera pela confirmação.
+    if (multicaixaReal() && aCobrar > 0 && pedido.pagamento === 'multicaixa') {
+      let erro: string | null;
+      try {
+        const ref = await criarReferenciaMulticaixa({
+          telefone: telefone.replace(/\D/g, ''),
+          valorMzn: aCobrar,
+          viaturaId: noFim?.viaturaId ?? viatura.id,
+          viagem: { id: noFim?.id ?? idReservado, origem: noFim?.origem.nome ?? pedido.origem.nome, destino: noFim?.destino.nome ?? destino?.nome, cliente: sessao.perfil?.telefone },
+        });
+        if (!montado.current) return false;
+        setReferencia(ref);
+        erro = await esperarPagamento(ref.id, () => montado.current);
+      } catch (e) {
+        erro = e instanceof Error ? e.message : t('Sem ligação ao servidor. Tenta outra vez.');
+      }
+      if (!montado.current) return false;
+      setReferencia(null);
+      if (erro) {
+        if (idReservado) agenda.libertar(idReservado);
+        setFalha(erro);
+        setFalhaPagamento(true);
+        setEstado('falhou');
+        return false;
+      }
+      return true;
+    }
     await new Promise((r) => setTimeout(r, TEMPO_CONFIRMACAO));
     return montado.current;
   }
@@ -450,7 +479,22 @@ export default function Pagamento() {
   if (estado !== 'preencher') {
     return (
       <SafeAreaView style={[s.ecra, s.centro]}>
-        {estado === 'a_processar' ? (
+        {estado === 'a_processar' && referencia ? (
+          <>
+            <Text style={s.titulo}>{t('Paga no Multicaixa Express')}</Text>
+            <Text style={s.secundarioCentro}>{t('Abre o Multicaixa Express, escolhe Pagamentos → Pagamento por referência e usa estes dados. Também podes pagar num ATM.')}</Text>
+            <View style={s.referencia}>
+              <Text style={s.secundario}>{t('Entidade')}</Text>
+              <Text style={s.referenciaValor} selectable>{referencia.entidade}</Text>
+              <Text style={s.secundario}>{t('Referência')}</Text>
+              <Text style={s.referenciaValor} selectable>{referencia.referencia.replace(/(\d{3})(?=\d)/g, '$1 ')}</Text>
+              <Text style={s.secundario}>{t('Montante')}</Text>
+              <Text style={s.referenciaValor} selectable>{`${referencia.valorKz.toLocaleString('pt-PT')} Kz`}</Text>
+            </View>
+            <ActivityIndicator color={cores.text} />
+            <Text style={s.secundarioCentro}>{t('À espera do pagamento. A referência vale 30 minutos.')}</Text>
+          </>
+        ) : estado === 'a_processar' ? (
           <>
             <ActivityIndicator size="large" color={cores.text} />
             <Text style={s.titulo}>{naFatura ? t('A juntar à fatura') : t('Confirma no teu telemóvel')}</Text>
@@ -679,6 +723,8 @@ function estilos(c: Palette) {
     secundario: { color: c.textSecondary, fontSize: 15 },
     rotulo: { color: c.text, fontSize: 16, fontWeight: '700', marginTop: Spacing.four, marginBottom: Spacing.two },
     metodos: { flexDirection: 'row', gap: Spacing.two },
+    referencia: { alignSelf: 'stretch', backgroundColor: c.backgroundElement, borderRadius: Radius.card, padding: Spacing.three, gap: 2, marginVertical: Spacing.three },
+    referenciaValor: { color: c.text, fontSize: 24, fontWeight: '800', letterSpacing: 1, marginBottom: Spacing.two },
     metodo: { flex: 1, paddingVertical: Spacing.three, borderRadius: Radius.card, alignItems: 'center', backgroundColor: c.backgroundElement, borderWidth: 2, borderColor: 'transparent' },
     metodoAtivo: { borderColor: c.primary },
     metodoTexto: { color: c.text, fontSize: 16, fontWeight: '600' },
