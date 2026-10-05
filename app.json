@@ -1,16 +1,19 @@
 {
   "expo": {
-    "name": "Chofer",
-    "slug": "chofer",
+    "name": "Chauffeur",
+    "slug": "chauffeur",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "chofer",
+    "scheme": "chauffeur",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.dekiid.chauffeur",
+      "usesAppleSignIn": true
     },
     "android": {
+      "package": "com.dekiid.chauffeur",
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -20,7 +23,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -30,15 +33,36 @@
         {
           "backgroundColor": "#000000",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200,
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/images/splash-icon.png"
+          }
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O Chofer usa a tua localização para indicar onde o motorista te deve buscar."
+          "locationAlwaysAndWhenInUsePermission": "O Chauffeur usa a tua localização durante as viagens, mesmo com a app em segundo plano, para o cliente ver onde está o carro.",
+          "locationWhenInUsePermission": "O Chauffeur usa a tua localização para indicar onde o motorista te deve buscar.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#22C55E"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Chauffeur precisa de acesso às tuas fotos para enviares as fotos do teu carro e dos documentos na inscrição.",
+          "cameraPermission": "O Chauffeur usa a câmara para a selfie do motorista antes de ficar online."
+        }
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,
