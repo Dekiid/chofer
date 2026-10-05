@@ -57,7 +57,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O Chauffeur precisa de acesso às tuas fotos para enviares as fotos do teu carro na inscrição."
+          "photosPermission": "O Chauffeur precisa de acesso às tuas fotos para enviares as fotos do teu carro e dos documentos na inscrição.",
+          "cameraPermission": "O Chauffeur usa a câmara para a selfie do motorista antes de ficar online."
         }
       ]
     ],

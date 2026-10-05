@@ -13,7 +13,7 @@ import { lerTelefone, paisAtual } from '@/data/paises';
 import { lerData, mascaraData } from '@/data/datas';
 import { normalizarTelefone } from '@/data/motorista';
 import { CODIGO_MOTORISTA_VALIDO, codigoConviteMotorista, normalizarCodigoMotorista } from '@/data/convite-motorista';
-import { FOTOS_PEDIDAS, useInscricoes, type FotoPedida } from '@/state/inscricoes';
+import { FOTOS_DOCUMENTOS, FOTOS_PEDIDAS, useInscricoes, type FotoDocumento, type FotoPedida } from '@/state/inscricoes';
 import { useSessao } from '@/state/sessao';
 import { Text, TextInput } from '@/components/texto';
 import { t } from '@/i18n';
@@ -58,6 +58,7 @@ export default function Inscricao() {
   const [validadeSeguro, setValidadeSeguro] = useState('');
   const [validadeInspecao, setValidadeInspecao] = useState('');
   const [fotos, setFotos] = useState<Partial<Record<FotoPedida, string>>>({});
+  const [fotosDocumentos, setFotosDocumentos] = useState<Partial<Record<FotoDocumento, string>>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
   const [enviada, setEnviada] = useState(false);
   // Link de convite de outro motorista: ?convite=MOT-1234.
@@ -93,6 +94,11 @@ export default function Inscricao() {
     if (!resultado.canceled) setFotos((atual) => ({ ...atual, [id]: resultado.assets[0].uri }));
   }
 
+  async function escolherFotoDocumento(id: FotoDocumento) {
+    const resultado = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 });
+    if (!resultado.canceled) setFotosDocumentos((atual) => ({ ...atual, [id]: resultado.assets[0].uri }));
+  }
+
   function enviar() {
     setTentouEnviar(true);
     if (!valido || !telefoneValido) return;
@@ -112,6 +118,7 @@ export default function Inscricao() {
         ? { semDecoracaoMzn: Math.round(paraMzn(Number(semDecoracao))), comDecoracaoMzn: Math.round(paraMzn(Number(comDecoracao))), foto: fotoDecorada ? { uri: fotoDecorada } : undefined }
         : undefined,
       fotos: fotos as Record<FotoPedida, string>,
+      fotosDocumentos,
       validades: { carta: lerData(validadeCarta)!, seguro: lerData(validadeSeguro)!, inspecao: lerData(validadeInspecao)! },
       motorista: outro && motoristaTelefoneValido ? { nome: motoristaNome.trim(), telefone: motoristaTelefoneValido } : undefined,
       convite: convite || undefined,
@@ -334,6 +341,29 @@ export default function Inscricao() {
           })}
         </View>
         {tentouEnviar && erros.fotos && <Text style={s.erro}>{t('Faltam fotos do carro.')}</Text>}
+
+        <Text style={s.secao}>{t('Fotos dos documentos')}</Text>
+        <Text style={s.ajuda}>{t('Para confirmarmos os números que escreveste. Só a nossa equipa as vê. Em testes, podes enviar sem elas.')}</Text>
+        <View style={s.grelha}>
+          {FOTOS_DOCUMENTOS.map((f) => {
+            const uri = fotosDocumentos[f.id];
+            return (
+              <Pressable key={f.id} onPress={() => escolherFotoDocumento(f.id)} accessibilityLabel={t('Escolher foto: {foto}', { foto: t(f.nome) })} style={s.foto}>
+                {uri ? (
+                  <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                ) : (
+                  <View style={s.fotoVazia}>
+                    <Text style={s.mais}>+</Text>
+                    <Text style={s.dica}>{t(f.dica)}</Text>
+                  </View>
+                )}
+                <View style={s.etiqueta}>
+                  <Text style={s.etiquetaTexto}>{t(f.nome)}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <View style={{ marginTop: Spacing.four }}>
           <BotaoPrincipal texto={t('Enviar inscrição')} onPress={enviar} />

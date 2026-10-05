@@ -24,7 +24,7 @@ export type Inscricao = {
   estado: 'pendente' | 'aprovada' | 'rejeitada';
   por_km_mzn: number;
   enviada_em: string;
-  dados: { nome: string; marca: string; modelo: string; ano: string; matricula: string; tipo: string; lugares: number; documento: string; cartaConducao: string; validades?: Record<string, string>; motorista?: { nome: string; telefone: string }; convite?: string };
+  dados: { nome: string; marca: string; modelo: string; ano: string; matricula: string; tipo: string; lugares: number; documento: string; cartaConducao: string; validades?: Record<string, string>; motorista?: { nome: string; telefone: string }; convite?: string; fotosServidor?: { carro?: Record<string, string>; documentos?: Record<string, string> } };
 };
 export type Avaliacao = { id: string; tipo: 'motorista' | 'cliente'; telefone: string; estrelas: number; elogios: string[]; comentario: string; em: string };
 export type PedidoAjuda = {
@@ -379,6 +379,64 @@ function Viagens({ d }: { d: Dados }) {
 
 type Mudar = (f: (d: Dados | null) => Dados | null) => void;
 
+const NOMES_FOTOS: Record<string, string> = {
+  frente: 'Frente', lateral: 'Lateral', traseira: 'Traseira', interior: 'Interior', decorado: 'Decorado',
+  bi: 'BI', carta: 'Carta', livrete: 'Livrete', seguro: 'Seguro',
+};
+
+/** Fotos do carro e dos documentos, e a última selfie de quem conduz, para comparar. Só carregam quando se abrem. */
+function Fotos({ i, demo }: { i: Inscricao; demo: boolean }) {
+  const [aberto, setAberto] = useState(false);
+  const [fotos, setFotos] = useState<{ nome: string; url: string }[] | null>(null);
+  const [selfie, setSelfie] = useState<{ url: string; dia: string } | null | undefined>(undefined);
+  const caminhos = { ...i.dados.fotosServidor?.carro, ...i.dados.fotosServidor?.documentos };
+  const condutor = (i.dados.motorista?.telefone ?? i.telefone).replace(/\D/g, '');
+
+  async function abrir() {
+    setAberto(!aberto);
+    const sb = supabase();
+    if (aberto || fotos || demo || !sb) return;
+    const nomes = Object.keys(caminhos);
+    if (nomes.length) {
+      const { data } = await sb.storage.from('inscricoes').createSignedUrls(Object.values(caminhos), 3600);
+      setFotos((data ?? []).flatMap((d, k) => (d.signedUrl ? [{ nome: NOMES_FOTOS[nomes[k]] ?? nomes[k], url: d.signedUrl }] : [])));
+    } else setFotos([]);
+    const { data: lista } = await sb.storage.from('selfies').list(condutor, { limit: 1, sortBy: { column: 'name', order: 'desc' } });
+    const ultima = lista?.[0];
+    if (!ultima) return setSelfie(null);
+    const { data: assinada } = await sb.storage.from('selfies').createSignedUrl(`${condutor}/${ultima.name}`, 3600);
+    setSelfie(assinada ? { url: assinada.signedUrl, dia: ultima.name.slice(0, 10) } : null);
+  }
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button className="botao claro" style={{ padding: '4px 10px', fontSize: 12 }} onClick={abrir}>
+        {aberto ? 'Esconder fotos' : 'Ver fotos e selfie'}
+      </button>
+      {aberto && (
+        <div className="fotos">
+          {demo && <p className="sec">Nos dados de exemplo não há fotos.</p>}
+          {!demo && fotos === null && <p className="sec">A carregar…</p>}
+          {fotos?.length === 0 && <p className="sec">Esta inscrição não tem fotos no servidor.</p>}
+          {fotos?.map((f) => (
+            <a key={f.nome} href={f.url} target="_blank" rel="noreferrer">
+              <img src={f.url} alt={f.nome} />
+              <span className="sec">{f.nome}</span>
+            </a>
+          ))}
+          {selfie && (
+            <a href={selfie.url} target="_blank" rel="noreferrer">
+              <img src={selfie.url} alt="Selfie" />
+              <span className="sec">Selfie de {selfie.dia}</span>
+            </a>
+          )}
+          {selfie === null && <p className="sec">Ainda sem selfie de quem conduz.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; mudar: Mudar; recarregar: () => void }) {
   const [precos, setPrecos] = useState<Record<string, number>>({});
   const ordem = { pendente: 0, aprovada: 1, rejeitada: 2 };
@@ -395,7 +453,7 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
   return (
     <>
       <h1>Motoristas e carros</h1>
-      <p className="sec">A aprovação chega à app do motorista em menos de um minuto. As fotos do carro ainda ficam no telemóvel do motorista.</p>
+      <p className="sec">A aprovação chega à app do motorista em menos de um minuto. As fotos precisam do supabase/fotos.sql; as inscrições antigas não as têm.</p>
       <div className="rolar">
         <table className="tabela">
           <thead>
@@ -424,6 +482,7 @@ function Motoristas({ d, demo, mudar, recarregar }: { d: Dados; demo: boolean; m
                     )}
                     {i.dados.convite && <div className="sec">Convidado com {i.dados.convite}</div>}
                     <div className="sec">Enviada {dataHora(i.enviada_em)}</div>
+                    <Fotos i={i} demo={demo} />
                   </td>
                   <td>
                     {i.dados.marca} {i.dados.modelo} ({i.dados.ano})

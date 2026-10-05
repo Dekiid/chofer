@@ -55,3 +55,6 @@ h2 { font-size: 18px; margin: 24px 0 12px; }
 .vazio { color: var(--secundario); padding: 24px; text-align: center; }
 .contador.verde { background: var(--verde); color: #04130a; }
 .abas.paises { flex: 0 0 auto; background: var(--fundo); border-radius: 999px; padding: 2px; }
+.fotos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; max-width: 420px; }
+.fotos a { display: flex; flex-direction: column; gap: 2px; text-decoration: none; }
+.fotos img { width: 96px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--linha); }

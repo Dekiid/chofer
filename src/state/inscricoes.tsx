@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
 import type { PrecoCasamento, Viatura } from '@/data/categorias';
+import { enviarFotos } from '@/data/fotos-servidor';
 import { useGuardado } from '@/data/guardar';
 import type { Motorista } from '@/data/motorista';
 import { enviarInscricao, lerEstadoInscricoes } from '@/data/servidor-painel';
@@ -15,6 +16,16 @@ export const FOTOS_PEDIDAS = [
 ] as const;
 
 export type FotoPedida = (typeof FOTOS_PEDIDAS)[number]['id'];
+
+/** Fotos dos documentos, para o painel confirmar com os números escritos. Em testes não são obrigatórias. */
+export const FOTOS_DOCUMENTOS = [
+  { id: 'bi', nome: 'BI do dono', dica: 'Frente do bilhete de identidade, legível' },
+  { id: 'carta', nome: 'Carta de condução', dica: 'De quem conduz o carro' },
+  { id: 'livrete', nome: 'Livrete', dica: 'Ou título de propriedade do carro' },
+  { id: 'seguro', nome: 'Seguro', dica: 'Apólice ou certificado do seguro' },
+] as const;
+
+export type FotoDocumento = (typeof FOTOS_DOCUMENTOS)[number]['id'];
 
 /** Documentos com validade que cada motorista tem de manter em dia. */
 export const DOCUMENTOS = [
@@ -58,6 +69,8 @@ export type DadosInscricao = {
   casamento?: PrecoCasamento;
   /** URI local de cada foto. */
   fotos: Record<FotoPedida, string>;
+  /** URI local das fotos dos documentos que o motorista enviou. */
+  fotosDocumentos?: Partial<Record<FotoDocumento, string>>;
   /** Data de fim de cada documento. */
   validades?: Partial<Record<Documento, Date>>;
   /**
@@ -68,6 +81,9 @@ export type DadosInscricao = {
   /** Código de convite de outro motorista (MOT-1234), para lhe pagar o prémio. */
   convite?: string;
 };
+
+/** O endereço local de uma foto escolhida no telemóvel ({ uri }), se houver. */
+const uriDe = (f: unknown) => (f && typeof f === 'object' && 'uri' in f && typeof f.uri === 'string' ? f.uri : '');
 
 /** Número de quem conduz este carro: o motorista indicado pelo dono, ou o próprio dono. */
 export const telefoneCondutor = (i: Pick<DadosInscricao, 'telefone' | 'motorista'>) => i.motorista?.telefone ?? i.telefone;
@@ -126,9 +142,16 @@ export function InscricoesProvider({ children }: { children: ReactNode }) {
       submeter: (dados) => {
         const nova: Inscricao = { ...dados, id: `insc-${Date.now()}`, estado: 'pendente', enviadaEm: new Date() };
         setInscricoes((atual) => [nova, ...atual]);
-        // As fotos ficam no telemóvel por agora (falta o Supabase Storage); o painel recebe o resto.
-        const { fotos: _fotos, ...semFotos } = nova;
-        enviarInscricao(nova, semFotos);
+        // As fotos sobem para o Supabase Storage (supabase/fotos.sql) e o painel recebe os caminhos.
+        // Sem servidor, ou se falharem, a inscrição segue sem elas e as fotos ficam neste telemóvel.
+        const { fotos, fotosDocumentos, ...semFotos } = nova;
+        (async () => {
+          const [carro, documentos] = await Promise.all([
+            enviarFotos('inscricoes', `${nova.id}/carro`, { ...fotos, decorado: uriDe(nova.casamento?.foto) }),
+            enviarFotos('inscricoes', `${nova.id}/documentos`, fotosDocumentos ?? {}),
+          ]);
+          enviarInscricao(nova, { ...semFotos, fotosServidor: { carro, documentos } });
+        })();
       },
       aprovar: (id, porKmMzn) => mudarEstado(id, 'aprovada', porKmMzn),
       rejeitar: (id) => mudarEstado(id, 'rejeitada'),

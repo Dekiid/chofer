@@ -22,6 +22,7 @@ import { nomeNivel, zonasProcura } from '@/data/procura';
 import { lugares, pesquisarLugares, type Lugar } from '@/data/lugares';
 import { abrirNavegacao } from '@/data/navegacao';
 import { usePesquisaMoradas } from '@/hooks/use-pesquisa-moradas';
+import { useSelfieDoDia } from '@/hooks/use-selfie-do-dia';
 import { PREMIO_CONVITE_MOTORISTA_MZN } from '@/data/convite-motorista';
 import { formatarMzn, nomeViatura } from '@/data/categorias';
 import { nomeLugar } from '@/data/lugares';
@@ -174,6 +175,7 @@ function EscolherCarro({ s }: { s: S }) {
 function Disponivel({ s }: { s: S }) {
   const cores = usePalette();
   const m = useModoMotorista();
+  const selfie = useSelfieDoDia();
   const nota = useAvaliacoes().mediaMotorista(m.eu.telefone);
   // A caixa baixa com o dedo e fica só com os botões (ficar online, mudar de carro, pausa…); sobe para ver tudo.
   // Como no ecrã de confirmar a viagem: a caixa aberta e a fechada são duas vistas diferentes, cada uma com o seu gesto
@@ -247,8 +249,12 @@ function Disponivel({ s }: { s: S }) {
         {!m.online ? (
           <>
             <BotaoPrincipal
-              texto={m.turno ? t('Continuar o turno') : t('Ficar online')}
-              onPress={() => m.setOnline(true)}
+              texto={selfie.aEnviar ? t('A enviar a selfie…') : m.turno ? t('Continuar o turno') : t('Ficar online')}
+              desativado={selfie.aEnviar}
+              onPress={async () => {
+                if (selfie.precisa && !(await selfie.tirar())) return;
+                m.setOnline(true);
+              }}
             />
             {m.turno ? <BotaoSecundario texto={t('Terminar o turno')} onPress={terminarTurno} /> : <BotaoSecundario texto={t('Mudar de carro')} onPress={() => m.escolherViatura(null)} />}
           </>
