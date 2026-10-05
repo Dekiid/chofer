@@ -147,6 +147,18 @@ export default function Conta() {
           </Pressable>
         )}
 
+        {/* Quem já tem o modo motorista aberto (demo ou testes) continua a precisar de inscrever o carro dele. */}
+        {motorista.pode && !sessao.perfil?.motoristaDemo && meusCarros === 0 && motorista.inscricao !== 'pendente' && (
+          <Pressable onPress={() => router.push('/inscricao')} style={s.entrada}>
+            <Text style={s.nome}>{t('Inscrever o meu carro')}</Text>
+            <Text style={s.secundario}>
+              {motorista.inscricao === 'rejeitada'
+                ? t('A tua inscrição não foi aprovada. Podes enviar outra.')
+                : t('Enquanto não tiveres carro aprovado, conduzes os carros de exemplo.')}
+            </Text>
+          </Pressable>
+        )}
+
         {/* Donos de carros (que conduzem ou não): resumo de cada carro. */}
         {meusCarros > 0 && (
           <Pressable onPress={() => router.push('/frota')} style={s.entrada}>

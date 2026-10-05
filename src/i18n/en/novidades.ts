@@ -264,4 +264,6 @@ export const novidades: Record<string, string> = {
   "Maputo e Matola": "Maputo and Matola",
   "Luanda": "Luanda",
   "Sem ligação ao servidor. Tenta outra vez.": "No connection to the server. Try again.",
+  "Inscrever o meu carro": "Register my car",
+  "Enquanto não tiveres carro aprovado, conduzes os carros de exemplo.": "Until you have an approved car, you drive the sample cars.",
 };
