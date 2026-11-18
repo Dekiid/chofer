@@ -52,7 +52,7 @@ export const conta: Record<string, string> = {
   'Código errado.': 'Wrong code.',
   'Código errado. No modo de teste o código é sempre {codigo}.': 'Wrong code. In test mode the code is always {codigo}.',
   'Sem conta.': 'No account.',
-  'Falta correr supabase/apagar-conta.sql no Supabase.': 'supabase/apagar-conta.sql still needs to be run in Supabase.',
+  'Falta correr supabase/base-de-dados.sql no Supabase.': 'supabase/base-de-dados.sql still needs to be run in Supabase.',
 
   // Agenda e ligação ao servidor
   'falta criar a tabela de reservas no Supabase': 'the bookings table still needs to be created in Supabase',

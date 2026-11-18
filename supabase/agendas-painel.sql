@@ -1,3 +1,4 @@
+-- PROJETO ANTIGO. Para o projeto Supabase só do Chauffeur (2026-11-18) usa supabase/base-de-dados.sql, que já inclui isto.
 -- Chauffeur: o painel de gestão passa a ler os pagamentos da DebitoPay (separador Agendas).
 -- Correr uma vez no Supabase depois de painel.sql e da tabela pagamentos: SQL Editor > New query > colar > Run.
 -- Pode correr-se outra vez sem estragar nada.

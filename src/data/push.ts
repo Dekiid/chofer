@@ -19,10 +19,11 @@ export const CANAL_PEDIDOS = 'pedidos';
 const TABELA = 'push_motoristas';
 
 /**
- * Com EXPO_PUBLIC_AVISOS_SERVIDOR=1 a app já não lê os tokens: grava o seu pela função guardar_push
- * e pede o envio à função enviar-aviso (supabase/push-fechar.sql e a pasta supabase/functions/enviar-aviso).
+ * A app não lê os tokens: grava o seu pela função guardar_push e pede o envio à função enviar-aviso
+ * (supabase/base-de-dados.sql e a pasta supabase/functions/enviar-aviso).
+ * EXPO_PUBLIC_AVISOS_SERVIDOR=0 volta ao modo antigo (lê a tabela), só para o projeto Supabase antigo.
  */
-const AVISOS_NO_SERVIDOR = process.env.EXPO_PUBLIC_AVISOS_SERVIDOR === '1';
+const AVISOS_NO_SERVIDOR = process.env.EXPO_PUBLIC_AVISOS_SERVIDOR !== '0';
 
 function projectId(): string | null {
   const id = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
@@ -83,7 +84,7 @@ export async function registarPushMotorista(viaturaId: string, telefone: string)
 /**
  * Envia um aviso push ao telemóvel do motorista do carro.
  *
- * Sem EXPO_PUBLIC_AVISOS_SERVIDOR=1 envia a partir da app do cliente, o que é só para testes:
+ * Com EXPO_PUBLIC_AVISOS_SERVIDOR=0 envia a partir da app do cliente, o que é só para testes:
  * qualquer pessoa com a app poderia ler os tokens. Antes do lançamento liga-se o envio pelo servidor.
  */
 export async function avisarMotoristaPorPush(viaturaId: string, titulo: string, texto: string, dados?: object): Promise<void> {

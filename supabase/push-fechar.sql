@@ -1,3 +1,4 @@
+-- PROJETO ANTIGO. Para o projeto Supabase só do Chauffeur (2026-11-18) usa supabase/base-de-dados.sql, que já inclui isto.
 -- Esconde os tokens push: a app deixa de conseguir ler ou mexer na tabela push_motoristas.
 -- Correr SÓ depois de publicar a função enviar-aviso e pôr EXPO_PUBLIC_AVISOS_SERVIDOR=1 no .env.local.
 -- O motorista grava o token do seu carro pela função guardar_push; quem envia os avisos é a função
