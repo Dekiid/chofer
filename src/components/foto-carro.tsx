@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image, type ImageProps } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
@@ -33,7 +33,7 @@ export function FotoCarro({ viatura, style, ilustracao }: Props) {
         </View>
       ) : (
         <Image
-          source={foto}
+          source={foto as ImageProps['source']}
           style={StyleSheet.absoluteFill}
           contentFit={solto ? 'contain' : 'cover'}
           transition={250}

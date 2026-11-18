@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image, type ImageProps } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -108,7 +108,7 @@ function CartaoPendente({ inscricao: i }: { inscricao: Inscricao }) {
         {i.convite && <Text style={[s.secundario, { marginTop: Spacing.two }]}>{t('Convidado com o código {codigo}', { codigo: i.convite })}</Text>}
       </View>
 
-      {i.casamento?.foto && <Image source={i.casamento.foto} style={[s.fotoGrande, { marginBottom: Spacing.one }]} contentFit="cover" />}
+      {i.casamento?.foto && <Image source={i.casamento.foto as ImageProps['source']} style={[s.fotoGrande, { marginBottom: Spacing.one }]} contentFit="cover" />}
       {i.casamento && (
         <Text style={[s.secundario, { marginBottom: Spacing.two }]}>
           {t('Casamentos: {sem} sem decoração · {com} com decoração', { sem: formatarMzn(i.casamento.semDecoracaoMzn), com: formatarMzn(i.casamento.comDecoracaoMzn) })}

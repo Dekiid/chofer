@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BotaoVoltar } from '@/components/ui';
@@ -35,7 +35,7 @@ export default function Chat() {
   const mensagens = chat.mensagens(p.id);
   const outro = p.nome || (eu === 'motorista' ? t('Cliente') : t('Motorista'));
   const [texto, setTexto] = useState('');
-  const rolo = useRef<ScrollView>(null);
+  const rolo = useRef<ScrollViewInstance>(null);
   useAcompanharChat(p.id, eu);
 
   // Com o chat aberto, as mensagens do outro lado contam como lidas.
