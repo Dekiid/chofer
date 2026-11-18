@@ -10,6 +10,7 @@ import { Text } from '@/components/texto';
 import { BotaoPrincipal } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { entrarCom, fornecedoresDisponiveis, type Fornecedor } from '@/data/entrar-social';
+import { supabase } from '@/data/tempo-real';
 import { t } from '@/i18n';
 import { proximoPasso, useSessao } from '@/state/sessao';
 
@@ -57,6 +58,12 @@ export default function BoasVindas() {
             )}
           </Pressable>
         ))}
+        {/* Enquanto as SMS não saem, também se entra com um link no email. */}
+        {supabase() ? (
+          <Pressable style={s.social} onPress={() => router.push('/registo/entrar-email')} disabled={aEntrar != null} accessibilityRole="button">
+            <Text style={s.socialTexto}>{t('Continuar com o email')}</Text>
+          </Pressable>
+        ) : null}
         {erro ? <Text style={s.erro}>{erro}</Text> : null}
         <Text style={s.entrar}>
           {t('Já tens conta?')}{' '}

@@ -12,11 +12,26 @@ import { t } from '@/i18n';
 
 export type Fornecedor = 'apple' | 'google';
 
-/** Apple só no iPhone e com o Supabase ligado; Google com o Supabase ligado. */
+/** Que entradas estão ligadas no Supabase (Authentication → Sign In / Providers). Lê-se das definições públicas. */
+async function ligadosNoSupabase(): Promise<{ apple?: boolean; google?: boolean }> {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const chave = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !chave) return {};
+  try {
+    const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: chave } });
+    if (!r.ok) return {};
+    return ((await r.json()) as { external?: { apple?: boolean; google?: boolean } }).external ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** Só mostra Apple e Google quando estão ligados no Supabase; Apple só no iPhone. */
 export async function fornecedoresDisponiveis(): Promise<Fornecedor[]> {
   if (!supabase()) return [];
-  const apple = Platform.OS === 'ios' && (await AppleAuthentication.isAvailableAsync().catch(() => false));
-  return apple ? ['apple', 'google'] : ['google'];
+  const ligados = await ligadosNoSupabase();
+  const apple = Boolean(ligados.apple) && Platform.OS === 'ios' && (await AppleAuthentication.isAvailableAsync().catch(() => false));
+  return [...(apple ? (['apple'] as const) : []), ...(ligados.google ? (['google'] as const) : [])];
 }
 
 /** Devolve null quando entrou (a sessão muda sozinha), ou a mensagem para mostrar. Cancelar não é erro: devolve ''. */
