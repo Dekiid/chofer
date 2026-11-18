@@ -114,6 +114,11 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
       setEstado({ onde: 'servidor' });
     };
     carregar();
+    // Na primeira visita, a sessão (anónima ou por SMS) chega depois desta leitura, e sem sessão o servidor
+    // não deixa ler as reservas. Quando a sessão chega, lê-se outra vez.
+    const { data: ouvinte } = sb.auth.onAuthStateChange((evento) => {
+      if (evento === 'SIGNED_IN') carregar();
+    });
     // Reservas feitas ou canceladas noutros telemóveis chegam aqui logo.
     const canal = sb
       .channel('chauffeur-reservas')
@@ -131,6 +136,7 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
       });
     return () => {
       ativo = false;
+      ouvinte.subscription.unsubscribe();
       sb.removeChannel(canal);
     };
   }, []);
