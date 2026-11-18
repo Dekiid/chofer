@@ -3,7 +3,7 @@
 // As variáveis EXPO_PUBLIC_* entram na build: no Cloudflare ficam em "Variáveis de build".
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "chauffeur",
+  "name": "chofer",
   "compatibility_date": "2026-11-01",
   "assets": {
     "directory": "./dist",

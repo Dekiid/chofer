@@ -52,6 +52,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "build": "expo export -p web",
     "build:web": "expo export -p web",
     "deploy:web": "expo export -p web && wrangler deploy"
   },
