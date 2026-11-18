@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "deploy": "next build && wrangler deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.164.0"
   }
 }
