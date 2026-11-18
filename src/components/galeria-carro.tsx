@@ -1,7 +1,7 @@
-import { Image } from 'expo-image';
+import { Image, type ImageProps } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView as ScrollViewGestos } from 'react-native-gesture-handler';
 import Animated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +31,7 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
   const [proporcoes, setProporcoes] = useState<Record<number, number>>({});
   const [pagina, setPagina] = useState(0);
   const [alturaArea, setAlturaArea] = useState(0);
-  const rolo = useRef<ScrollView>(null);
+  const rolo = useRef<ScrollViewInstance>(null);
   const fotos = fotosDaGaleria(viatura);
   const atual = fotos[Math.min(pagina, fotos.length - 1)];
 
@@ -124,7 +124,7 @@ export function GaleriaCarro({ viatura, visivel, onFechar }: Props) {
                         <Pressable key={i} onPress={fechar} style={{ width, height: alturaArea, alignItems: 'center', justifyContent: 'center' }}>
                           <Pressable onPress={() => {}} style={{ width: larguraFoto, height: larguraFoto / proporcao }}>
                             <Image
-                              source={f.foto}
+                              source={f.foto as ImageProps['source']}
                               style={StyleSheet.absoluteFill}
                               contentFit="contain"
                               transition={200}

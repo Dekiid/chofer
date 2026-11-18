@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import type { TextInput as RNTextInput } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 
 import { estilosPasso, PassoRegisto } from '@/components/passo-registo';
 import { Text, TextInput } from '@/components/texto';
@@ -17,7 +17,7 @@ export default function Nome() {
   const [apelido, setApelido] = useState(sessao.perfil?.apelido ?? '');
   const [focado, setFocado] = useState<'nome' | 'apelido' | null>('nome');
   const [erro, setErro] = useState('');
-  const campoApelido = useRef<RNTextInput>(null);
+  const campoApelido = useRef<TextInputInstance>(null);
   const valido = nome.trim().length >= 2 && apelido.trim().length >= 2;
 
   async function seguinte() {

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, type TextInput as RNTextInput } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View, type TextInputInstance } from 'react-native';
 
 import { estilosPasso, PassoRegisto } from '@/components/passo-registo';
 import { Text, TextInput } from '@/components/texto';
@@ -23,7 +23,7 @@ export default function Codigo() {
   const [erro, setErro] = useState('');
   const [segundos, setSegundos] = useState(ESPERA_REENVIO);
   const [confirmado, setConfirmado] = useState(false);
-  const campo = useRef<RNTextInput>(null);
+  const campo = useRef<TextInputInstance>(null);
   const digitos = digitosCodigo(telefone);
   const demo = Boolean(contaDemo(telefone));
 
