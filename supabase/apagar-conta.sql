@@ -1,3 +1,4 @@
+-- PROJETO ANTIGO. Para o projeto Supabase só do Chauffeur (2026-11-18) usa supabase/base-de-dados.sql, que já inclui isto.
 -- Chauffeur: o cliente apaga a própria conta dentro da app (a Apple e a Google exigem isto).
 -- Corre isto uma vez no SQL Editor do Supabase.
 -- A função corre com permissões de dono, mas só apaga a conta de quem a chama (auth.uid()).

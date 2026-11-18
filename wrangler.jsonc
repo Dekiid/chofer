@@ -1,6 +1,8 @@
 // Versão web da app (Chauffeur) no Cloudflare Workers, só com ficheiros estáticos.
 // Build: npm run build:web (gera dist/). Publicar: npx wrangler deploy
 // As variáveis EXPO_PUBLIC_* entram na build: no Cloudflare ficam em "Variáveis de build".
+// Outros ramos (PRs): o Cloudflare faz npm run build:web e npx wrangler preview (precisa do bloco
+// "previews" abaixo), que cria um site de teste com link próprio, sem mexer no site principal.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "chofer",
@@ -9,5 +11,7 @@
     "directory": "./dist",
     // App de página única: links como /seguir/<id> abrem o index.html e o expo-router trata do resto.
     "not_found_handling": "single-page-application"
-  }
+  },
+  // Sites de teste dos outros ramos: as mesmas definições de cima.
+  "previews": {}
 }

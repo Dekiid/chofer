@@ -150,9 +150,9 @@ export function ModoMotoristaProvider({ children }: { children: ReactNode }) {
   const deHoje = feitas.filter((f) => new Date(f.concluidaEm).toDateString() === new Date().toDateString());
   const chaveMotorista = perfil?.telefone ? `chauffeur.motorista.${perfil.telefone}` : null;
   const [turno, setTurno] = useGuardado<Turno | null>(chaveMotorista && `${chaveMotorista}.turno`, null);
-  const [turnos, setTurnos] = useGuardado<ResumoTurno[]>(chaveMotorista && `${chaveMotorista}.turnos`, []);
+  const [turnos, setTurnos] = useGuardado<ResumoTurno[]>(chaveMotorista && `${chaveMotorista}.turnos`, [], 'motorista.turnos');
   const emPausa = turno?.pausas.some((p) => !p.fim) ?? false;
-  const [casa, setCasa] = useGuardado<Lugar | null>(chaveMotorista && `${chaveMotorista}.casa`, null);
+  const [casa, setCasa] = useGuardado<Lugar | null>(chaveMotorista && `${chaveMotorista}.casa`, null, 'motorista.casa');
   const [usosCasa, setUsosCasa] = useGuardado<{ dia: string; n: number }>(chaveMotorista && `${chaveMotorista}.casa-usos`, { dia: '', n: 0 });
   const [irParaCasa, setIrParaCasa] = useState(false);
   const hoje = new Date().toDateString();

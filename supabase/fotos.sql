@@ -1,3 +1,4 @@
+-- PROJETO ANTIGO. Para o projeto Supabase só do Chauffeur (2026-11-18) usa supabase/base-de-dados.sql, que já inclui isto.
 -- Fotos no Supabase Storage: as das inscrições dos motoristas (carro e documentos) e as selfies antes de ficar online.
 -- Correr no SQL Editor do Supabase depois do painel.sql (usa public.e_admin()). Pode correr-se mais do que uma vez.
 -- Os baldes são privados: a app envia, só os administradores do painel veem. Até 5 MB por foto.

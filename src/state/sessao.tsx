@@ -79,6 +79,38 @@ const perfilDe = (u: User): Perfil => {
 
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+type Cliente = NonNullable<ReturnType<typeof supabase>>;
+
+/**
+ * Contas de teste (demonstração e "Continuar sem SMS"): entram no Supabase como sessão anónima,
+ * para terem um token e as regras do servidor (supabase/base-de-dados.sql) as deixarem gravar.
+ * Precisa de "Allow anonymous sign-ins" ligado; se não estiver, a app continua só com a chave pública.
+ */
+async function sessaoDeTeste(sb: Cliente) {
+  try {
+    const { data } = await sb.auth.getSession();
+    const u = data.session?.user;
+    if (u?.is_anonymous) return;
+    if (u) await sb.auth.signOut();
+    await sb.auth.signInAnonymously();
+  } catch {}
+}
+
+/** Cópia do perfil na tabela perfis (para o painel). Só contas reais; o número vem do login. */
+function copiarPerfil(sb: Cliente, p: Perfil) {
+  if (!p.telefone) return;
+  sb.rpc('guardar_perfil', {
+    p_nome: p.nome ?? null,
+    p_apelido: p.apelido ?? null,
+    p_email: p.email ?? null,
+    p_termos: p.termos ?? null,
+    p_idioma: null,
+  }).then(
+    () => {},
+    () => {},
+  );
+}
+
 /** Explica os erros do Supabase em português. */
 function explicar(e: { code?: string; message?: string; status?: number }): string {
   if (e.code === 'phone_provider_disabled' || /provider.*disabled|Unsupported phone provider/i.test(e.message ?? ''))
@@ -106,9 +138,12 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       if (sb) {
         const { data } = await sb.auth.getSession();
         if (!ativo) return;
-        if (data.session) {
-          setPerfil(perfilDe(data.session.user));
+        // Uma sessão anónima é de uma conta de teste: o perfil está guardado neste telemóvel (abaixo).
+        if (data.session && !data.session.user.is_anonymous) {
+          const p = perfilDe(data.session.user);
+          setPerfil(p);
           setEstado('dentro');
+          copiarPerfil(sb, p);
           return;
         }
       }
@@ -122,13 +157,14 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         setSemSms(true);
         setPerfil(local);
         setEstado('dentro');
+        if (sb) sessaoDeTeste(sb);
       } else {
         setEstado('fora');
       }
     })();
     const ouvinte = sb?.auth.onAuthStateChange((evento, sessao) => {
       if (evento === 'SIGNED_OUT') return;
-      if (sessao) {
+      if (sessao && !sessao.user.is_anonymous) {
         setPerfil(perfilDe(sessao.user));
         setEstado('dentro');
       }
@@ -181,6 +217,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
           motoristaDemo: true,
         };
         await guardarLocal(p);
+        if (sb) await sessaoDeTeste(sb);
         setSemSms(true);
         setPerfil(p);
         setEstado('dentro');
@@ -197,13 +234,16 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         } catch {}
         const p = anterior ?? { telefone };
         await guardarLocal(p);
+        if (sb) await sessaoDeTeste(sb);
         setPerfil(p);
         setEstado('dentro');
         return null;
       }
       const { data, error } = await sb.auth.verifyOtp({ phone: telefone, token: codigo, type: perfil && !perfil.telefone ? 'phone_change' : 'sms' });
       if (error || !data.user) return explicar(error ?? {});
-      setPerfil(perfilDe(data.user));
+      const p = perfilDe(data.user);
+      copiarPerfil(sb, p);
+      setPerfil(p);
       setEstado('dentro');
       return null;
     },
@@ -226,6 +266,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
           data: { nome: novo.nome, apelido: novo.apelido, email_recibos: novo.email, termos: novo.termos },
         });
         if (error) return explicar(error);
+        copiarPerfil(sb, novo);
       }
       setPerfil(novo);
       // Acabou o registo: a app abre com o ecrã de boas-vindas.
@@ -237,7 +278,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
   const sair = useCallback(async () => {
     const sb = supabase();
-    if (sb && !semSms) await sb.auth.signOut();
+    // Também fecha a sessão anónima das contas de teste.
+    if (sb) await sb.auth.signOut().catch(() => {});
     await guardarLocal(null);
     setPerfil(null);
     setEstado('fora');
@@ -248,10 +290,12 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     if (!perfil) return null;
     const sb = supabase();
     if (sb && !semSms) {
-      // Precisa de supabase/apagar-conta.sql no projeto.
+      // Precisa de supabase/base-de-dados.sql no projeto.
       const { error } = await sb.rpc('apagar_conta');
-      if (error) return /apagar_conta|function/i.test(error.message) ? t('Falta correr supabase/apagar-conta.sql no Supabase.') : explicar(error);
+      if (error) return /apagar_conta|function/i.test(error.message) ? t('Falta correr supabase/base-de-dados.sql no Supabase.') : explicar(error);
       await sb.auth.signOut();
+    } else if (sb) {
+      await sb.auth.signOut().catch(() => {});
     }
     // Tudo o que esta conta guardou neste telemóvel.
     try {

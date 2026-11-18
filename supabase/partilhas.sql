@@ -1,3 +1,4 @@
+-- PROJETO ANTIGO. Para o projeto Supabase só do Chauffeur (2026-11-18) usa supabase/base-de-dados.sql, que já inclui isto.
 -- Chauffeur: viagem partilhada por link. Quem recebe o link vê o carro no mapa, o motorista e a chegada,
 -- sem ter a app nem conta. Corre isto uma vez no SQL Editor do Supabase.
 --

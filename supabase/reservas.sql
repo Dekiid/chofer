@@ -1,3 +1,4 @@
+-- PROJETO ANTIGO. Para o projeto Supabase só do Chauffeur (2026-11-18) usa supabase/base-de-dados.sql, que já inclui isto.
 -- Agenda dos carros do Chauffeur.
 -- Correr uma vez no Supabase: SQL Editor > New query > colar este ficheiro > Run.
 -- Pode correr-se outra vez sem estragar nada.

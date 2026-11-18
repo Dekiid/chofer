@@ -183,8 +183,8 @@ export function ContaProvider({ children }: { children: ReactNode }) {
     casa: null,
     trabalho: null,
     aeroporto: lugares().find((l) => l.id.startsWith('aeroporto')) ?? null,
-  }));
-  const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo);
+  }), 'locais');
+  const [viagens, setViagens] = useGuardado<ViagemFeita[]>(chave && `${chave}.viagens`, viagensExemplo, 'viagens');
 
   // As viagens vão para o painel de gestão na web quando são criadas ou mudam (sem as de exemplo).
   const enviadas = useRef(new Map<string, string>());
@@ -198,13 +198,13 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       enviarViagem({ id: v.id, estado: v.estado, viatura: v.viatura, totalMzn: totalPago(v) }, perfil?.telefone, { ...v, clienteNome: perfil?.nome });
     }
   }, [viagens, perfil]);
-  const [preferencias, setPreferencias] = useGuardado<Preferencias>(chave && `${chave}.preferencias`, PREFERENCIAS_PADRAO);
-  const [contactosConfianca, setContactosConfianca] = useGuardado<ContactoConfianca[]>(chave && `${chave}.contactos`, []);
-  const [partilhaAuto, setPartilhaAuto] = useGuardado<PartilhaAuto>(chave && `${chave}.partilha`, 'noite');
-  const [empresa, setEmpresa] = useGuardado<Empresa | null>(chave && `${chave}.empresa`, null);
-  const [favoritos, setFavoritos] = useGuardado<Motorista[]>(chave && `${chave}.favoritos`, []);
+  const [preferencias, setPreferencias] = useGuardado<Preferencias>(chave && `${chave}.preferencias`, PREFERENCIAS_PADRAO, 'preferencias');
+  const [contactosConfianca, setContactosConfianca] = useGuardado<ContactoConfianca[]>(chave && `${chave}.contactos`, [], 'contactos');
+  const [partilhaAuto, setPartilhaAuto] = useGuardado<PartilhaAuto>(chave && `${chave}.partilha`, 'noite', 'partilha');
+  const [empresa, setEmpresa] = useGuardado<Empresa | null>(chave && `${chave}.empresa`, null, 'empresa');
+  const [favoritos, setFavoritos] = useGuardado<Motorista[]>(chave && `${chave}.favoritos`, [], 'favoritos');
   const [movimentos, setMovimentos] = useGuardado<Movimento[]>(chave && `${chave}.carteira`, []);
-  const [faturacao, setFaturacao] = useGuardado<Faturacao | null>(chave && `${chave}.faturacao`, null);
+  const [faturacao, setFaturacao] = useGuardado<Faturacao | null>(chave && `${chave}.faturacao`, null, 'faturacao');
   const [assinatura, setAssinatura] = useGuardado<Assinatura | null>(chave && `${chave}.club`, null);
   const movimentar = useCallback(
     (valorMzn: number, tipo: TipoMovimento, detalhe?: string) => {
