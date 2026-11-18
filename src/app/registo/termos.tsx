@@ -38,7 +38,7 @@ export default function Termos() {
     <PassoRegisto
       titulo={t('Aceita os termos e lê a política de privacidade')}
       descricao={t('Ao marcar a caixa, confirmas que leste e aceitas os Termos de Utilização e a Política de Privacidade. Tens de ter pelo menos 18 anos.')}
-      onVoltar={() => router.back()}
+      onVoltar={() => (router.canGoBack() ? router.back() : router.replace('/registo/email'))}
       rodape={<BotaoPrincipal texto={aGuardar ? t('A guardar…') : t('Seguinte')} escuro onPress={seguinte} desativado={!aceito || aGuardar} />}>
       {documento(t('Termos de Utilização'), 'termos')}
       {documento(t('Política de Privacidade'), 'privacidade')}
