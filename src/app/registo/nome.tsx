@@ -7,7 +7,7 @@ import { Text, TextInput } from '@/components/texto';
 import { BotaoPrincipal } from '@/components/ui';
 import { usePalette } from '@/constants/use-palette';
 import { t } from '@/i18n';
-import { useSessao } from '@/state/sessao';
+import { proximoPasso, useSessao } from '@/state/sessao';
 
 export default function Nome() {
   const c = usePalette();
@@ -23,7 +23,9 @@ export default function Nome() {
   async function seguinte() {
     const falhou = await sessao.guardarPerfil({ nome: nome.trim(), apelido: apelido.trim() });
     if (falhou) return setErro(falhou);
-    router.push('/registo/email');
+    // Quem entrou pelo email já tem o email: salta esse passo.
+    const perfil = sessao.perfil ? { ...sessao.perfil, nome: nome.trim(), apelido: apelido.trim() } : null;
+    router.push((perfil && proximoPasso(perfil)) || '/registo/email');
   }
 
   return (

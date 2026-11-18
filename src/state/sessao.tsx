@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { definirPais, paisDoTelefone } from '@/data/paises';
@@ -17,6 +18,8 @@ export type Perfil = {
   termos?: string;
   /** Conta de demonstração do motorista (pedido do Flavio, para testes). */
   motoristaDemo?: boolean;
+  /** Entrou pelo link no email (sem SMS): o número é só de contacto, não foi confirmado. */
+  entrouPorEmail?: boolean;
 };
 
 /** Código que entra sem SMS, no modo de teste. */
@@ -49,6 +52,8 @@ type Sessao = {
   /** Devolve a mensagem de erro, ou null se o código foi enviado. */
   pedirCodigo: (telefone: string) => Promise<string | null>;
   confirmarCodigo: (telefone: string, codigo: string) => Promise<string | null>;
+  /** Envia um link para entrar por email (enquanto as SMS não saem). Devolve a mensagem de erro, ou null. */
+  pedirLinkEmail: (email: string) => Promise<string | null>;
   /** Passar a entrar sem SMS (enquanto o envio de SMS não está ligado no Supabase). */
   usarSemSms: () => void;
   guardarPerfil: (mudancas: Partial<Perfil>) => Promise<string | null>;
@@ -67,8 +72,11 @@ const CHAVE_LOCAL = 'chauffeur.conta';
 
 const perfilDe = (u: User): Perfil => {
   const m = u.user_metadata ?? {};
+  const porEmail = !u.phone && u.app_metadata?.provider === 'email';
   return {
-    telefone: u.phone ? `+${u.phone.replace(/^\+/, '')}` : '',
+    // Quem entrou pelo email escreve o número no registo, sem SMS.
+    telefone: u.phone ? `+${u.phone.replace(/^\+/, '')}` : porEmail ? ((m.telefone_contacto as string | undefined) ?? '') : '',
+    entrouPorEmail: porEmail || undefined,
     // Com Apple ou Google, o nome e o email vêm da conta deles até a pessoa os mudar.
     nome: m.nome ?? m.given_name ?? (m.full_name as string | undefined)?.split(' ')[0],
     apelido: m.apelido ?? m.family_name ?? (m.full_name as string | undefined)?.split(' ').slice(1).join(' '),
@@ -118,7 +126,9 @@ function explicar(e: { code?: string; message?: string; status?: number }): stri
   if (e.code === 'phone_exists' || /phone.*(already|exists|registered)/i.test(e.message ?? ''))
     return t('Este número já tem conta. Sai e entra com o número, sem Apple nem Google.');
   if (e.code === 'sms_send_failed') return t('Não foi possível enviar a SMS para este número.');
-  if (e.code === 'over_sms_send_rate_limit' || e.status === 429) return t('Pediste muitos códigos seguidos. Espera um pouco e tenta outra vez.');
+  if (e.code === 'email_address_not_authorized' || /not authorized/i.test(e.message ?? ''))
+    return t('Por agora, o email de entrada só chega aos emails da equipa no Supabase.');
+  if (e.code === 'over_sms_send_rate_limit' || e.code === 'over_email_send_rate_limit' || e.status === 429) return t('Pediste muitos códigos seguidos. Espera um pouco e tenta outra vez.');
   if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return t('Código errado ou expirado.');
   return e.message ?? t('Algo correu mal. Tenta outra vez.');
 }
@@ -165,6 +175,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     const ouvinte = sb?.auth.onAuthStateChange((evento, sessao) => {
       if (evento === 'SIGNED_OUT') return;
       if (sessao && !sessao.user.is_anonymous) {
+        setSemSms(false);
         setPerfil(perfilDe(sessao.user));
         setEstado('dentro');
       }
@@ -250,6 +261,17 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     [semSms, perfil, guardarLocal],
   );
 
+  const pedirLinkEmail = useCallback(async (email: string) => {
+    const sb = supabase();
+    if (!sb) return t('O Supabase ainda não está ligado.');
+    // A sessão anónima das contas de teste sai primeiro, para o link criar uma conta real.
+    const { data } = await sb.auth.getSession();
+    if (data.session?.user.is_anonymous) await sb.auth.signOut().catch(() => {});
+    // O link volta à app (ou ao site) neste ecrã, que troca o código pela sessão.
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: Linking.createURL('registo/entrar-email') } });
+    return error ? explicar(error) : null;
+  }, []);
+
   const guardarPerfil = useCallback(
     async (mudancas: Partial<Perfil>) => {
       if (!perfil) return t('Sem conta.');
@@ -263,7 +285,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       } else {
         // O email vai para os dados do perfil (não para o login), para não pedir confirmação por email.
         const { error } = await sb.auth.updateUser({
-          data: { nome: novo.nome, apelido: novo.apelido, email_recibos: novo.email, termos: novo.termos },
+          data: { nome: novo.nome, apelido: novo.apelido, email_recibos: novo.email, termos: novo.termos, ...(novo.entrouPorEmail ? { telefone_contacto: novo.telefone } : {}) },
         });
         if (error) return explicar(error);
         copiarPerfil(sb, novo);
@@ -319,6 +341,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       semSms,
       pedirCodigo,
       confirmarCodigo,
+      pedirLinkEmail,
       usarSemSms: () => setSemSms(true),
       guardarPerfil,
       sair,
@@ -326,7 +349,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       bemVindo,
       fecharBemVindo: () => setBemVindo(false),
     }),
-    [estado, perfil, completo, semSms, pedirCodigo, confirmarCodigo, guardarPerfil, sair, apagarConta, bemVindo],
+    [estado, perfil, completo, semSms, pedirCodigo, confirmarCodigo, pedirLinkEmail, guardarPerfil, sair, apagarConta, bemVindo],
   );
 
   // O país da conta (pelo indicativo do número) decide a moeda, os lugares e os pagamentos. Corre antes dos ecrãs.

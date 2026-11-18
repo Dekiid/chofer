@@ -9,14 +9,17 @@ import { Radius, Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/use-palette';
 import { definirPais, paisAtual, PAISES, type CodigoPais } from '@/data/paises';
 import { t } from '@/i18n';
-import { CODIGO_TESTE, contaDemo, useSessao } from '@/state/sessao';
+import { CODIGO_TESTE, contaDemo, proximoPasso, useSessao } from '@/state/sessao';
+import { supabase } from '@/data/tempo-real';
 
 export default function Telefone() {
   const c = usePalette();
   const s = estilosPasso(c);
   const sessao = useSessao();
   // Entrou com Apple ou Google e ainda não tem número.
-  const social = Boolean(sessao.perfil && !sessao.perfil.telefone && !sessao.semSms);
+  // Entrou pelo link no email: o número fica como contacto, sem SMS.
+  const porEmail = Boolean(sessao.perfil?.entrouPorEmail);
+  const social = Boolean(sessao.perfil && !sessao.perfil.telefone && !sessao.semSms && !porEmail);
   const [codigoPais, setCodigoPais] = useState<CodigoPais>(paisAtual().codigo);
   const pais = PAISES[codigoPais];
   const [digitos, setDigitos] = useState('');
@@ -39,6 +42,14 @@ export default function Telefone() {
     setAEnviar(true);
     setErro('');
     const telefone = `${pais.indicativo}${digitos}`;
+    if (porEmail && sessao.perfil) {
+      const falhou = await sessao.guardarPerfil({ telefone });
+      setAEnviar(false);
+      if (falhou) return setErro(falhou);
+      const passo = proximoPasso({ ...sessao.perfil, telefone });
+      if (passo) router.replace(passo);
+      return;
+    }
     const falhou = await sessao.pedirCodigo(telefone);
     setAEnviar(false);
     if (falhou) {
@@ -51,10 +62,16 @@ export default function Telefone() {
 
   return (
     <PassoRegisto
-      titulo={social ? t('Falta o teu número de telemóvel') : t('Qual é o teu número de telemóvel?')}
-      descricao={social ? t('Entraste com a tua conta. O número é para o motorista te ligar e para os pagamentos; enviamos um código por SMS.') : t('Enviamos um código por SMS para confirmar.')}
-      // Quem entrou com Apple ou Google e volta atrás sai dessa conta.
-      onVoltar={() => (social ? sessao.sair() : router.back())}
+      titulo={social || porEmail ? t('Falta o teu número de telemóvel') : t('Qual é o teu número de telemóvel?')}
+      descricao={
+        porEmail
+          ? t('Entraste pelo email. O número é para o motorista te ligar; não enviamos SMS.')
+          : social
+            ? t('Entraste com a tua conta. O número é para o motorista te ligar e para os pagamentos; enviamos um código por SMS.')
+            : t('Enviamos um código por SMS para confirmar.')
+      }
+      // Quem entrou com Apple, Google ou email e volta atrás sai dessa conta.
+      onVoltar={() => (social || porEmail ? sessao.sair() : router.canGoBack() ? router.back() : router.replace('/registo'))}
       rodape={
         aEnviar ? (
           <ActivityIndicator color={c.text} style={{ paddingVertical: Spacing.three }} />
@@ -120,6 +137,12 @@ export default function Telefone() {
           </Text>
         </View>
       )}
+      {/* Enquanto as SMS não saem (Twilio por pagar), entra-se com um link no email. */}
+      {!porEmail && !social && !sessao.semSms && supabase() ? (
+        <Text style={s.ligacao} onPress={() => router.push('/registo/entrar-email')}>
+          {t('Não recebes a SMS? Entra com o teu email')}
+        </Text>
+      ) : null}
       <Text style={s.nota}>{t('Ao continuar, aceitas receber chamadas e SMS do Chauffeur, incluindo mensagens automáticas, para este número.')}</Text>
     </PassoRegisto>
   );
