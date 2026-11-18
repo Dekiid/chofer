@@ -94,7 +94,8 @@ function Navegacao() {
   if (sessao.estado === 'a_carregar') return <Abertura />;
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={sessao.completo}>
+      {/* redirectTo: sem ele, o Expo Router 58 abre o primeiro ecrã livre da lista (os termos), não o registo. */}
+      <Stack.Protected guard={sessao.completo} redirectTo="/registo">
         <Stack.Screen name="index" />
         <Stack.Screen name="destino" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="confirmar" />
@@ -119,7 +120,7 @@ function Navegacao() {
         <Stack.Screen name="club" />
         <Stack.Screen name="faturacao" />
         {/* Só para motoristas aprovados (ou a conta de demonstração). */}
-        <Stack.Protected guard={motorista.pode}>
+        <Stack.Protected guard={motorista.pode} redirectTo="/">
           {/* No motorista, deslizar para aceitar não pode ativar o gesto de voltar atrás do iPhone. */}
           <Stack.Screen name="motorista" options={{ gestureEnabled: false }} />
           <Stack.Screen name="pedidos-motorista" options={{ gestureEnabled: false }} />
@@ -130,7 +131,7 @@ function Navegacao() {
           <Stack.Screen name="convidar-motoristas" />
         </Stack.Protected>
       </Stack.Protected>
-      <Stack.Protected guard={!sessao.completo}>
+      <Stack.Protected guard={!sessao.completo} redirectTo="/">
         <Stack.Screen name="registo" />
       </Stack.Protected>
       {/* Os termos abrem-se do registo e da conta. */}

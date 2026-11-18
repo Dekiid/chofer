@@ -20,7 +20,7 @@ export default function Legal() {
   return (
     <SafeAreaView style={s.ecra} edges={['top', 'bottom']}>
       <View style={s.cabecalho}>
-        <BotaoVoltar onPress={() => router.back()} />
+        <BotaoVoltar onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
       </View>
       <ScrollView contentContainerStyle={s.conteudo}>
         {/* Os textos legais só existem em português. */}
