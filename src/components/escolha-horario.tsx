@@ -38,7 +38,12 @@ export function EscolhaHorario({ viaturaId, duracaoMin, locais, conducao, reserv
   const s = estilos(c);
   const agora = new Date();
   const dias = diasAgendaveis(agora);
-  const [diaEscolhido, setDiaEscolhido] = useState(quando?.tipo === 'agendado' ? quando.inicio : dias[0]);
+  // Abre no primeiro dia com horários livres (à noite, hoje já não tem nenhum).
+  const [diaEscolhido, setDiaEscolhido] = useState(() =>
+    quando?.tipo === 'agendado'
+      ? quando.inicio
+      : (dias.find((d) => horariosParaAgendar(d, viaturaId, duracaoMin, reservas, agora, locais, conducao).some((h) => h.livre)) ?? dias[0]),
+  );
   const imediato = quando?.tipo === 'imediato';
   const horarios = horariosParaAgendar(diaEscolhido, viaturaId, duracaoMin, reservas, agora, locais, conducao);
   const semLivres = !horarios.some((h) => h.livre);

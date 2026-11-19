@@ -367,6 +367,14 @@ export const MOTORISTA_ABERTO_EM_TESTES = true;
 /** Números que já são motoristas, mesmo depois de fechar o modo de testes (pedido do Flavio). */
 export const MOTORISTAS_DE_TESTE = ['+258841234567'];
 
+/**
+ * A equipa da Chauffeur: só estes números (e as contas de demonstração) veem a área "Gestão" dentro da app.
+ * Os clientes não a veem. No lançamento, a gestão faz-se no painel web.
+ */
+export const EQUIPA = ['+258845112726'];
+
+export const eEquipa = (perfil: Perfil | null) => Boolean(perfil && (perfil.motoristaDemo || EQUIPA.includes(perfil.telefone)));
+
 /** Pode usar o modo motorista: a conta de demonstração, ou quem conduz um carro com inscrição aprovada (dono ou motorista indicado). */
 export function podeConduzir(perfil: Perfil | null, inscricoes: { telefone: string; estado: string; motorista?: { telefone: string } }[]): boolean {
   if (!perfil) return false;

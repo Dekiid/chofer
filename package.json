@@ -53,8 +53,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "build": "expo export -p web",
-    "build:web": "expo export -p web",
-    "deploy:web": "expo export -p web && wrangler deploy"
+    "build:web": "expo export -p web && node scripts/painel-na-web.mjs",
+    "deploy:web": "npm run build:web && wrangler deploy"
   },
   "private": true
 }

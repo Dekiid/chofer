@@ -10,7 +10,8 @@ let cliente: SupabaseClient | null = null;
 /** O mesmo projeto Supabase da app. Null quando falta o .env.local. */
 export function supabase(): SupabaseClient | null {
   if (!url || !chave) return null;
-  cliente ??= createClient(url, chave);
+  // Sessão guardada à parte da app: no mesmo site (/painel), entrar no painel não mexe na conta da app.
+  cliente ??= createClient(url, chave, { auth: { storageKey: 'chauffeur-painel-sessao' } });
   return cliente;
 }
 

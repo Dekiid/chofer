@@ -10,7 +10,10 @@
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.dekiid.chauffeur",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.dekiid.chauffeur",

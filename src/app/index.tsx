@@ -20,6 +20,7 @@ import { useAgenda } from '@/state/agenda';
 import { useConta } from '@/state/conta';
 import { useInscricoes } from '@/state/inscricoes';
 import { usePedido } from '@/state/pedido';
+import { eEquipa, useSessao } from '@/state/sessao';
 import { Text } from '@/components/texto';
 import { t } from '@/i18n';
 
@@ -30,6 +31,7 @@ export default function Inicio() {
   const { naoLidas } = useAgenda();
   const avisos = useInscricoes().inscricoes.filter((i) => i.estado === 'pendente').length + naoLidas;
   const insets = useSafeAreaInsets();
+  const equipa = eEquipa(useSessao().perfil);
   const { avisosNaoLidos, eFavorito } = useConta();
   const [alturaPainel, setAlturaPainel] = useState(420);
   const ecraJanela = useWindowDimensions();
@@ -128,16 +130,18 @@ export default function Inicio() {
           </Vidro>
         </Pressable>
         {/* Só para a equipa; no produto final a aprovação fica no painel de gestão. */}
-        <Pressable onPress={() => router.push('/gestao')} style={[s.gestaoPosicao, { top: insets.top + Spacing.two }]}>
-          <Vidro interativo style={s.gestao}>
-            <Text style={s.textoGestao}>{t('Gestão')}</Text>
-            {avisos > 0 && (
-              <View style={s.contador}>
-                <Text style={s.textoContador}>{avisos}</Text>
-              </View>
-            )}
-          </Vidro>
-        </Pressable>
+        {equipa && (
+          <Pressable onPress={() => router.push('/gestao')} style={[s.gestaoPosicao, { top: insets.top + Spacing.two }]}>
+            <Vidro interativo style={s.gestao}>
+              <Text style={s.textoGestao}>{t('Gestão')}</Text>
+              {avisos > 0 && (
+                <View style={s.contador}>
+                  <Text style={s.textoContador}>{avisos}</Text>
+                </View>
+              )}
+            </Vidro>
+          </Pressable>
+        )}
       </SafeAreaView>
 
       <Painel onLayout={(e) => setAlturaPainel(e.nativeEvent.layout.height)}>
