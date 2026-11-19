@@ -1,4 +1,4 @@
-# Chofer
+# Chauffeur
 
 App móvel para pedir viaturas premium em Maputo e Matola, com motorista ou em aluguer.
 Feita com Expo (React Native), uma só base de código para iOS e Android.

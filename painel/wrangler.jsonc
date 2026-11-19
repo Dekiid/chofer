@@ -1,0 +1,12 @@
+// Painel de administração (Next.js exportado como site estático) no Cloudflare Workers.
+// Build: npm run build (gera out/). Publicar: npx wrangler deploy
+// NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY entram na build: no Cloudflare ficam em "Variáveis de build".
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chauffeur-painel",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  }
+}
