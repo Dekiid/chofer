@@ -52,13 +52,14 @@ export default function Pagamento() {
   const cores = usePalette();
   const s = estilos(cores);
   const pedido = usePedido();
-  const [telefone, setTelefone] = useState('');
+  const sessao = useSessao();
+  // Começa com o número da conta (os 9 dígitos sem o indicativo); pode mudar-se para pagar com outro.
+  const [telefone, setTelefone] = useState(() => (sessao.perfil?.telefone ?? '').replace(/\D/g, '').slice(-9));
   const agenda = useAgenda();
   const [estado, setEstado] = useState<Estado>('preencher');
   // Angola: a referência Multicaixa que o cliente está a pagar.
   const [referencia, setReferencia] = useState<ReferenciaMulticaixa | null>(null);
   const conta = useConta();
-  const sessao = useSessao();
   const [codigoAberto, setCodigoAberto] = useState(false);
   const [codigoTexto, setCodigoTexto] = useState('');
   const [erroCodigo, setErroCodigo] = useState('');

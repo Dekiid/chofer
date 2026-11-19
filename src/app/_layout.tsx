@@ -21,7 +21,7 @@ import { InscricoesProvider } from '@/state/inscricoes';
 import { ModoMotoristaProvider } from '@/state/modo-motorista';
 import { PedidoProvider } from '@/state/pedido';
 import { useMotoristaAprovado } from '@/state/permissoes';
-import { SessaoProvider, useSessao } from '@/state/sessao';
+import { eEquipa, SessaoProvider, useSessao } from '@/state/sessao';
 import { SuporteProvider } from '@/state/suporte';
 import { VigiaAgenda } from '@/state/vigia-agenda';
 
@@ -107,8 +107,11 @@ function Navegacao() {
         <Stack.Screen name="viagens" />
         <Stack.Screen name="conta" />
         <Stack.Screen name="inscricao" options={{ animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="aprovacoes" />
-        <Stack.Screen name="gestao" />
+        {/* Área da equipa: os clientes não a veem. */}
+        <Stack.Protected guard={eEquipa(sessao.perfil)} redirectTo="/">
+          <Stack.Screen name="aprovacoes" />
+          <Stack.Screen name="gestao" />
+        </Stack.Protected>
         <Stack.Screen name="agenda" />
         <Stack.Screen name="ajuda" />
         <Stack.Screen name="suporte" />
